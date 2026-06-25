@@ -1,8 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
 import { Public } from './modules/auth/decorators/public.decorator';
+import { PrismaService } from './prisma/prisma.service';
+import { main as runSeed } from '../prisma/seed';
 
 @Controller('health')
 export class HealthController {
+  constructor(private prisma: PrismaService) {}
+
   @Get()
   @Public()
   check() {
@@ -12,17 +16,24 @@ export class HealthController {
   @Get('seed')
   @Public()
   async seedAdmin() {
-    const { execSync } = require('child_process');
     try {
-      // Run migrations at runtime and completely reset the database to avoid foreign key conflicts
-      execSync('npx prisma db push --force-reset --accept-data-loss --schema=apps/api/prisma/schema.prisma');
-      
-      // Run the FULL seed script using the pre-compiled JS to completely avoid OOM crashes on Render
-      const output = execSync('node apps/api/dist/prisma/seed.js', { encoding: 'utf-8' });
+      // 1. Wipe the database programmatically with high efficiency and CASCADE
+      // This is extremely fast and uses zero extra memory, preventing OOM on Render
+      await this.prisma.$executeRawUnsafe(`
+        TRUNCATE TABLE 
+          "Tenant", "User", "Product", "ProductCategory", "Warehouse", 
+          "Contact", "Vehicle", "PlanTemplate", "CashAccount", "BankAccount", 
+          "LedgerAccount", "PlanModuleItem", "AddonModule", "KontorPackage", 
+          "PlatformSetting", "HrDepartment", "HrPosition"
+        CASCADE;
+      `);
 
-      return { success: true, message: 'Migrations applied and FULL database seeded successfully', output };
+      // 2. Run the seed function directly in-process
+      await runSeed();
+
+      return { success: true, message: 'Database wiped and FULL database seeded successfully inside NestJS process' };
     } catch (e: any) {
-      return { success: false, error: e.message, stack: e.stack, stdout: e.stdout ? e.stdout.toString() : '' };
+      return { success: false, error: e.message, stack: e.stack };
     }
   }
 }

@@ -2748,9 +2748,13 @@ async function main() {
   cliLog('  3 fiyat listesi | 12 stok hareketi | 3 paket şablonu');
 }
 
-main()
-  .catch((e) => {
-    cliError(`SEED HATA: ${e}`);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+export { main };
+
+if (typeof require !== 'undefined' && require.main === module) {
+  main()
+    .catch((e) => {
+      cliError(`SEED HATA: ${e}`);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}
