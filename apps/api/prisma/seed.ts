@@ -33,10 +33,10 @@ async function main() {
 
   // ─── PASSWORDS ───────────────────────────────────────────────────────
   const [hAdmin, hBayi, hIsletme, hSube] = await Promise.all([
-    argon2.hash('SmartNexus2026!'),
-    argon2.hash('Bayi2026!'),
-    argon2.hash('Isletme2026!'),
-    argon2.hash('Sube2026!'),
+    argon2.hash('123456'),
+    argon2.hash('123456'),
+    argon2.hash('123456'),
+    argon2.hash('123456'),
   ]);
 
   // ─── TENANTS ─────────────────────────────────────────────────────────
