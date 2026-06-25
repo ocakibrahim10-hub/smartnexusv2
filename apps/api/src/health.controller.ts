@@ -17,8 +17,8 @@ export class HealthController {
       // Run migrations at runtime
       execSync('npx prisma db push --accept-data-loss --schema=apps/api/prisma/schema.prisma');
       
-      // Run the FULL seed script to populate all demo accounts, businesses, and products
-      const output = execSync('npm run db:seed', { encoding: 'utf-8' });
+      // Run the FULL seed script using compiled JS to avoid OOM from ts-node
+      const output = execSync('node apps/api/dist/prisma/seed.js', { encoding: 'utf-8' });
 
       return { success: true, message: 'Migrations applied and FULL database seeded successfully', output };
     } catch (e: any) {
