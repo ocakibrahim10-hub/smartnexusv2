@@ -2,8 +2,10 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-// For Android emulator, localhost is 10.0.2.2. For iOS it's localhost.
-const BASE_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3001' : 'http://localhost:3001';
+// For local development on emulator, localhost is 10.0.2.2 for Android or localhost for iOS.
+// In release build (production), it points to the deployed Render API.
+const devUrl = Platform.OS === 'android' ? 'http://10.0.2.2:3001/api' : 'http://localhost:3001/api';
+const BASE_URL = __DEV__ ? devUrl : 'https://smartnexus-api.onrender.com/api';
 
 export const api = axios.create({
   baseURL: BASE_URL,
