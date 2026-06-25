@@ -12,13 +12,32 @@ import {
 type Context = 'dealer_business' | 'subscription_checkout';
 
 type Props = {
-  context: Context;
+  context?: Context;
+  contexts?: Context[];
   onChange: (accepted: boolean, documentIds: LegalDocumentId[]) => void;
   className?: string;
 };
 
-export default function LegalAgreementPanel({ context, onChange, className = '' }: Props) {
-  const docs = useMemo(() => documentsForContext(context), [context]);
+export default function LegalAgreementPanel({
+  context,
+  contexts,
+  onChange,
+  className = '',
+}: Props) {
+  const docs = useMemo(() => {
+    const ctxList = contexts ?? (context ? [context] : []);
+    const seen = new Set<string>();
+    const merged: LegalDocumentDef[] = [];
+    for (const ctx of ctxList) {
+      for (const d of documentsForContext(ctx)) {
+        if (!seen.has(d.id)) {
+          seen.add(d.id);
+          merged.push(d);
+        }
+      }
+    }
+    return merged;
+  }, [context, contexts]);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [viewDoc, setViewDoc] = useState<LegalDocumentDef | null>(null);
 

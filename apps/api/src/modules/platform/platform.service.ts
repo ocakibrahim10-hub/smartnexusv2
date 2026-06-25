@@ -42,8 +42,13 @@ import {
   type LegalDocumentId,
 } from '../../common/legal-documents';
 
+import {
+  SUBSCRIPTION_SELLABLE_CODES,
+  filterAddonsForPlan,
+  isAddonPurchasableForPlan,
+} from '../../common/subscription-addons.util';
+
 const KONTOR_LOW_THRESHOLD = 50;
-const SUBSCRIPTION_ADDON_CODES: AddonModuleCode[] = ['POS_YAZARKASA', 'API_ACCESS', 'MARKETPLACE', 'EXTRA_BRANCH'];
 const KONTOR_MODULE_CODES: AddonModuleCode[] = ['EINVOICE', 'EARCHIVE', 'SMS'];
 
 function isKontorModule(code: AddonModuleCode, flag?: boolean) {
@@ -137,7 +142,11 @@ export class PlatformService {
 
   async listSubscriptionAddons() {
     return this.prisma.addonModule.findMany({
-      where: { code: { in: SUBSCRIPTION_ADDON_CODES }, isActive: true },
+      where: {
+        code: { in: SUBSCRIPTION_SELLABLE_CODES },
+        isActive: true,
+        isKontorBased: false,
+      },
       orderBy: { sortOrder: 'asc' },
     });
   }
@@ -173,22 +182,25 @@ export class PlatformService {
 
     const addons = await this.listSubscriptionAddons();
     const kontorModules = await this.listKontorModules();
+    const addonRows = addons.map((a) => {
+      const pricing = applyDiscount(a.basePrice ?? 0, a.discountPercent ?? 0);
+      return { ...a, ...pricing, billingPeriod: 'yearly' };
+    });
 
     return {
       billingPeriod: 'yearly',
       plans: plans.map((p) => {
         const pricing = applyDiscount(p.price, p.discountPercent);
+        const purchasableAddons = filterAddonsForPlan(p.modules, addonRows);
         return {
           ...p,
           ...pricing,
           moduleLabels: p.modules.map((id: string) => getModuleLabel(id)),
           displayMode: p.plan === 'BASIC' ? 'grouped' : 'listed',
+          purchasableAddons,
         };
       }),
-      addons: addons.map((a) => {
-        const pricing = applyDiscount(a.basePrice ?? 0, a.discountPercent ?? 0);
-        return { ...a, ...pricing, billingPeriod: 'yearly' };
-      }),
+      addons: addonRows,
       kontorModules,
     };
   }
@@ -213,7 +225,7 @@ export class PlatformService {
         discountPercent: dto.discountPercent ?? 0,
         isKontorBased:
           dto.isKontorBased ??
-          !SUBSCRIPTION_ADDON_CODES.includes(dto.code as AddonModuleCode),
+          !SUBSCRIPTION_SELLABLE_CODES.includes(dto.code as AddonModuleCode),
         isActive: dto.isActive ?? true,
         sortOrder: dto.sortOrder ?? 0,
       },
@@ -450,7 +462,7 @@ export class PlatformService {
     if (extraBranchCount > 0) codesToFetch.push('EXTRA_BRANCH');
 
     const addons = await this.prisma.addonModule.findMany({
-      where: { code: { in: codesToFetch.filter((c) => SUBSCRIPTION_ADDON_CODES.includes(c)) } },
+      where: { code: { in: codesToFetch.filter((c) => SUBSCRIPTION_SELLABLE_CODES.includes(c)) } },
     });
     let addonsListPrice = 0;
     let addonsFinal = 0;
@@ -568,7 +580,13 @@ export class PlatformService {
       throw new ForbiddenException('Bu işletme için ödeme yetkiniz yok');
     }
 
-    const addonCodes = (dto.addonCodes || []).filter((c) => SUBSCRIPTION_ADDON_CODES.includes(c));
+    const addonCodes = (dto.addonCodes || []).filter((c) => SUBSCRIPTION_SELLABLE_CODES.includes(c));
+    const planPricing = await this.resolvePlanPricing(dto.plan);
+    for (const code of addonCodes) {
+      if (!isAddonPurchasableForPlan(planPricing.modules, code)) {
+        throw new BadRequestException(`Ek paket bu plan için uygun değil: ${code}`);
+      }
+    }
     const extraBranchCount = dto.extraBranchCount || 0;
     const extensionMonths = dto.extensionMonths ?? 0;
     const billingMode = dto.billingMode ?? 'new';

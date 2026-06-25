@@ -32,7 +32,10 @@ export default function PackagesPage() {
 
   const load = () => {
     platformApi.getModules().then((all) => {
-      setAddons(all.filter((m: any) => ['POS_YAZARKASA', 'API_ACCESS', 'MARKETPLACE'].includes(m.code)));
+      const yearly = all.filter(
+        (m: any) => !m.isKontorBased && m.code !== 'EINVOICE' && m.code !== 'EARCHIVE' && m.code !== 'SMS',
+      );
+      setAddons(yearly.filter((m: any) => m.code !== 'EXTRA_BRANCH'));
       setKontorModules(all.filter((m: any) => ['EINVOICE', 'EARCHIVE', 'SMS'].includes(m.code)));
     }).catch(() => {});
     fetch(`${API}/tenants/plan-templates`, { headers })
@@ -88,14 +91,15 @@ export default function PackagesPage() {
     load();
   };
 
-  const updateAddonPrice = async (code: string, basePrice: number, discountPercent: number) => {
-    const mod = addons.find((a) => a.code === code);
+  const updateAddonPrice = async (code: string, basePrice: number, discountPercent: number, isActive?: boolean) => {
+    const mod = addons.find((a) => a.code === code) || kontorModules.find((a) => a.code === code);
     if (!mod) return;
     await platformApi.upsertModule({
       ...mod,
       basePrice,
       discountPercent,
-      isKontorBased: false,
+      isKontorBased: mod.isKontorBased ?? false,
+      isActive: isActive ?? mod.isActive,
     });
     load();
   };
@@ -200,15 +204,30 @@ export default function PackagesPage() {
           <h2 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
             <Package className="w-5 h-5 text-[#606BDF]" /> Ek Paket Fiyatları
           </h2>
-          <p className="text-sm text-gray-500 mb-4">Yıllık abonelik — bayi, işletme ve web sitesinden satın alınır</p>
-          <div className="grid md:grid-cols-3 gap-4">
+          <p className="text-sm text-gray-500 mb-4">
+            Yıllık abonelik — admin panelden aktif edilen modüller satışa sunulur. İşletme seçtiği ana
+            pakette olmayan modülleri ek paket olarak görür.
+          </p>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {addons.map((m) => {
               const pricing = applyDiscount(m.basePrice ?? 0, m.discountPercent ?? 0);
               const name = addonLabel(m.code, m.name);
               const desc = addonDescription(m.code, m.description);
               return (
-                <div key={m.id} className="card p-5">
-                  <div className="font-bold text-gray-900">{name}</div>
+                <div key={m.id} className={`card p-5 ${!m.isActive ? 'opacity-60' : ''}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="font-bold text-gray-900">{name}</div>
+                    <label className="flex items-center gap-1.5 text-xs text-gray-600 shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={m.isActive !== false}
+                        onChange={(e) =>
+                          updateAddonPrice(m.code, m.basePrice ?? 0, m.discountPercent ?? 0, e.target.checked)
+                        }
+                      />
+                      Satışta
+                    </label>
+                  </div>
                   {desc && <p className="text-sm text-gray-600 mt-1 mb-4">{desc}</p>}
                   <FormField
                     label={`${name} yıllık fiyat (₺)`}

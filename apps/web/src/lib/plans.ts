@@ -47,6 +47,34 @@ export const ADDON_META: Record<string, { name: string; description: string }> =
     name: 'E-Pazaryeri',
     description: 'Trendyol, Hepsiburada ve diğer pazaryerleri',
   },
+  HR_PAYROLL: {
+    name: 'İK & Bordro',
+    description: 'Personel izinleri ve bordro yönetimi',
+  },
+  ADVANCED_CRM: {
+    name: 'Gelişmiş CRM',
+    description: 'Lead takibi ve satış pipeline',
+  },
+  MOBILE_ACCESS: {
+    name: 'Mobil Erişim',
+    description: 'Saha ve mobil uygulama erişimi',
+  },
+  AI_FEATURES: {
+    name: 'Yapay Zeka Asistan',
+    description: 'AI destekli rapor ve öneri modülü',
+  },
+  B2C_ECOMMERCE: {
+    name: 'B2C E-Ticaret',
+    description: 'Online mağaza ve sipariş entegrasyonu',
+  },
+  MANUFACTURING: {
+    name: 'Üretim / MRP',
+    description: 'Üretim planlama ve iş emirleri',
+  },
+  EXTRA_BRANCH: {
+    name: 'Ekstra Şube',
+    description: 'Paket limiti üzerinde ek şube veya alt bayi',
+  },
 };
 
 export function addonLabel(code: string, fallbackName?: string): string {

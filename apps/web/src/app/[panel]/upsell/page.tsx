@@ -1,12 +1,14 @@
 'use client';
 
 import React from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import { Lock, Sparkles, Rocket, ArrowRight } from 'lucide-react';
 
 export default function UpsellPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const params = useParams();
+  const panel = (params?.panel as string) || 'isletme';
   const path = searchParams.get('path') || 'Bu modül';
 
   return (
@@ -45,8 +47,12 @@ export default function UpsellPage() {
           </div>
         </div>
         <div className="flex flex-col gap-3">
-          <button className="w-full font-semibold py-3 px-4 bg-[#606BDF] hover:bg-indigo-700 text-white rounded-lg flex items-center justify-center transition-colors">
-            Aboneliği Yükselt <ArrowRight className="w-4 h-4 ml-2" />
+          <button
+            type="button"
+            className="w-full font-semibold py-3 px-4 bg-[#606BDF] hover:bg-indigo-700 text-white rounded-lg flex items-center justify-center transition-colors"
+            onClick={() => router.push(`/${panel}/subscribe`)}
+          >
+            Paket ve ek modül satın al <ArrowRight className="w-4 h-4 ml-2" />
           </button>
           <button 
             className="w-full py-3 px-4 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors font-medium" 

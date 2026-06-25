@@ -3,42 +3,33 @@ import * as argon2 from 'argon2';
 import { cliLog, cliError } from './cli-log';
 
 const prisma = new PrismaClient();
+const DEMO_PASSWORD = '123456';
 
 async function main() {
-  cliLog('🔑 Demo kullanıcı şifreleri düzeltiliyor...\n');
+  cliLog(`🔑 Tüm demo şifreleri "${DEMO_PASSWORD}" olarak güncelleniyor...\n`);
 
-  const entries: Array<{ email: string; password: string }> = [
-    { email: 'admin@smartnexus.com', password: 'SmartNexus2026!' },
-    { email: 'bayi@demo.com', password: 'Bayi2026!' },
-    { email: 'ankara.bayi@demo.com', password: 'Bayi2026!' },
-    { email: 'isletme@demo.com', password: 'Isletme2026!' },
-    { email: 'muhasebe@demo.com', password: 'Isletme2026!' },
-    { email: 'kasiyer@demo.com', password: 'Isletme2026!' },
-    { email: 'depo@demo.com', password: 'Isletme2026!' },
-    { email: 'sofor@demo.com', password: 'Isletme2026!' },
-    { email: 'ofis@demo.com', password: 'Isletme2026!' },
-    { email: 'sube@demo.com', password: 'Sube2026!' },
-    { email: 'besiktas@demo.com', password: 'Sube2026!' },
-  ];
+  const hash = await argon2.hash(DEMO_PASSWORD);
+  const result = await prisma.user.updateMany({
+    data: { password: hash },
+  });
 
-  for (const entry of entries) {
-    const hash = await argon2.hash(entry.password);
-    const result = await prisma.user.updateMany({
-      where: { email: entry.email },
-      data: { password: hash },
-    });
-    if (result.count > 0) {
-      cliLog(`✓ ${entry.email}`);
-    } else {
-      cliLog(`⚠ ${entry.email} bulunamadi - once seed calistirin`);
-    }
+  cliLog(`✓ ${result.count} kullanıcı güncellendi`);
+  cliLog(`\nŞifre (hepsi): ${DEMO_PASSWORD}\n`);
+
+  const users = await prisma.user.findMany({
+    select: { email: true, phone: true, name: true, role: true },
+    orderBy: [{ role: 'asc' }, { email: 'asc' }],
+  });
+
+  cliLog('── Yönetici / Bayi / İşletme ──');
+  for (const u of users.filter((x) => !x.phone)) {
+    cliLog(`  ${u.email.padEnd(28)} ${u.name} (${u.role})`);
   }
 
-  cliLog('\n✅ Tum sifreler guncellendi!');
-  cliLog('\nGiris bilgileri:');
-  cliLog('  admin@smartnexus.com  /  SmartNexus2026!');
-  cliLog('  bayi@demo.com         /  Bayi2026!');
-  cliLog('  isletme@demo.com      /  Isletme2026!');
+  cliLog('\n── Personel (telefon ile giriş) ──');
+  for (const u of users.filter((x) => x.phone)) {
+    cliLog(`  ${u.phone?.padEnd(14)} ${u.email.padEnd(24)} ${u.name} (${u.role})`);
+  }
 }
 
 main()

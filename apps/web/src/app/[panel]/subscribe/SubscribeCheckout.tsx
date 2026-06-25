@@ -61,6 +61,16 @@ export default function SubscribeCheckout() {
   }, [targetTenantId]);
 
   useEffect(() => {
+    const planRow = pricing?.plans?.find((p: any) => p.plan === selectedPlan);
+    const allowed = (planRow?.purchasableAddons ?? [])
+      .filter((a: any) => a?.code !== 'EXTRA_BRANCH')
+      .map((a: any) => a.code);
+    if (allowed.length) {
+      setSelectedAddons((prev) => prev.filter((c) => allowed.includes(c)));
+    }
+  }, [selectedPlan, pricing]);
+
+  useEffect(() => {
     setExtensionIndex(0);
   }, [billingMode, selectedPlan]);
 

@@ -1,19 +1,19 @@
 'use client';
 
 import { useMemo } from 'react';
-import { CreditCard, Loader2, Shield } from 'lucide-react';
+import { CreditCard, Loader2, Shield, Sparkles } from 'lucide-react';
 import LegalAgreementPanel from '@/components/LegalAgreementPanel';
-import PricingPlanCards from '@/components/PricingPlanCards';
+import AddonModulePicker from '@/components/AddonModulePicker';
+import LicenseDurationPicker from '@/components/LicenseDurationPicker';
 import type { LegalDocumentId } from '@/lib/legal-documents';
 import { LEGAL_PROVIDER } from '@/lib/legal-provider';
 import { fmtMoney } from '@/lib/format';
-import { PLAN_ORDER, planLabel } from '@/lib/plans';
+import { PLAN_META, PLAN_ORDER, planLabel } from '@/lib/plans';
+import { filterAddonsForPlan, planModulesFromPricing } from '@/lib/plan-addons';
 import { vatBreakdown, VAT_RATE } from '@/lib/vat';
-import {
-  extensionOptionsForMode,
-  formatShortDate,
-  type BillingMode,
-} from '@/lib/subscription-billing';
+import { extensionOptionsForMode, formatShortDate, type BillingMode } from '@/lib/subscription-billing';
+
+type LegalContext = 'dealer_business' | 'subscription_checkout';
 
 type Props = {
   title?: string;
@@ -45,10 +45,11 @@ type Props = {
   payLabel?: string;
   showLegal?: boolean;
   showAddons?: boolean;
+  legalContexts?: LegalContext[];
 };
 
 export default function SubscriptionCheckoutPanel({
-  title = 'Paket ve Ödeme',
+  title,
   subtitle,
   selectedPlan,
   onPlanChange,
@@ -71,124 +72,133 @@ export default function SubscriptionCheckoutPanel({
   payLabel = 'Ödeme Yap',
   showLegal = true,
   showAddons = true,
+  legalContexts,
 }: Props) {
-  const plans = useMemo(() => pricing?.plans ?? [], [pricing]);
-  const addons = useMemo(
-    () => (pricing?.addons ?? []).filter((a: any) => a && a.code !== 'EXTRA_BRANCH'),
-    [pricing],
+  const planModules = useMemo(
+    () => planModulesFromPricing(pricing, selectedPlan),
+    [pricing, selectedPlan],
   );
+
+  const purchasableAddons = useMemo(() => {
+    const all = (pricing?.addons ?? []).filter((a: any) => a?.code !== 'EXTRA_BRANCH');
+    const planRow = pricing?.plans?.find((p: any) => p.plan === selectedPlan);
+    if (planRow?.purchasableAddons?.length) return planRow.purchasableAddons;
+    return filterAddonsForPlan(planModules, all);
+  }, [pricing, selectedPlan, planModules]);
+
   const extraBranchAddon = useMemo(
     () => (pricing?.addons ?? []).find((a: any) => a?.code === 'EXTRA_BRANCH'),
     [pricing],
   );
 
   const extensionOptions = useMemo(() => extensionOptionsForMode(billingMode), [billingMode]);
-
-  const vat = useMemo(
-    () => vatBreakdown(quote?.totalAmount ?? 0),
-    [quote?.totalAmount],
-  );
-
+  const vat = useMemo(() => vatBreakdown(quote?.totalAmount ?? 0), [quote?.totalAmount]);
   const isUpgrade = billingMode === 'upgrade' && (status?.remainingDays ?? 0) > 0;
+  const planMeta = PLAN_META[selectedPlan];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {(title || subtitle) && (
-        <div>
-          {title && <h2 className="text-lg font-bold text-gray-900">{title}</h2>}
-          {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+        <div className="rounded-2xl border border-[#EFEDF4] bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              {title && <h2 className="text-xl font-bold text-[#1B1B1F]">{title}</h2>}
+              {subtitle && <p className="text-sm text-[#777680] mt-1 max-w-xl">{subtitle}</p>}
+            </div>
+            {planMeta?.badge && (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full bg-[#606BDF] text-white">
+                <Sparkles className="w-3.5 h-3.5" /> {planMeta.badge}
+              </span>
+            )}
+          </div>
         </div>
       )}
 
       {isUpgrade && quote && (
-        <div className="rounded-xl border border-[#EFEDF4] bg-[#F5F3FA] p-4 text-sm text-gray-700">
+        <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white p-5 text-sm text-amber-900">
           <p>
             Mevcut lisans bitişinize kalan{' '}
             <strong>{status?.remainingDays ?? quote.remainingDays} gün</strong> için yalnızca paket
             farkı tahsil edilir (prorata).
           </p>
           {quote.proratedAmount > 0 && (
-            <p className="mt-2 font-semibold text-gray-900">
-              Kalan süre prorata tutarı: {fmtMoney(quote.proratedAmount)} + KDV
+            <p className="mt-2 font-semibold">
+              Kalan süre prorata: {fmtMoney(quote.proratedAmount)} + KDV
             </p>
           )}
         </div>
       )}
 
       {showPlanPicker && onPlanChange && (
-        <section>
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Abonelik paketi</h3>
-          <div className="grid sm:grid-cols-3 gap-3 mb-4">
-            {PLAN_ORDER.map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => onPlanChange(key)}
-                className={`card p-4 text-left border-2 transition-colors ${
-                  selectedPlan === key ? 'border-[#606BDF] bg-indigo-50/40' : 'border-transparent'
-                }`}
-              >
-                <div className="font-bold text-gray-900">{planLabel(key)}</div>
-                <div className="text-xs text-gray-500 mt-1">Yıllık abonelik</div>
-              </button>
-            ))}
+        <section className="space-y-4">
+          <h3 className="text-sm font-semibold text-[#1B1B1F]">Abonelik paketi</h3>
+          <div className="grid sm:grid-cols-3 gap-4">
+            {PLAN_ORDER.map((key) => {
+              const meta = PLAN_META[key];
+              const planRow = pricing?.plans?.find((p: any) => p.plan === key);
+              const price = planRow?.finalPrice ?? planRow?.price ?? 0;
+              const selected = selectedPlan === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => onPlanChange(key)}
+                  className={`rounded-2xl border-2 p-5 text-left transition-all ${
+                    selected
+                      ? 'border-[#606BDF] bg-gradient-to-br from-[#F0EFFF] to-white shadow-md'
+                      : 'border-[#EFEDF4] bg-white hover:border-[#C8C4F0]'
+                  }`}
+                >
+                  <div className="font-bold text-[#1B1B1F]">{meta?.label ?? planLabel(key)}</div>
+                  <p className="text-xs text-[#777680] mt-1 line-clamp-2">{meta?.tagline}</p>
+                  <div className="mt-3 text-lg font-bold text-[#606BDF]">
+                    {fmtMoney(price)}
+                    <span className="text-xs font-normal text-gray-500"> / yıl</span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
-          {plans.length > 0 && (
-            <PricingPlanCards
-              plans={plans.filter((p: any) => p.plan === selectedPlan)}
-              addons={[]}
-              compact
-            />
-          )}
         </section>
       )}
 
       {showAddons && (
-        <section>
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Ek modüller (opsiyonel)</h3>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {addons.map((a: any) => (
-              <button
-                key={a.code}
-                type="button"
-                onClick={() => onToggleAddon(a.code)}
-                className={`card p-4 text-left border-2 transition-colors ${
-                  selectedAddons.includes(a.code)
-                    ? 'border-[#606BDF] bg-indigo-50/30'
-                    : 'border-transparent'
-                }`}
-              >
-                <div className="font-bold text-gray-900 text-sm">{a.name}</div>
-                <p className="text-xs text-gray-500 mt-1 line-clamp-2">{a.description}</p>
-                <div className="mt-2 text-base font-bold text-[#606BDF]">
-                  {fmtMoney(a.finalPrice ?? a.basePrice ?? 0)}
-                  <span className="text-xs font-normal text-gray-500"> / yıl + KDV</span>
-                </div>
-              </button>
-            ))}
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-[#1B1B1F]">Ek modüller</h3>
+            <p className="text-xs text-[#777680] mt-1">
+              Seçtiğiniz <strong>{planLabel(selectedPlan)}</strong> paketine dahil olmayan modüller
+              aşağıda listelenir.
+            </p>
           </div>
+          <AddonModulePicker
+            addons={purchasableAddons}
+            selected={selectedAddons}
+            onToggle={onToggleAddon}
+          />
 
           {selectedPlan !== 'BASIC' && extraBranchAddon && (
-            <div className="mt-3 card p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="rounded-2xl border-2 border-[#EFEDF4] bg-white p-5 flex flex-wrap items-center justify-between gap-4">
               <div>
-                <div className="font-semibold text-gray-900 text-sm">Ekstra şube / alt bayi</div>
-                <div className="text-xs text-[#606BDF] font-medium mt-1">
+                <div className="font-semibold text-[#1B1B1F]">Ekstra şube / alt bayi</div>
+                <p className="text-xs text-[#777680] mt-1">Paket şube limitini aşmak için</p>
+                <div className="text-sm font-bold text-[#606BDF] mt-2">
                   {fmtMoney(extraBranchAddon.finalPrice ?? extraBranchAddon.basePrice ?? 0)} / yıl + KDV
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3 bg-[#F5F3FA] rounded-xl px-3 py-2">
                 <button
                   type="button"
                   onClick={() => onExtraBranchChange(Math.max(0, extraBranchCount - 1))}
-                  className="w-9 h-9 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  className="w-9 h-9 rounded-lg bg-white border border-[#EFEDF4] text-gray-600 hover:bg-gray-50"
                 >
                   −
                 </button>
-                <span className="w-8 text-center font-bold">{extraBranchCount}</span>
+                <span className="text-xl font-bold w-8 text-center">{extraBranchCount}</span>
                 <button
                   type="button"
                   onClick={() => onExtraBranchChange(extraBranchCount + 1)}
-                  className="w-9 h-9 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  className="w-9 h-9 rounded-lg bg-[#606BDF] text-white hover:opacity-90"
                 >
                   +
                 </button>
@@ -198,45 +208,17 @@ export default function SubscriptionCheckoutPanel({
         </section>
       )}
 
-      <section>
-        <h3 className="text-sm font-semibold text-gray-900 mb-3">
-          {isUpgrade ? 'Bitiş tarihinizden sonra ek süre (isteğe bağlı)' : 'Lisans süresi'}
-        </h3>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {extensionOptions.map((opt, idx) => {
-            const active = extensionIndex === idx;
-            const cardQuote = active ? quote : null;
-            const displayTotal = cardQuote?.totalAmount ?? 0;
-            return (
-              <button
-                key={`${opt.months}-${opt.label}`}
-                type="button"
-                onClick={() => onExtensionIndexChange(idx)}
-                className={`card p-4 text-left border-2 transition-colors ${
-                  active ? 'border-[#606BDF] bg-indigo-50/30' : 'border-transparent'
-                }`}
-              >
-                <div className="font-semibold text-gray-900 text-sm">{opt.label}</div>
-                {active && !quoteLoading && quote ? (
-                  <>
-                    <div className="mt-2 text-lg font-bold text-[#606BDF]">
-                      {fmtMoney(displayTotal)} + KDV
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      Bitiş: {formatShortDate(quote.projectedEndDate)}
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-xs text-gray-400 mt-2">Seçmek için tıklayın</div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      <LicenseDurationPicker
+        options={extensionOptions}
+        activeIndex={extensionIndex}
+        onSelect={onExtensionIndexChange}
+        quote={quote}
+        quoteLoading={quoteLoading}
+        isUpgrade={isUpgrade}
+      />
 
-      <section className="card p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-gray-900">Ödeme özeti</h3>
+      <section className="card p-6 space-y-5 shadow-sm">
+        <h3 className="text-base font-bold text-[#1B1B1F]">Ödeme özeti</h3>
 
         {quoteLoading || !quote ? (
           <p className="text-sm text-gray-500">Fiyat hesaplanıyor…</p>
@@ -249,11 +231,6 @@ export default function SubscriptionCheckoutPanel({
               {billingMode === 'new' && (
                 <p className="text-xs text-gray-500 mt-1">
                   Ödeme sonrası lisansınız 1 yıl süreyle aktif edilir.
-                </p>
-              )}
-              {billingMode === 'renewal' && status?.endDate && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Mevcut bitiş tarihinizden ({formatShortDate(status.endDate)}) itibaren uzatılır.
                 </p>
               )}
               <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
@@ -303,34 +280,32 @@ export default function SubscriptionCheckoutPanel({
           </>
         )}
 
-        <div className="rounded-xl border border-[#EFEDF4] bg-[#FBF8FF] p-4 text-xs text-gray-600 leading-relaxed">
+        <div className="rounded-xl border border-[#EFEDF4] bg-[#FBF8FF] p-4 text-xs text-gray-600">
           <div className="font-semibold text-gray-900">{LEGAL_PROVIDER.legalName}</div>
           <div className="mt-1">{LEGAL_PROVIDER.address}</div>
-          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[#606BDF]">
-            <span>Mesafeli satış sözleşmesi</span>
-            <span>İptal ve iade</span>
-            <span>Teslimat</span>
-          </div>
         </div>
 
         {showLegal && (
-          <LegalAgreementPanel context="subscription_checkout" onChange={onLegalChange} />
+          <LegalAgreementPanel
+            contexts={legalContexts ?? ['subscription_checkout']}
+            onChange={onLegalChange}
+          />
         )}
 
         <div className="flex items-start gap-2 rounded-xl border border-[#EFEDF4] bg-[#FBF8FF] p-3 text-xs text-gray-600">
           <Shield className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
           <p>
-            Ödeme PayTR güvenli ödeme sayfasında tamamlanır. Onay sonrası paketiniz otomatik
-            aktif edilir.
+            Ödeme PayTR güvenli ödeme sayfasında tamamlanır. Onay sonrası paketiniz otomatik aktif
+            edilir.
           </p>
         </div>
 
-        <div className="flex justify-end gap-3 pt-2">
+        <div className="flex flex-wrap justify-end gap-3 pt-2">
           <button
             type="button"
             disabled={payLoading || payDisabled || !quote}
             onClick={onPay}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-semibold bg-[#606BDF] hover:opacity-95 disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-white font-semibold bg-[#606BDF] hover:opacity-95 disabled:opacity-50 shadow-lg shadow-[#606BDF]/25"
           >
             {payLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />

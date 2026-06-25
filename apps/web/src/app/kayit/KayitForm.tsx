@@ -6,12 +6,13 @@ import Link from 'next/link';
 import axios from 'axios';
 import { Zap, ChevronLeft, ChevronRight, Building2, CreditCard } from 'lucide-react';
 import { FormField, FormSelect } from '@/components/FormField';
-import LegalAgreementPanel from '@/components/LegalAgreementPanel';
 import SubscriptionCheckoutPanel from '@/components/SubscriptionCheckoutPanel';
 import { setSession } from '@/lib/auth';
 import { platformApi } from '@/lib/api';
 import { extensionOptionsForMode } from '@/lib/subscription-billing';
+import { documentsForContext } from '@/lib/legal-documents';
 import type { LegalDocumentId } from '@/lib/legal-documents';
+import { filterAddonsForPlan, planModulesFromPricing } from '@/lib/plan-addons';
 import { PLAN_ORDER, planLabel } from '@/lib/plans';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -20,6 +21,14 @@ const STEPS = [
   { id: 1, label: 'İşletme Bilgileri', icon: Building2 },
   { id: 2, label: 'Paket ve Ödeme', icon: CreditCard },
 ] as const;
+
+function parseApiError(err: unknown): string {
+  const data = (err as any)?.response?.data;
+  if (!data) return 'Kayıt veya ödeme başlatılamadı';
+  if (Array.isArray(data.message)) return data.message.join(' · ');
+  if (typeof data.message === 'string') return data.message;
+  return 'Kayıt veya ödeme başlatılamadı';
+}
 
 export default function KayitForm() {
   const router = useRouter();
@@ -44,9 +53,8 @@ export default function KayitForm() {
   const [extensionIndex, setExtensionIndex] = useState(0);
   const [quote, setQuote] = useState<any>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
-  const [registerLegalOk, setRegisterLegalOk] = useState(false);
+  const [legalOk, setLegalOk] = useState(false);
   const [registerLegalDocs, setRegisterLegalDocs] = useState<LegalDocumentId[]>([]);
-  const [payLegalOk, setPayLegalOk] = useState(false);
   const [payLegalDocs, setPayLegalDocs] = useState<LegalDocumentId[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -54,19 +62,26 @@ export default function KayitForm() {
   const extensionOptions = useMemo(() => extensionOptionsForMode('new'), []);
   const selectedExtension = extensionOptions[extensionIndex] ?? extensionOptions[0];
 
-  const onRegisterLegalChange = useCallback((ok: boolean, ids: LegalDocumentId[]) => {
-    setRegisterLegalOk(ok);
-    setRegisterLegalDocs(ids);
-  }, []);
-
-  const onPayLegalChange = useCallback((ok: boolean, ids: LegalDocumentId[]) => {
-    setPayLegalOk(ok);
-    setPayLegalDocs(ids);
+  const onLegalChange = useCallback((ok: boolean, ids: LegalDocumentId[]) => {
+    const dealerIds = documentsForContext('dealer_business').map((d) => d.id);
+    const payIds = documentsForContext('subscription_checkout').map((d) => d.id);
+    setLegalOk(ok);
+    setRegisterLegalDocs(ids.filter((id) => dealerIds.includes(id)));
+    setPayLegalDocs(ids.filter((id) => payIds.includes(id)));
   }, []);
 
   useEffect(() => {
     platformApi.getPublicPricing().then(setPricing).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const mods = planModulesFromPricing(pricing, form.plan);
+    const allowed = filterAddonsForPlan(
+      mods,
+      (pricing?.addons ?? []).filter((a: any) => a?.code !== 'EXTRA_BRANCH'),
+    ).map((a: any) => a.code);
+    setSelectedAddons((prev) => prev.filter((c) => allowed.includes(c)));
+  }, [form.plan, pricing]);
 
   useEffect(() => {
     setQuoteLoading(true);
@@ -95,7 +110,7 @@ export default function KayitForm() {
   };
 
   const submitPayment = async () => {
-    if (!registerLegalOk || !payLegalOk) {
+    if (!legalOk) {
       setError('Devam etmek için tüm sözleşmeleri okuyup onaylayın');
       return;
     }
@@ -131,8 +146,8 @@ export default function KayitForm() {
         return;
       }
       router.push(`/isletme/subscribe?plan=${form.plan}&payment=ok`);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Kayıt veya ödeme başlatılamadı');
+    } catch (err: unknown) {
+      setError(parseApiError(err));
     } finally {
       setLoading(false);
     }
@@ -140,39 +155,44 @@ export default function KayitForm() {
 
   return (
     <div className="min-h-screen bg-[#FBF8FF]">
-      <header className="border-b border-gray-200 bg-white">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 font-bold text-gray-900">
-            <Zap className="w-5 h-5 text-[#606BDF]" /> SmartNexus
+      <header className="border-b border-[#EFEDF4] bg-white sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 font-bold text-[#1B1B1F]">
+            <span className="w-9 h-9 rounded-xl bg-[#606BDF] text-white flex items-center justify-center">
+              <Zap className="w-5 h-5" />
+            </span>
+            SmartNexus
           </Link>
           <div className="flex gap-4 text-sm">
-            <Link href="/fiyatlandirma" className="text-indigo-600 hover:underline">
+            <Link href="/fiyatlandirma" className="text-[#606BDF] font-medium hover:underline">
               Fiyatlandırma
             </Link>
-            <Link href="/isletme" className="text-gray-600 hover:text-gray-900">
+            <Link href="/isletme" className="text-[#777680] hover:text-[#1B1B1F]">
               Giriş
             </Link>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-10">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">İşletme Kaydı</h1>
-        <p className="text-sm text-gray-500 mb-6">
-          Bilgilerinizi girin, paketinizi seçin ve ödeme sonrası admin olarak sistemi kullanmaya
-          başlayın. Giriş için telefon numaranız kullanıcı adınızdır (başında 0 olmadan).
-        </p>
+      <main className="max-w-5xl mx-auto px-6 py-10">
+        <div className="mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#1B1B1F]">İşletme Kaydı</h1>
+          <p className="text-sm text-[#777680] mt-2 max-w-2xl">
+            Bilgilerinizi girin, paket ve ek modülleri seçin. Ödeme onayından sonra admin olarak
+            sisteme giriş yapabilirsiniz. Telefon numaranız kullanıcı adınızdır (başında 0 olmadan).
+          </p>
+        </div>
 
         <div className="flex items-center gap-2 mb-8">
           {STEPS.map((s, i) => (
             <div key={s.id} className="flex items-center gap-2 flex-1 min-w-0">
               <div
-                className={`flex items-center gap-1.5 text-xs font-medium ${
+                className={`flex items-center gap-2 text-xs font-semibold ${
                   step >= s.id ? 'text-[#606BDF]' : 'text-gray-400'
                 }`}
               >
                 <span
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
                     step > s.id
                       ? 'bg-[#606BDF] text-white'
                       : step === s.id
@@ -185,15 +205,18 @@ export default function KayitForm() {
                 <span className="hidden sm:inline">{s.label}</span>
               </div>
               {i < STEPS.length - 1 && (
-                <div className={`h-px flex-1 ${step > s.id ? 'bg-[#606BDF]' : 'bg-gray-200'}`} />
+                <div className={`h-0.5 flex-1 rounded ${step > s.id ? 'bg-[#606BDF]' : 'bg-gray-200'}`} />
               )}
             </div>
           ))}
         </div>
 
         {step === 1 && (
-          <div className="card p-6">
-            <div className="grid sm:grid-cols-2 gap-3">
+          <div className="card p-6 sm:p-8 shadow-sm">
+            <h2 className="text-lg font-bold text-[#1B1B1F] mb-6 flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-[#606BDF]" /> Firma bilgileri
+            </h2>
+            <div className="grid sm:grid-cols-2 gap-4">
               <FormField
                 label="Ticari Unvan *"
                 className="input w-full sm:col-span-2"
@@ -227,11 +250,11 @@ export default function KayitForm() {
                 type="tel"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="5xx xxx xx xx — başında 0 yok"
+                placeholder="5xx xxx xx xx"
               />
               <FormField
                 label="E-posta *"
-                className="input w-full sm:col-span-2"
+                className="input w-full"
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -246,7 +269,7 @@ export default function KayitForm() {
                 minLength={6}
               />
               <FormSelect
-                label="Abonelik Paketi *"
+                label="Başlangıç paketi *"
                 className="input w-full sm:col-span-2"
                 value={form.plan}
                 onChange={(e) => setForm({ ...form, plan: e.target.value })}
@@ -258,15 +281,14 @@ export default function KayitForm() {
                 ))}
               </FormSelect>
             </div>
-
-            <div className="flex justify-end mt-6">
+            <div className="flex justify-end mt-8">
               <button
                 type="button"
                 disabled={!canStep1}
                 onClick={() => setStep(2)}
-                className="btn-primary inline-flex items-center gap-1"
+                className="btn-primary inline-flex items-center gap-2 px-6 py-3"
               >
-                Devam <ChevronRight size={16} />
+                Paket ve ödemeye geç <ChevronRight size={16} />
               </button>
             </div>
           </div>
@@ -274,11 +296,9 @@ export default function KayitForm() {
 
         {step === 2 && (
           <div className="space-y-6">
-            <LegalAgreementPanel context="dealer_business" onChange={onRegisterLegalChange} />
-
             <SubscriptionCheckoutPanel
-              title={`${planLabel(form.plan)} paketi`}
-              subtitle="Ek modülleri seçin, tutarı görün ve güvenli ödeme ile kaydı tamamlayın."
+              title={`${planLabel(form.plan)} — yıllık abonelik`}
+              subtitle="Paketinize dahil olmayan modülleri ekleyebilir, lisans süresini seçip güvenli ödeme ile kaydı tamamlayabilirsiniz."
               selectedPlan={form.plan}
               onPlanChange={(p) => setForm((f) => ({ ...f, plan: p }))}
               pricing={pricing}
@@ -291,25 +311,26 @@ export default function KayitForm() {
               billingMode="new"
               extensionIndex={extensionIndex}
               onExtensionIndexChange={setExtensionIndex}
-              onLegalChange={onPayLegalChange}
+              onLegalChange={onLegalChange}
               onPay={submitPayment}
               payLoading={loading}
-              payDisabled={!registerLegalOk || !payLegalOk}
+              payDisabled={!legalOk}
               payLabel="Kayıt Ol ve Ödeme Yap"
+              legalContexts={['dealer_business', 'subscription_checkout']}
             />
 
-            <div className="flex gap-3">
-              <button
-                type="button"
-                className="btn-secondary inline-flex items-center gap-1"
-                onClick={() => setStep(1)}
-              >
-                <ChevronLeft size={16} /> Geri
-              </button>
-            </div>
+            <button
+              type="button"
+              className="btn-secondary inline-flex items-center gap-1"
+              onClick={() => setStep(1)}
+            >
+              <ChevronLeft size={16} /> Firma bilgilerine dön
+            </button>
 
             {error && (
-              <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+              <div className="text-sm text-red-700 bg-red-50 border border-red-100 px-4 py-3 rounded-xl">
+                {error}
+              </div>
             )}
           </div>
         )}

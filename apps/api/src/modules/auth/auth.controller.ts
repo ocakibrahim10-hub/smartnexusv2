@@ -11,7 +11,8 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
-import { LoginDto, PhoneLoginDto, RegisterBusinessDto } from './dto/login.dto';
+import { LoginDto, PhoneLoginDto } from './dto/login.dto';
+import { RegisterBusinessDto } from './dto/register-business.dto';
 import { Public } from './decorators/public.decorator';
 
 @ApiTags('auth')

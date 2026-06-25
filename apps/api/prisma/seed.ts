@@ -31,13 +31,12 @@ function daysLater(n: number) {
 async function main() {
   cliLog('🌱 SmartNexus demo veriler yükleniyor...\n');
 
-  // ─── PASSWORDS ───────────────────────────────────────────────────────
-  const [hAdmin, hBayi, hIsletme, hSube] = await Promise.all([
-    argon2.hash('123456'),
-    argon2.hash('123456'),
-    argon2.hash('123456'),
-    argon2.hash('123456'),
-  ]);
+  // ─── PASSWORDS (tüm demo hesaplar) ───────────────────────────────────
+  const hDemo = await argon2.hash('123456');
+  const hAdmin = hDemo;
+  const hBayi = hDemo;
+  const hIsletme = hDemo;
+  const hSube = hDemo;
 
   // ─── TENANTS ─────────────────────────────────────────────────────────
   const tenants = [
@@ -2694,9 +2693,16 @@ async function main() {
     { code: 'POS_YAZARKASA', name: 'Yazarkasa POS Modülü', description: 'Perakende satış ve fiş yazdırma', basePrice: 299, sortOrder: 1, isKontorBased: false },
     { code: 'API_ACCESS', name: 'Sistem API Modülü', description: 'REST API erişimi ve tenant API key', basePrice: 499, sortOrder: 2, isKontorBased: false },
     { code: 'MARKETPLACE', name: 'E-Pazaryeri Entegrasyon', description: 'Trendyol, Hepsiburada, Amazon', basePrice: 399, sortOrder: 3, isKontorBased: false },
-    { code: 'EINVOICE', name: 'E-Fatura Modülü', description: 'GİB uyumlu e-Fatura gönderimi', basePrice: 199, sortOrder: 4, isKontorBased: true },
-    { code: 'EARCHIVE', name: 'E-Arşiv Modülü', description: 'E-Arşiv fatura ve kontör', basePrice: 149, sortOrder: 5, isKontorBased: true },
-    { code: 'SMS', name: 'SMS Bildirim', description: 'Netgsm SMS kontör', basePrice: 99, sortOrder: 6, isKontorBased: true },
+    { code: 'HR_PAYROLL', name: 'İK & Bordro', description: 'Personel izinleri ve bordro yönetimi', basePrice: 349, sortOrder: 4, isKontorBased: false },
+    { code: 'ADVANCED_CRM', name: 'Gelişmiş CRM', description: 'Lead takibi ve satış pipeline', basePrice: 299, sortOrder: 5, isKontorBased: false },
+    { code: 'MOBILE_ACCESS', name: 'Mobil Erişim', description: 'Saha ve mobil uygulama erişimi', basePrice: 199, sortOrder: 6, isKontorBased: false },
+    { code: 'AI_FEATURES', name: 'Yapay Zeka Asistan', description: 'AI destekli rapor ve öneri modülü', basePrice: 449, sortOrder: 7, isKontorBased: false },
+    { code: 'B2C_ECOMMERCE', name: 'B2C E-Ticaret', description: 'Online mağaza ve sipariş entegrasyonu', basePrice: 399, sortOrder: 8, isKontorBased: false },
+    { code: 'MANUFACTURING', name: 'Üretim / MRP', description: 'Üretim planlama ve iş emirleri', basePrice: 549, sortOrder: 9, isKontorBased: false },
+    { code: 'EXTRA_BRANCH', name: 'Ekstra Şube', description: 'Paket limiti üzerinde ek şube', basePrice: 799, sortOrder: 10, isKontorBased: false },
+    { code: 'EINVOICE', name: 'E-Fatura Modülü', description: 'GİB uyumlu e-Fatura gönderimi', basePrice: 199, sortOrder: 11, isKontorBased: true },
+    { code: 'EARCHIVE', name: 'E-Arşiv Modülü', description: 'E-Arşiv fatura ve kontör', basePrice: 149, sortOrder: 12, isKontorBased: true },
+    { code: 'SMS', name: 'SMS Bildirim', description: 'Netgsm SMS kontör', basePrice: 99, sortOrder: 13, isKontorBased: true },
   ] as const;
 
   for (const def of addonDefs) {
