@@ -18,16 +18,46 @@ export class AuthService {
   ) {}
 
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-      include: {
-        tenant: { include: { subscription: true, parent: { include: { subscription: true } } } },
-      },
-    });
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { email: dto.email },
+        include: {
+          tenant: { include: { subscription: true, parent: { include: { subscription: true } } } },
+        },
+      });
 
-    if (!user) throw new UnauthorizedException('Email veya şifre hatalı');
-    if (!user.isActive) throw new ForbiddenException('Hesabınız pasif durumda');
-    if (!user.tenant.isActive) throw new ForbiddenException('Firma hesabı pasif durumda');
+      if (!user) throw new UnauthorizedException('Email veya şifre hatalı');
+      if (!user.isActive) throw new ForbiddenException('Hesabınız pasif durumda');
+      if (!user.tenant.isActive) throw new ForbiddenException('Firma hesabı pasif durumda');
+
+      const passwordValid = await argon2.verify(user.password, dto.password);
+      if (!passwordValid) throw new UnauthorizedException('Email veya şifre hatalı');
+
+      if (dto.panel) {
+        validatePanelAccess(user.tenant.type, user.role, dto.panel);
+      }
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      });
+
+      const tokens = await this.generateTokens(user.id, user.email, user.tenantId, user.role);
+      const profile = buildAuthUserPayload(user);
+      const panel = dto.panel || inferPanel(user.tenant.type);
+
+      return {
+        user: {
+          ...profile,
+          panel,
+          homeRoute: getPanelHomeRoute(user.role, profile.modules, panel),
+        },
+        ...tokens,
+      };
+    } catch (error: any) {
+      throw new BadRequestException('LOGIN_ERROR: ' + error.message + ' | STACK: ' + error.stack);
+    }
+  }
 
     const passwordValid = await argon2.verify(user.password, dto.password);
     if (!passwordValid) throw new UnauthorizedException('Email veya şifre hatalı');
