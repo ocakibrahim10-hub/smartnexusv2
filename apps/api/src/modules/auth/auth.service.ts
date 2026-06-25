@@ -59,31 +59,6 @@ export class AuthService {
     }
   }
 
-    const passwordValid = await argon2.verify(user.password, dto.password);
-    if (!passwordValid) throw new UnauthorizedException('Email veya şifre hatalı');
-
-    if (dto.panel) {
-      validatePanelAccess(user.tenant.type, user.role, dto.panel);
-    }
-
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
-
-    const tokens = await this.generateTokens(user.id, user.email, user.tenantId, user.role);
-    const profile = buildAuthUserPayload(user);
-    const panel = dto.panel || inferPanel(user.tenant.type);
-
-    return {
-      user: {
-        ...profile,
-        panel,
-        homeRoute: getPanelHomeRoute(user.role, profile.modules, panel),
-      },
-      ...tokens,
-    };
-  }
 
   async loginByPhone(dto: PhoneLoginDto) {
     const normalized = normalizePhone(dto.phone);
@@ -187,7 +162,7 @@ export class AuthService {
     });
 
     const template = await this.prisma.planTemplate.findUnique({ where: { plan: 'BASIC' } });
-    const { DEFAULT_PLAN_MODULES } = require('../../common/plan-limits');
+    const { DEFAULT_PLAN_MODULES } = require('../../common/plan-modules');
     const basicModules = template?.modules ?? DEFAULT_PLAN_MODULES?.BASIC?.modules ?? [];
 
     await this.prisma.subscription.create({
