@@ -14,8 +14,12 @@ export class HealthController {
   async seedAdmin() {
     const { PrismaClient } = require('@prisma/client');
     const argon2 = require('argon2');
+    const { execSync } = require('child_process');
     const prisma = new PrismaClient();
     try {
+      // Run migrations at runtime
+      execSync('npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma');
+
       const pw = await argon2.hash('SmartNexus2026!');
       
       const tenant = await prisma.tenant.upsert({
@@ -45,9 +49,9 @@ export class HealthController {
           role: 'OWNER',
         }
       });
-      return { success: true, message: 'Admin seeded successfully' };
+      return { success: true, message: 'Migrations applied and Admin seeded successfully' };
     } catch (e: any) {
-      return { success: false, error: e.message, stack: e.stack };
+      return { success: false, error: e.message, stack: e.stack, stdout: e.stdout ? e.stdout.toString() : '' };
     }
   }
 }
