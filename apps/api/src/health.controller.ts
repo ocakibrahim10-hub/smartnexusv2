@@ -18,7 +18,7 @@ export class HealthController {
     const prisma = new PrismaClient();
     try {
       // Run migrations at runtime
-      execSync('npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma');
+      execSync('npx prisma db push --accept-data-loss --schema=apps/api/prisma/schema.prisma');
 
       const pw = await argon2.hash('SmartNexus2026!');
       
