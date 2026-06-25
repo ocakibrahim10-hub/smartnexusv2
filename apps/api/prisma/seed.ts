@@ -1140,12 +1140,12 @@ async function main() {
   }
   cliLog(`✓ ${contacts.length} cari`);
 
-  const portalPw = await argon2.hash('Portal2026!');
+  const portalPw = await argon2.hash('123456');
   await prisma.contact.update({
     where: { id: 'cnt-01' },
     data: { portalEnabled: true, portalPassword: portalPw },
   });
-  cliLog('✓ B2B portal: abc@abc.com / Portal2026!');
+  cliLog('✓ B2B portal: abc@abc.com / 123456');
 
   // ─── INVOICES ────────────────────────────────────────────────────────
   const invoices = [
