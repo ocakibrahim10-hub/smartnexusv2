@@ -14,7 +14,10 @@
     "format": "prettier --write \"apps/**/*.{ts,tsx,js,json}\" \"scripts/**/*.js\" \"*.md\"",
     "db:migrate": "npm run prisma:migrate --workspace=apps/api",
     "db:seed": "npm run prisma:seed --workspace=apps/api",
-    "db:studio": "npm run prisma:studio --workspace=apps/api"
+    "db:studio": "npm run prisma:studio --workspace=apps/api",
+    "mobile": "npm run start --workspace=apps/mobile",
+    "mobile:apk": "npm run build:apk --workspace=apps/mobile",
+    "mobile:prebuild": "npm run prebuild --workspace=apps/mobile"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

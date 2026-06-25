@@ -108,14 +108,54 @@ export class PlatformController {
   }
 
   @Post('subscription/quote')
-  quoteSubscription(@Body() body: { plan: string; addonCodes?: AddonModuleCode[] }) {
-    return this.platform.quoteSubscription(body.plan, body.addonCodes || []);
+  async quoteSubscription(
+    @Request() req: any,
+    @Body()
+    body: {
+      plan: string;
+      addonCodes?: AddonModuleCode[];
+      extraBranchCount?: number;
+      tenantId?: string;
+      extensionMonths?: number;
+      billingMode?: 'new' | 'upgrade' | 'renewal';
+      includeAnnualRenewal?: boolean;
+    },
+  ) {
+    const tenantId = body.tenantId || req.user?.tenantId;
+    let currentSubscription;
+    if (tenantId && body.billingMode && body.billingMode !== 'new') {
+      const ctx = await this.platform.getTenantSubscriptionQuoteContext(tenantId);
+      if (ctx) {
+        currentSubscription = {
+          plan: ctx.plan,
+          price: ctx.price,
+          endDate: ctx.endDate,
+        };
+      }
+    }
+    return this.platform.quoteSubscription(body.plan, body.addonCodes || [], body.extraBranchCount || 0, {
+      currentSubscription,
+      extensionMonths: body.extensionMonths ?? 0,
+      billingMode: body.billingMode ?? 'new',
+    });
   }
 
   @Public()
   @Post('subscription/quote-public')
-  quoteSubscriptionPublic(@Body() body: { plan: string; addonCodes?: AddonModuleCode[] }) {
-    return this.platform.quoteSubscription(body.plan, body.addonCodes || []);
+  quoteSubscriptionPublic(
+    @Body()
+    body: {
+      plan: string;
+      addonCodes?: AddonModuleCode[];
+      extraBranchCount?: number;
+      extensionMonths?: number;
+      billingMode?: 'new' | 'upgrade' | 'renewal';
+    },
+  ) {
+    return this.platform.quoteSubscription(body.plan, body.addonCodes || [], body.extraBranchCount || 0, {
+      extensionMonths: body.extensionMonths ?? 0,
+      billingMode: body.billingMode ?? 'new',
+    });
   }
 
   @Post('subscription/purchase')
@@ -126,6 +166,10 @@ export class PlatformController {
       tenantId?: string;
       plan: string;
       addonCodes?: AddonModuleCode[];
+      extraBranchCount?: number;
+      extensionMonths?: number;
+      includeAnnualRenewal?: boolean;
+      billingMode?: 'new' | 'upgrade' | 'renewal';
       phone?: string;
       acceptedDocuments?: string[];
     },
@@ -135,6 +179,10 @@ export class PlatformController {
       tenantId,
       plan: body.plan,
       addonCodes: body.addonCodes,
+      extraBranchCount: body.extraBranchCount,
+      extensionMonths: body.extensionMonths,
+      includeAnnualRenewal: body.includeAnnualRenewal,
+      billingMode: body.billingMode,
       acceptedDocuments: body.acceptedDocuments as any,
       buyer: {
         email: req.user.email,

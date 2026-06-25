@@ -4,14 +4,15 @@ import { toast } from '@/lib/toast';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import TopBar from '@/components/layout/TopBar';
-import PricingPlanCards from '@/components/PricingPlanCards';
+import SubscriptionCheckoutPanel from '@/components/SubscriptionCheckoutPanel';
 import { platformApi, tenantsApi } from '@/lib/api';
-import { fmtMoney } from '@/lib/format';
-import { PLAN_ORDER, planLabel } from '@/lib/plans';
+import { planLabel } from '@/lib/plans';
 import { getUser } from '@/lib/auth';
-import { CreditCard, Loader2 } from 'lucide-react';
-import LegalAgreementPanel from '@/components/LegalAgreementPanel';
 import type { LegalDocumentId } from '@/lib/legal-documents';
+import {
+  detectBillingMode,
+  extensionOptionsForMode,
+} from '@/lib/subscription-billing';
 
 export default function SubscribeCheckout() {
   const params = useParams();
@@ -29,10 +30,19 @@ export default function SubscribeCheckout() {
   const [selectedPlan, setSelectedPlan] = useState(planParam || 'BASIC');
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [extraBranchCount, setExtraBranchCount] = useState(0);
+  const [extensionIndex, setExtensionIndex] = useState(0);
   const [quote, setQuote] = useState<any>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [legalAccepted, setLegalAccepted] = useState(false);
   const [acceptedDocuments, setAcceptedDocuments] = useState<LegalDocumentId[]>([]);
+
+  const billingMode = useMemo(
+    () => detectBillingMode(status, selectedPlan),
+    [status, selectedPlan],
+  );
+  const extensionOptions = useMemo(() => extensionOptionsForMode(billingMode), [billingMode]);
+  const selectedExtension = extensionOptions[extensionIndex] ?? extensionOptions[0];
 
   const onLegalChange = useCallback((ok: boolean, ids: LegalDocumentId[]) => {
     setLegalAccepted(ok);
@@ -51,22 +61,37 @@ export default function SubscribeCheckout() {
   }, [targetTenantId]);
 
   useEffect(() => {
+    setExtensionIndex(0);
+  }, [billingMode, selectedPlan]);
+
+  useEffect(() => {
     if (!selectedPlan) return;
+    setQuoteLoading(true);
     platformApi
-      .quoteSubscription(selectedPlan, selectedAddons, extraBranchCount)
+      .quoteSubscription(selectedPlan, selectedAddons, extraBranchCount, {
+        tenantId: targetTenantId || undefined,
+        extensionMonths: selectedExtension.months,
+        billingMode,
+        includeAnnualRenewal: selectedExtension.includeAnnualRenewal,
+      })
       .then(setQuote)
-      .catch(() => setQuote(null));
-  }, [selectedPlan, selectedAddons, extraBranchCount]);
+      .catch(() => setQuote(null))
+      .finally(() => setQuoteLoading(false));
+  }, [
+    selectedPlan,
+    selectedAddons,
+    extraBranchCount,
+    targetTenantId,
+    selectedExtension.months,
+    selectedExtension.includeAnnualRenewal,
+    billingMode,
+  ]);
 
   useEffect(() => {
     if (paymentOk && targetTenantId) {
       tenantsApi.getSubscriptionStatus(targetTenantId).then(setStatus).catch(() => {});
     }
   }, [paymentOk, targetTenantId]);
-
-  const plans = useMemo(() => pricing?.plans ?? [], [pricing]);
-  const addons = useMemo(() => (pricing?.addons ?? []).filter((a: any) => a && a.code !== 'EXTRA_BRANCH'), [pricing]);
-  const extraBranchAddon = useMemo(() => (pricing?.addons ?? []).find((a: any) => a?.code === 'EXTRA_BRANCH'), [pricing]);
 
   const toggleAddon = (code: string) => {
     setSelectedAddons((prev) =>
@@ -87,28 +112,39 @@ export default function SubscribeCheckout() {
         plan: selectedPlan,
         addonCodes: selectedAddons,
         extraBranchCount,
+        extensionMonths: selectedExtension.months,
+        includeAnnualRenewal: selectedExtension.includeAnnualRenewal,
+        billingMode,
         acceptedDocuments,
       });
       if (res.redirectUrl) window.location.href = res.redirectUrl;
       else toast.info('Ödeme başlatıldı');
     } catch (e: any) {
-      toast.info(e.response?.data?.message || 'Ödeme başlatılamadı — Sanal POS yapılandırmasını kontrol edin');
+      toast.info(
+        e.response?.data?.message || 'Ödeme başlatılamadı — Sanal POS yapılandırmasını kontrol edin',
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const isDealerBuyingForBusiness = user?.tenantType === 'DEALER' && !!tenantIdParam;
+  const pageTitle =
+    billingMode === 'upgrade'
+      ? 'Paket Yükseltme'
+      : billingMode === 'renewal'
+        ? 'Lisans Yenileme'
+        : 'Paket Satın Al';
 
   return (
     <>
       <TopBar
-        title="Paket Satın Al"
-        subtitle="Yıllık abonelik planı ve ek paketler — ödeme admin Sanal POS üzerinden"
+        title={pageTitle}
+        subtitle={`${planLabel(selectedPlan)} — güvenli ödeme PayTR ile gerçekleştirilir`}
       />
-      <div className="p-6 space-y-8 max-w-6xl">
+      <div className="p-6 max-w-4xl">
         {status && (
-          <div className="card p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="card p-4 flex flex-wrap items-center justify-between gap-3 mb-6">
             <div>
               <div className="text-sm text-gray-500">Abonelik durumu</div>
               <div className="font-semibold text-gray-900">
@@ -132,162 +168,49 @@ export default function SubscribeCheckout() {
         )}
 
         {paymentOk && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 space-y-2">
-            <p>
-              Ödeme onayı alındıysa paket birkaç saniye içinde işletmeye tanımlanır ve hesap aktif
-              edilir.
-            </p>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 mb-6">
+            Ödeme onayı alındıysa paket birkaç saniye içinde tanımlanır ve hesap aktif edilir.
             {isDealerBuyingForBusiness && (
-              <p>
-                <a href={`/${panel}/businesses`} className="font-semibold text-[#606BDF] hover:underline">
-                  İşletme listesine dön →
-                </a>
-              </p>
+              <a href={`/${panel}/businesses`} className="block font-semibold text-[#606BDF] mt-2">
+                İşletme listesine dön →
+              </a>
             )}
           </div>
         )}
 
         {isDealerBuyingForBusiness && !paymentOk && (
-          <div className="card p-4 border-l-4 border-l-[#606BDF]">
-            <p className="text-sm font-medium text-gray-900">İşletme kaydı — ödeme adımı</p>
+          <div className="card p-4 border-l-4 border-l-[#606BDF] mb-6 text-sm">
+            <p className="font-medium text-gray-900">İşletme kaydı — ödeme adımı</p>
             <p className="text-xs text-gray-500 mt-1">
-              Seçili paket için Sanal POS ile ödeme yapın. Onay sonrası işletme paneli seçilen
-              modüllerle aktif olur.
+              Onay sonrası işletme paneli seçilen modüllerle aktif olur.
             </p>
           </div>
         )}
 
-        <section>
-          <h2 className="text-lg font-bold text-gray-900 mb-4">1. Plan seçin</h2>
-          <div className="grid md:grid-cols-3 gap-3 mb-4">
-            {PLAN_ORDER.map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setSelectedPlan(key)}
-                className={`card p-4 text-left border-2 transition-colors ${
-                  selectedPlan === key ? 'border-[#606BDF] bg-indigo-50/40' : 'border-transparent'
-                }`}
-              >
-                <div className="font-bold text-gray-900">{planLabel(key)}</div>
-                <div className="text-xs text-gray-500 mt-1">Yıllık abonelik</div>
-              </button>
-            ))}
-          </div>
-          {plans.length > 0 && (
-            <PricingPlanCards
-              plans={plans.filter((p: any) => p.plan === selectedPlan)}
-              addons={[]}
-              compact
-            />
-          )}
-        </section>
+        <SubscriptionCheckoutPanel
+          selectedPlan={selectedPlan}
+          onPlanChange={setSelectedPlan}
+          pricing={pricing}
+          status={status}
+          selectedAddons={selectedAddons}
+          onToggleAddon={toggleAddon}
+          extraBranchCount={extraBranchCount}
+          onExtraBranchChange={setExtraBranchCount}
+          quote={quote}
+          quoteLoading={quoteLoading}
+          billingMode={billingMode}
+          extensionIndex={extensionIndex}
+          onExtensionIndexChange={setExtensionIndex}
+          onLegalChange={onLegalChange}
+          onPay={checkout}
+          payLoading={loading}
+          payDisabled={!legalAccepted || !targetTenantId}
+          payLabel="Sanal POS ile Öde"
+        />
 
-        <section>
-          <h2 className="text-lg font-bold text-gray-900 mb-4">2. Ek paketler (opsiyonel)</h2>
-          <div className="grid md:grid-cols-3 gap-4">
-            {addons.map((a: any) => (
-              <button
-                key={a.code}
-                type="button"
-                onClick={() => toggleAddon(a.code)}
-                className={`card p-5 text-left border-2 transition-colors ${
-                  selectedAddons.includes(a.code) ? 'border-[#606BDF] bg-indigo-50/30' : 'border-transparent'
-                }`}
-              >
-                <div className="font-bold text-gray-900">{a.name}</div>
-                <p className="text-sm text-gray-500 mt-1">{a.description}</p>
-                <div className="mt-3 text-lg font-bold text-indigo-600">
-                  {fmtMoney(a.finalPrice ?? a.basePrice ?? 0)}
-                  <span className="text-sm font-normal text-gray-500">/yıl</span>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {selectedPlan !== 'BASIC' && extraBranchAddon && (
-            <div className="mt-4 card p-5 border-2 border-transparent">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-gray-900">Ekstra Şube / Alt Bayi Paketi</div>
-                  <p className="text-sm text-gray-500 mt-1">Paketinizin ücretsiz limiti aşıldığında ekstra şube alabilirsiniz.</p>
-                  <div className="mt-2 text-sm font-semibold text-indigo-600">
-                    {fmtMoney(extraBranchAddon.finalPrice ?? extraBranchAddon.basePrice ?? 0)} / yıl (Adet)
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => setExtraBranchCount(Math.max(0, extraBranchCount - 1))}
-                    className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200"
-                  >
-                    -
-                  </button>
-                  <span className="text-xl font-bold w-8 text-center">{extraBranchCount}</span>
-                  <button 
-                    onClick={() => setExtraBranchCount(extraBranchCount + 1)}
-                    className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-
-        <section className="card p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">3. Ödeme özeti</h2>
-          {quote ? (
-            <div className="space-y-2 text-sm max-w-md">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Plan ({planLabel(selectedPlan)})</span>
-                <span>{fmtMoney(quote.planAmount)}</span>
-              </div>
-              {quote.addonsAmount > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Ek paketler (Şube dahil)</span>
-                  <span>{fmtMoney(quote.addonsAmount)}</span>
-                </div>
-              )}
-              {quote.proratedAmount > 0 && (
-                <div className="flex justify-between text-amber-600">
-                  <span className="flex items-center gap-1">Kalan Süre Farkı (Yükseltme)</span>
-                  <span>+{fmtMoney(quote.proratedAmount)}</span>
-                </div>
-              )}
-              {quote.discountAmount > 0 && (
-                <div className="flex justify-between text-emerald-600">
-                  <span>İndirim</span>
-                  <span>-{fmtMoney(quote.discountAmount)}</span>
-                </div>
-              )}
-              <div className="flex justify-between font-bold text-base pt-2 border-t border-gray-100">
-                <span>Toplam (yıllık)</span>
-                <span className="text-indigo-600">{fmtMoney(quote.totalAmount)}</span>
-              </div>
-            </div>
-          ) : (
-            <p className="text-gray-500 text-sm">Fiyat hesaplanıyor…</p>
-          )}
-
-          <div className="mt-6">
-            <LegalAgreementPanel context="subscription_checkout" onChange={onLegalChange} />
-          </div>
-
-          <button
-            type="button"
-            disabled={loading || !quote || !targetTenantId || !legalAccepted}
-            onClick={checkout}
-            className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-semibold bg-[#606BDF] disabled:opacity-50"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-            Sanal POS ile Öde
-          </button>
-
-          {!targetTenantId && (
-            <p className="text-sm text-amber-700 mt-3">Ödeme için giriş yapın veya işletme seçin.</p>
-          )}
-        </section>
+        {!targetTenantId && (
+          <p className="text-sm text-amber-700 mt-4">Ödeme için giriş yapın veya işletme seçin.</p>
+        )}
       </div>
     </>
   );

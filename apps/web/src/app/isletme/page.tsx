@@ -13,7 +13,7 @@ export default function IsletmeLoginPage() {
         {
           role: 'İşletme',
           email: 'isletme@demo.com',
-          pass: 'Isletme2026!',
+          pass: '123456',
           variant: 'emerald',
         },
       ]}
@@ -21,25 +21,25 @@ export default function IsletmeLoginPage() {
         {
           role: 'Kasiyer',
           phone: '5321234567',
-          pass: 'Isletme2026!',
+          pass: '123456',
           variant: 'violet',
         },
         {
           role: 'Depo',
           phone: '5321234568',
-          pass: 'Isletme2026!',
+          pass: '123456',
           variant: 'orange',
         },
         {
           role: 'Şoför',
           phone: '5321234569',
-          pass: 'Isletme2026!',
+          pass: '123456',
           variant: 'sky',
         },
         {
           role: 'Personel',
           phone: '5321234570',
-          pass: 'Isletme2026!',
+          pass: '123456',
           variant: 'blue',
         },
       ]}

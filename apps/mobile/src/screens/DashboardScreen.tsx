@@ -1,56 +1,98 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ScanLine, Package, LogOut, FileText, ShoppingCart } from 'lucide-react-native';
+import { ScanLine, ShoppingCart, LogOut, Monitor, Zap } from 'lucide-react-native';
+import { clearSession, getSession, type SessionUser } from '../lib/session';
+import { PRIMARY, PAGE_BG, IS_LIVE } from '../config/env';
 
-export default function DashboardScreen({ navigation }: any) {
-  const [user, setUser] = useState<any>(null);
+export default function DashboardScreen({
+  navigation,
+}: {
+  navigation: { replace: (r: string) => void; navigate: (r: string) => void };
+}) {
+  const [user, setUser] = useState<SessionUser | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem('user').then((val: string | null) => {
-      if (val) setUser(JSON.parse(val));
+    getSession().then((s) => {
+      if (!s) {
+        navigation.replace('Login');
+        return;
+      }
+      setUser(s.user);
     });
-  }, []);
+  }, [navigation]);
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem('token');
-    await AsyncStorage.removeItem('user');
+    await clearSession();
     navigation.replace('Login');
   };
 
   const menuItems = [
-    { title: 'Depo / Barkod', icon: ScanLine, color: '#2563eb', screen: 'Scanner' },
-    { title: 'Hızlı Satış (POS)', icon: ShoppingCart, color: '#ec4899', screen: 'Pos' },
-    { title: 'Siparişler', icon: Package, color: '#10b981', screen: null },
-    { title: 'Tahsilat', icon: FileText, color: '#f59e0b', screen: null },
+    {
+      title: 'SmartNexus Panel',
+      desc: 'Tam ERP arayüzü (canlı)',
+      icon: Monitor,
+      color: PRIMARY,
+      screen: 'Player',
+    },
+    {
+      title: 'Hızlı Satış (POS)',
+      desc: 'Native kasa ekranı',
+      icon: ShoppingCart,
+      color: '#ec4899',
+      screen: 'Pos',
+    },
+    {
+      title: 'Depo / Barkod',
+      desc: 'WMS tarayıcı',
+      icon: ScanLine,
+      color: '#10b981',
+      screen: 'Scanner',
+    },
   ];
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Merhaba,</Text>
-          <Text style={styles.name}>{user?.name || 'Personel'}</Text>
-          <Text style={styles.role}>{user?.role || 'Yetki Yok'}</Text>
+        <View style={styles.headerLeft}>
+          <View style={styles.liveDot}>
+            <Zap size={12} color={IS_LIVE ? '#16a34a' : '#f59e0b'} />
+          </View>
+          <View>
+            <Text style={styles.greeting}>Merhaba,</Text>
+            <Text style={styles.name}>{user?.name || 'Kullanıcı'}</Text>
+            <Text style={styles.meta}>
+              {user?.tenantName || ''} · {user?.role || ''}
+            </Text>
+          </View>
         </View>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
           <LogOut size={20} color="#ef4444" />
         </TouchableOpacity>
       </View>
 
+      <View style={styles.banner}>
+        <Text style={styles.bannerTitle}>SmartNexus Player v2</Text>
+        <Text style={styles.bannerSub}>
+          {IS_LIVE ? 'Canlı sunucuya bağlı' : 'Yerel geliştirme modu'}
+        </Text>
+      </View>
+
       <View style={styles.grid}>
-        {menuItems.map((item, idx) => {
+        {menuItems.map((item) => {
           const Icon = item.icon;
           return (
-            <TouchableOpacity 
-              key={idx} 
+            <TouchableOpacity
+              key={item.title}
               style={styles.card}
               onPress={() => item.screen && navigation.navigate(item.screen)}
             >
-              <View style={[styles.iconBg, { backgroundColor: item.color + '15' }]}>
-                <Icon size={32} color={item.color} />
+              <View style={[styles.iconBg, { backgroundColor: item.color + '18' }]}>
+                <Icon size={30} color={item.color} />
               </View>
-              <Text style={styles.cardTitle}>{item.title}</Text>
+              <View style={styles.cardText}>
+                <Text style={styles.cardTitle}>{item.title}</Text>
+                <Text style={styles.cardDesc}>{item.desc}</Text>
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -60,71 +102,61 @@ export default function DashboardScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
+  container: { flex: 1, backgroundColor: PAGE_BG },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 24,
-    paddingTop: 60,
+    paddingTop: 56,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: '#EFEDF4',
   },
-  greeting: {
-    fontSize: 14,
-    color: '#64748b',
-    fontWeight: '500',
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#0f172a',
-    marginTop: 2,
-  },
-  role: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2563eb',
-    marginTop: 4,
-    textTransform: 'uppercase',
-  },
-  logoutBtn: {
-    padding: 12,
-    backgroundColor: '#fef2f2',
-    borderRadius: 12,
-  },
-  grid: {
-    padding: 16,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  card: {
-    backgroundColor: '#fff',
-    width: '48%',
-    padding: 24,
-    borderRadius: 16,
-    marginBottom: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-    elevation: 1,
-  },
-  iconBg: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  liveDot: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#F0FDF4',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
   },
-  cardTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#334155',
+  greeting: { fontSize: 13, color: '#46464F', fontWeight: '500' },
+  name: { fontSize: 22, fontWeight: '900', color: '#1B1B1F', marginTop: 2 },
+  meta: { fontSize: 11, fontWeight: '600', color: PRIMARY, marginTop: 4 },
+  logoutBtn: { padding: 12, backgroundColor: '#fef2f2', borderRadius: 12 },
+  banner: {
+    margin: 16,
+    marginBottom: 8,
+    padding: 16,
+    borderRadius: 14,
+    backgroundColor: '#E0E0FF',
+    borderWidth: 1,
+    borderColor: '#C8C8FF',
   },
+  bannerTitle: { fontSize: 15, fontWeight: '800', color: '#1B1B1F' },
+  bannerSub: { fontSize: 12, color: PRIMARY, marginTop: 4, fontWeight: '600' },
+  grid: { padding: 16, paddingTop: 8 },
+  card: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#EFEDF4',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  iconBg: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardText: { flex: 1 },
+  cardTitle: { fontSize: 15, fontWeight: '800', color: '#1B1B1F' },
+  cardDesc: { fontSize: 11, color: '#46464F', marginTop: 4 },
 });

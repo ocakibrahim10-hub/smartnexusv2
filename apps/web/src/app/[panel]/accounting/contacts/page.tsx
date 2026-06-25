@@ -12,14 +12,12 @@ import {
   X,
   CreditCard,
   FileText,
-  Briefcase,
   Edit2,
   Wallet,
-  Activity,
   ArrowUpRight,
   ArrowDownRight,
   Users,
-  ListFilter
+  ListFilter,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -35,6 +33,46 @@ interface Contact {
   city?: string;
   balance: number;
   creditLimit?: number;
+}
+
+interface StatementRow {
+  date: string;
+  type?: string;
+  ref?: string;
+  description?: string;
+  debit?: number;
+  credit?: number;
+  balance?: number;
+  dueDate?: string;
+  status?: string;
+  checkNo?: string;
+}
+
+interface AgingRow {
+  id: string;
+  contactId?: string;
+  current?: number;
+  days30?: number;
+  days60?: number;
+  days90?: number;
+  over90?: number;
+  total: number;
+}
+
+function normalizeContacts(payload: unknown): Contact[] {
+  if (Array.isArray(payload)) return payload as Contact[];
+  if (payload && typeof payload === 'object' && 'data' in payload) {
+    const data = (payload as { data?: Contact[] }).data;
+    return Array.isArray(data) ? data : [];
+  }
+  return [];
+}
+
+function calcGlobalStats(all: Contact[]) {
+  return {
+    receivables: all.filter((c) => c.balance > 0).reduce((s, c) => s + c.balance, 0),
+    payables: all.filter((c) => c.balance < 0).reduce((s, c) => s + Math.abs(c.balance), 0),
+  };
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -71,15 +109,14 @@ const INVOICE_STATUS_COLORS: Record<string, string> = {
 
 export default function ContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [summary, setSummary] = useState<any>({});
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   
   const [selected, setSelected] = useState<Contact | null>(null);
   
   // Dashboard details
-  const [statement, setStatement] = useState<any[]>([]);
-  const [aging, setAging] = useState<any>(null);
+  const [statement, setStatement] = useState<StatementRow[]>([]);
+  const [aging, setAging] = useState<AgingRow | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
   // Dropdown ref for click outside
@@ -90,7 +127,6 @@ export default function ContactsPage() {
   const [showAllList, setShowAllList] = useState(false);
   const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [listSearch, setListSearch] = useState('');
-  const [isFetchingAll, setIsFetchingAll] = useState(false);
 
   // Modal
   const [showForm, setShowForm] = useState(false);
@@ -111,16 +147,16 @@ export default function ContactsPage() {
   // Global stat mock
   const [globalStats, setGlobalStats] = useState({ receivables: 0, payables: 0 });
 
+  const refreshAllContacts = async () => {
+    const r = await api.get('/contacts', { params: { limit: 500 } });
+    const all = normalizeContacts(r.data);
+    setAllContacts(all);
+    setGlobalStats(calcGlobalStats(all));
+    return all;
+  };
+
   useEffect(() => {
-    api.get('/contacts').then(r => {
-      const all: Contact[] = r.data.data || r.data || [];
-      setGlobalStats({
-        receivables: all.filter(c => c.balance > 0).reduce((s, c) => s + c.balance, 0),
-        payables: all.filter(c => c.balance < 0).reduce((s, c) => s + Math.abs(c.balance), 0)
-      });
-      // Ayrıca tüm listeyi hazırda tutalım
-      setAllContacts(all);
-    }).catch(console.error);
+    refreshAllContacts().catch(() => toast.error('Cari listesi yüklenemedi'));
   }, []);
 
   const loadSearch = async (query: string) => {
@@ -131,9 +167,9 @@ export default function ContactsPage() {
     setLoading(true);
     try {
       const r = await api.get('/contacts', {
-        params: { search: query },
+        params: { search: query, limit: 50 },
       });
-      setContacts(r.data.data || r.data || []);
+      setContacts(normalizeContacts(r.data));
       setIsSearchOpen(true);
     } catch {
     } finally {
@@ -170,14 +206,18 @@ export default function ContactsPage() {
     setSearch('');
     setIsLoadingDetails(true);
     try {
-      const [st, ag] = await Promise.all([
-        api.get(`/contacts/${c.id}/statement`).then((r) => r.data.transactions || r.data.movements),
-        api.get('/contacts/aging').then((r) => r.data.find((a: any) => a.id === c.id || a.contactId === c.id)),
+      const [stRes, agRes] = await Promise.all([
+        api.get(`/contacts/${c.id}/statement`),
+        api.get('/contacts/aging'),
       ]);
-      setStatement(st || []);
-      setAging(ag || null);
-    } catch (err) {
-      console.error(err);
+      const movements: StatementRow[] = stRes.data?.movements || stRes.data?.transactions || [];
+      setStatement(Array.isArray(movements) ? movements : []);
+      const agingList: AgingRow[] = Array.isArray(agRes.data) ? agRes.data : [];
+      setAging(agingList.find((a) => a.id === c.id || a.contactId === c.id) || null);
+    } catch {
+      toast.error('Cari ekstre bilgisi yüklenemedi');
+      setStatement([]);
+      setAging(null);
     } finally {
       setIsLoadingDetails(false);
     }
@@ -187,8 +227,10 @@ export default function ContactsPage() {
     try {
       await api.delete(`/contacts/${id}`);
       toast.success('Cari başarıyla silindi');
-      setContacts(contacts.filter(c => c.id !== id));
-      setAllContacts(allContacts.filter(c => c.id !== id));
+      const nextAll = allContacts.filter((c) => c.id !== id);
+      setContacts(contacts.filter((c) => c.id !== id));
+      setAllContacts(nextAll);
+      setGlobalStats(calcGlobalStats(nextAll));
       if (selected?.id === id) setSelected(null);
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Silme başarısız');
@@ -211,7 +253,8 @@ export default function ContactsPage() {
         address: '',
         city: '',
       });
-      if (r.data) selectContact(r.data);
+      await refreshAllContacts();
+      if (r.data) await selectContact(r.data as Contact);
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Kayıt başarısız');
     } finally {
@@ -291,6 +334,7 @@ export default function ContactsPage() {
                       if (search.length >= 2) setIsSearchOpen(true);
                     }}
                     placeholder="İsim, TC, VN veya Cari Kodu..."
+                    aria-label="Cari ara"
                     className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 pl-8 pr-3 text-sm font-medium text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all shadow-inner"
                   />
                   {loading && (
@@ -530,9 +574,9 @@ export default function ContactsPage() {
                         </thead>
                         <tbody className="divide-y divide-gray-50 bg-white">
                           {statement.map((t, i) => {
-                            const isDebt = t.amount > 0 || t.debit > 0;
-                            const isCredit = t.amount < 0 || t.credit > 0;
-                            const amountVal = Math.abs(t.amount || t.debit || t.credit || 0);
+                            const debit = Number(t.debit || 0);
+                            const credit = Number(t.credit || 0);
+                            const running = Number(t.balance ?? 0);
                             
                             const nowTime = new Date().getTime();
                             const dueDateObj = t.dueDate ? new Date(t.dueDate) : null;
@@ -544,7 +588,7 @@ export default function ContactsPage() {
                             else if (isUpcoming) rowBg = 'bg-amber-50/30 hover:bg-amber-50/60 transition-colors';
                             
                             return (
-                              <tr key={i} className={rowBg}>
+                              <tr key={`${t.ref || t.type}-${t.date}-${i}`} className={rowBg}>
                                 <td className="py-3 px-4">
                                   <div className="text-xs font-bold text-gray-900">
                                     {new Date(t.date).toLocaleDateString('tr-TR')}
@@ -574,22 +618,22 @@ export default function ContactsPage() {
                                   )}
                                 </td>
                                 <td className="py-3 px-4 text-right">
-                                  {isDebt ? (
+                                  {debit > 0 ? (
                                     <span className="text-xs font-bold text-red-600">
-                                      {amountVal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                      {debit.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                                     </span>
                                   ) : '-'}
                                 </td>
                                 <td className="py-3 px-4 text-right">
-                                  {isCredit ? (
+                                  {credit > 0 ? (
                                     <span className="text-xs font-bold text-emerald-600">
-                                      {amountVal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                      {credit.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                                     </span>
                                   ) : '-'}
                                 </td>
                                 <td className="py-3 px-4 text-right bg-gray-50/30">
-                                  <span className={`text-xs font-bold ${(t.runningBalance || t.balance) > 0 ? 'text-red-700' : (t.runningBalance || t.balance) < 0 ? 'text-emerald-700' : 'text-gray-900'}`}>
-                                    {Math.abs(t.runningBalance || t.balance || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                  <span className={`text-xs font-bold ${running > 0 ? 'text-red-700' : running < 0 ? 'text-emerald-700' : 'text-gray-900'}`}>
+                                    {Math.abs(running).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                                   </span>
                                 </td>
                               </tr>
@@ -622,7 +666,12 @@ export default function ContactsPage() {
                   <p className="text-xs text-gray-500 font-medium">Sistemdeki tüm kayıtlı cariler ({filteredAllContacts.length})</p>
                 </div>
               </div>
-              <button onClick={() => setShowAllList(false)} className="p-2 hover:bg-gray-200 rounded-xl text-gray-500 transition-colors bg-white shadow-sm border border-gray-200">
+              <button
+                type="button"
+                onClick={() => setShowAllList(false)}
+                aria-label="Listeyi kapat"
+                className="p-2 hover:bg-gray-200 rounded-xl text-gray-500 transition-colors bg-white shadow-sm border border-gray-200"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -637,6 +686,7 @@ export default function ContactsPage() {
                   value={listSearch}
                   onChange={(e) => setListSearch(e.target.value)}
                   placeholder="Liste içerisinde cari ara (İsim, Kodu, TC/VN)..."
+                  aria-label="Liste içinde cari ara"
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 pl-10 pr-4 text-sm font-medium text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all shadow-inner"
                   autoFocus
                 />
@@ -690,7 +740,12 @@ export default function ContactsPage() {
           <div className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col animate-in slide-in-from-right border-l border-gray-100">
             <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50">
               <h2 className="text-lg font-bold text-gray-900">Yeni Cari Tanımla</h2>
-              <button onClick={() => setShowForm(false)} className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-500 transition-colors bg-white shadow-sm border border-gray-200">
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                aria-label="Formu kapat"
+                className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-500 transition-colors bg-white shadow-sm border border-gray-200"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -718,8 +773,10 @@ export default function ContactsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">Cari Tipi</label>
+                  <label htmlFor="contact-type" className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">Cari Tipi</label>
                   <select
+                    id="contact-type"
+                    aria-label="Cari tipi"
                     value={form.type}
                     onChange={(e) => setForm({ ...form, type: e.target.value })}
                     className="input w-full shadow-sm text-sm py-2 font-medium"

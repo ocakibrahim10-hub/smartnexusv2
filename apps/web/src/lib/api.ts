@@ -136,13 +136,50 @@ export const platformApi = {
   markNotificationRead: (id: string) =>
     api.patch(`/platform/notifications/${id}/read`).then((r) => r.data),
   getTenantReport: (id: string) => api.get(`/platform/tenants/${id}/report`).then((r) => r.data),
-  quoteSubscription: (plan: string, addonCodes: string[], extraBranchCount: number = 0) =>
-    api.post('/platform/subscription/quote', { plan, addonCodes, extraBranchCount }).then((r) => r.data),
+  quoteSubscription: (
+    plan: string,
+    addonCodes: string[],
+    extraBranchCount: number = 0,
+    opts?: {
+      tenantId?: string;
+      extensionMonths?: number;
+      billingMode?: 'new' | 'upgrade' | 'renewal';
+      includeAnnualRenewal?: boolean;
+    },
+  ) =>
+    api
+      .post('/platform/subscription/quote', {
+        plan,
+        addonCodes,
+        extraBranchCount,
+        ...opts,
+      })
+      .then((r) => r.data),
+  quoteSubscriptionPublic: (
+    plan: string,
+    addonCodes: string[],
+    extraBranchCount: number = 0,
+    opts?: {
+      extensionMonths?: number;
+      billingMode?: 'new' | 'upgrade' | 'renewal';
+    },
+  ) =>
+    api
+      .post('/platform/subscription/quote-public', {
+        plan,
+        addonCodes,
+        extraBranchCount,
+        ...opts,
+      })
+      .then((r) => r.data),
   purchaseSubscription: (data: {
     tenantId: string;
     plan: string;
     addonCodes?: string[];
     extraBranchCount?: number;
+    extensionMonths?: number;
+    includeAnnualRenewal?: boolean;
+    billingMode?: 'new' | 'upgrade' | 'renewal';
     buyer?: any;
     acceptedDocuments?: string[];
   }) => api.post('/platform/subscription/purchase', data).then((r) => r.data),

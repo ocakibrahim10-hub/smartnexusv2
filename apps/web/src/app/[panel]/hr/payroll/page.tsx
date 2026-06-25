@@ -2,13 +2,22 @@
 
 import { toast } from '@/lib/toast';
 import { useState, useEffect } from 'react';
-import { Receipt, Play, Banknote, Search, Calendar, User, ArrowRight, Wallet } from 'lucide-react';
+import { Receipt, Play, Calendar, User, Wallet } from 'lucide-react';
 import { api } from '@/lib/api';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+
+type PayrollRow = {
+  id: string;
+  periodMonth: number;
+  periodYear: number;
+  baseSalary: number;
+  netSalary: number;
+  status: string;
+  contact?: { name?: string };
+};
 
 export default function PayrollPage() {
-  const [payrolls, setPayrolls] = useState<any[]>([]);
-  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
+  const [payrolls, setPayrolls] = useState<PayrollRow[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<{ id: string; name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -25,8 +34,9 @@ export default function PayrollPage() {
         api.get('/hr/payroll'),
         api.get('/cash/bank-accounts'),
       ]);
-      setPayrolls(resPayrolls.data.items || []);
-      setBankAccounts(resBanks.data.items || []);
+      const rows = Array.isArray(resPayrolls.data) ? resPayrolls.data : resPayrolls.data.items || [];
+      setPayrolls(rows);
+      setBankAccounts(resBanks.data || []);
     } catch (err: any) {
       toast.error('Bordrolar yüklenemedi');
     } finally {
@@ -80,16 +90,22 @@ export default function PayrollPage() {
         </div>
         
         <div className="flex items-center gap-3 bg-white p-2 rounded-xl shadow-sm border border-gray-100">
-          <select 
-            value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}
+          <select
+            id="payroll-month"
+            aria-label="Bordro ayı"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(Number(e.target.value))}
             className="text-sm font-bold border-none bg-gray-50 rounded-lg px-3 py-1.5 focus:ring-0 cursor-pointer"
           >
             {Array.from({length: 12}, (_, i) => i + 1).map(m => (
               <option key={m} value={m}>{m}. Ay</option>
             ))}
           </select>
-          <select 
-            value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}
+          <select
+            id="payroll-year"
+            aria-label="Bordro yılı"
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
             className="text-sm font-bold border-none bg-gray-50 rounded-lg px-3 py-1.5 focus:ring-0 cursor-pointer"
           >
             {[2024, 2025, 2026].map(y => (
@@ -151,7 +167,7 @@ export default function PayrollPage() {
                         <div className="w-8 h-8 bg-brand-50 rounded-lg flex items-center justify-center">
                           <User className="w-4 h-4 text-brand-600" />
                         </div>
-                        <span className="text-sm font-bold text-gray-900">{p.contact?.name}</span>
+                        <span className="text-sm font-bold text-gray-900">{p.contact?.name || '—'}</span>
                       </div>
                     </td>
                     <td className="py-3 px-4 text-right">
@@ -200,8 +216,10 @@ export default function PayrollPage() {
                 Bu maaş ödemesi seçtiğiniz banka hesabından düşülecek ve Muhasebe Giderlerine işlenecektir.
               </p>
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase">Banka Hesabı Seçin</label>
+                <label htmlFor="payroll-bank-account" className="block text-xs font-bold text-gray-700 mb-1.5 uppercase">Banka Hesabı Seçin</label>
                 <select
+                  id="payroll-bank-account"
+                  aria-label="Maaş ödeme banka hesabı"
                   className="w-full text-sm border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 p-2.5 bg-gray-50"
                   value={paymentModal.bankId}
                   onChange={(e) => setPaymentModal({ ...paymentModal, bankId: e.target.value })}

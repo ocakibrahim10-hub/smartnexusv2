@@ -12,7 +12,7 @@ export default function NexusAdminLoginPage() {
         {
           role: 'SuperAdmin',
           email: 'admin@smartnexus.com',
-          pass: 'SmartNexus2026!',
+          pass: '123456',
           variant: 'purple',
         },
       ]}

@@ -14,7 +14,8 @@
     "react": "19.2.3",
     "react-native": "0.85.3",
     "react-native-safe-area-context": "^5.8.0",
-    "react-native-screens": "^4.25.2"
+    "react-native-screens": "^4.25.2",
+    "react-native-webview": "13.15.0"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
@@ -24,7 +25,11 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "prebuild": "expo prebuild --clean",
+    "build:apk": "expo prebuild --platform android && cd android && gradlew.bat assembleRelease && cd .. && node scripts/copy-apk.js",
+    "build:apk:debug": "cd android && gradlew.bat assembleDebug",
+    "eas:apk": "eas build -p android --profile production --non-interactive"
   },
   "private": true
 }

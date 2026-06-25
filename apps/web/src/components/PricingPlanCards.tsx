@@ -138,7 +138,7 @@ export default function PricingPlanCards({
 
               {showCta && (
                 <Link
-                  href={ctaHref}
+                  href={ctaHref.includes('?') ? ctaHref : `${ctaHref}?plan=${p.plan}`}
                   className="mt-3 block text-center py-2 rounded-xl text-white text-sm font-medium bg-[#606BDF] hover:opacity-90 transition-opacity"
                 >
                   Planı Seç

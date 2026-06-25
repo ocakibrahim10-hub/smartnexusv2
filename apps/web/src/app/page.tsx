@@ -57,9 +57,17 @@ export default function RootPage() {
           </Link>
         ))}
       </div>
-      <Link href="/fiyatlandirma" className="mt-8 text-sm text-indigo-600 font-medium hover:underline">
-        Fiyatlandırma ve paketleri inceleyin →
-      </Link>
+      <div className="mt-10 flex flex-col sm:flex-row items-center gap-4">
+        <Link
+          href="/kayit"
+          className="px-8 py-3 rounded-xl text-white font-semibold bg-[#606BDF] hover:opacity-95 shadow-sm"
+        >
+          Kayıt Ol — Paket Satın Al
+        </Link>
+        <Link href="/fiyatlandirma" className="text-sm text-indigo-600 font-medium hover:underline">
+          Fiyatlandırma ve paketleri inceleyin →
+        </Link>
+      </div>
     </div>
   );
 }

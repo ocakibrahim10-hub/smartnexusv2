@@ -12,7 +12,7 @@ export default function BayiLoginPage() {
         {
           role: 'Bayi',
           email: 'bayi@demo.com',
-          pass: 'Bayi2026!',
+          pass: '123456',
           variant: 'blue',
         },
       ]}

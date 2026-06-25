@@ -7,6 +7,7 @@ import { LoginDto, PhoneLoginDto, RegisterBusinessDto } from './dto/login.dto';
 import { buildAuthUserPayload } from '../../common/effective-user-modules';
 import { getPanelHomeRoute, validatePanelAccess, inferPanel, PanelType } from '../../common/panel-access';
 import { normalizePhone } from '../../common/phone.util';
+import { documentsForContext, LEGAL_DOCUMENT_VERSION } from '../../common/legal-documents';
 import { TenantType } from '@prisma/client';
 
 @Injectable()
@@ -128,11 +129,37 @@ export class AuthService {
   }
 
   async registerBusiness(dto: RegisterBusinessDto) {
+    const phoneNorm = normalizePhone(dto.phone);
+    if (!phoneNorm) {
+      throw new BadRequestException(
+        'Geçerli cep telefonu girin (5 ile başlayan 10 hane, başında 0 olmadan)',
+      );
+    }
+
+    const requiredLegal = documentsForContext('dealer_business').map((d) => d.id);
+    const accepted: string[] = dto.acceptedDocuments || [];
+    if (!requiredLegal.every((id) => accepted.includes(id))) {
+      throw new BadRequestException('Kayıt için tüm sözleşmeleri kabul etmelisiniz');
+    }
+
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) throw new ConflictException('Bu e-posta adresi zaten kayıtlı');
 
-    const passwordHash = await argon2.hash(dto.password);
+    const phoneTaken = await this.prisma.user.findFirst({ where: { phone: phoneNorm } });
+    if (phoneTaken) throw new ConflictException('Bu telefon numarası zaten kayıtlı');
+
+    const plan = dto.plan || 'BASIC';
+    const rawPassword = dto.password?.trim() || phoneNorm;
+    const passwordHash = await argon2.hash(rawPassword);
     const code = `BUS-${Date.now().toString(36).toUpperCase()}`;
+    const taxNoNorm = dto.taxNo?.trim() || null;
+
+    if (taxNoNorm) {
+      const dup = await this.prisma.tenant.findFirst({
+        where: { taxNo: taxNoNorm, type: 'BUSINESS', isActive: true },
+      });
+      if (dup) throw new ConflictException('Bu vergi numarası ile aktif kayıt zaten mevcut');
+    }
 
     const tenant = await this.prisma.tenant.create({
       data: {
@@ -140,10 +167,12 @@ export class AuthService {
         type: 'BUSINESS',
         name: dto.name,
         email: dto.email,
-        phone: dto.phone,
+        phone: phoneNorm,
         city: dto.city || null,
-        taxNo: dto.taxNo || null,
-        plan: 'BASIC',
+        taxNo: taxNoNorm,
+        taxOffice: dto.taxOffice?.trim() || null,
+        plan,
+        isActive: false,
       },
     });
 
@@ -153,7 +182,7 @@ export class AuthService {
         email: dto.email,
         password: passwordHash,
         name: dto.name,
-        phone: dto.phone,
+        phone: phoneNorm,
         role: 'OWNER',
       },
       include: {
@@ -161,20 +190,26 @@ export class AuthService {
       },
     });
 
-    const template = await this.prisma.planTemplate.findUnique({ where: { plan: 'BASIC' } });
-    const { DEFAULT_PLAN_MODULES } = require('../../common/plan-modules');
-    const basicModules = template?.modules ?? DEFAULT_PLAN_MODULES?.BASIC?.modules ?? [];
-
     await this.prisma.subscription.create({
       data: {
         tenantId: tenant.id,
-        plan: 'BASIC',
+        plan: plan as any,
         startDate: new Date(),
-        endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 gün deneme
+        endDate: new Date(),
         autoRenew: false,
-        modules: basicModules,
+        modules: [],
         price: null,
       },
+    });
+
+    await this.prisma.legalAcceptance.createMany({
+      data: accepted.map((documentId) => ({
+        userId: user.id,
+        tenantId: tenant.id,
+        documentId,
+        documentVersion: LEGAL_DOCUMENT_VERSION,
+        context: 'dealer_business',
+      })),
     });
 
     const tokens = await this.generateTokens(user.id, user.email, user.tenantId, user.role);

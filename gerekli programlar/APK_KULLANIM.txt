@@ -1,0 +1,46 @@
+SmartNexus Player v2 — APK Kullanım Rehberi
+==========================================
+
+DOSYA
+  SmartNexus_Player_v2.apk  (~34 MB)
+
+KURULUM (Android)
+  1. APK dosyasını telefona kopyalayın (USB, WhatsApp, Google Drive vb.)
+  2. Dosyaya dokunun → "Yükle" / "Install"
+  3. "Bilinmeyen kaynaklardan yükleme" izni istenirse açın
+  4. Eski SmartERP/Mobile uygulaması varsa önce kaldırın (imza çakışması)
+
+ÖNEMLİ — CANLI SUNUCU
+  Bu APK bilgisayarınızdaki localhost'a DEĞİL, internetteki canlı sunucuya bağlanır:
+    Web: https://smartnexusv2.vercel.app
+    API: https://smartnexus-api.onrender.com
+
+  Bilgisayarda 123456 yaptığınız şifreler YALNIZCA yerel veritabanında geçerlidir.
+  APK ile giriş için canlı sunucudaki hesap şifreleri kullanılmalıdır.
+
+GİRİŞ
+  1. Uygulamayı açın
+  2. Panel seçin: İşletme / Bayi / Admin
+  3. Telefon veya e-posta ile giriş yapın
+  4. İlk açılışta sunucu uyanıyorsa 30–60 sn bekleyin, tekrar deneyin
+
+ÖRNEK HESAPLAR (işletme paneli)
+  E-posta: isletme@demo.com
+  Telefon: 5321234567 (kasiyer)
+  Şifre: canlı sunucudaki şifre (yerel 123456 ile aynı olmayabilir)
+
+KULLANIM
+  Ana menü:
+    • SmartNexus Panel → Tam ERP (WebView)
+    • Hızlı Satış (POS) → Native kasa
+    • Depo / Barkod → Kamera ile tarama
+
+SORUN GİDERME
+  "Giriş başarısız" → Canlı şifre kullanın veya sunucu yöneticisine sorun
+  "Sunucuya ulaşılamıyor" → İnternet / Wi‑Fi kontrol edin
+  "Uygulama yüklenmedi" → Eski sürümü kaldırıp tekrar yükleyin
+  Panel boş → Geri ok → tekrar SmartNexus Panel'e girin
+
+YENİ APK DERLEME
+  Proje kökünde: Mobil_APK_Olustur.bat
+  veya: npm run mobile:apk

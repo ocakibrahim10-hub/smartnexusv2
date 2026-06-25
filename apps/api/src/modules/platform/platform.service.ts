@@ -407,22 +407,54 @@ export class PlatformService {
     return { ...applyDiscount(listPrice, discountPercent), modules };
   }
 
+  async getTenantSubscriptionQuoteContext(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      include: { subscription: true },
+    });
+    if (!tenant?.subscription) return null;
+    const sub = tenant.subscription;
+    const remainingDays = subscriptionRemainingDays(sub.endDate);
+    if (!tenant.isActive && remainingDays <= 0) return null;
+    return {
+      plan: sub.plan,
+      price: sub.price ?? 0,
+      endDate: sub.endDate,
+      remainingDays,
+      isActive: tenant.isActive,
+    };
+  }
+
+  private parsePurchaseGatewayMeta(gatewayRef: string | null | undefined) {
+    const extensionMonths = Number(gatewayRef?.match(/#ext=(\d+)/)?.[1] ?? 0);
+    const includeAnnualRenewal = !gatewayRef?.includes('#renew=0');
+    return { extensionMonths, includeAnnualRenewal };
+  }
+
   async quoteSubscription(
     plan: string,
     addonCodes: AddonModuleCode[] = [],
     extraBranchCount: number = 0,
-    currentSubscription?: { plan: string; price: number; endDate: Date }
+    options?: {
+      currentSubscription?: { plan: string; price: number; endDate: Date };
+      extensionMonths?: number;
+      billingMode?: 'new' | 'upgrade' | 'renewal';
+    },
   ) {
+    const extensionMonths = options?.extensionMonths ?? 0;
+    const billingMode = options?.billingMode ?? 'new';
+    const currentSubscription = options?.currentSubscription;
+
     const planPricing = await this.resolvePlanPricing(plan);
     const codesToFetch = [...addonCodes];
     if (extraBranchCount > 0) codesToFetch.push('EXTRA_BRANCH');
-    
+
     const addons = await this.prisma.addonModule.findMany({
       where: { code: { in: codesToFetch.filter((c) => SUBSCRIPTION_ADDON_CODES.includes(c)) } },
     });
     let addonsListPrice = 0;
     let addonsFinal = 0;
-    
+
     for (const a of addons) {
       const p = applyDiscount(a.basePrice ?? 0, a.discountPercent ?? 0);
       if (a.code === 'EXTRA_BRANCH') {
@@ -433,24 +465,52 @@ export class PlatformService {
         addonsFinal += p.finalPrice;
       }
     }
-    
+
+    const annualTotal = planPricing.finalPrice + addonsFinal;
     let proratedAmount = 0;
-    if (currentSubscription) {
+    let planCharge = annualTotal;
+
+    if (billingMode === 'upgrade' && currentSubscription) {
       const remainingDays = subscriptionRemainingDays(currentSubscription.endDate);
       const currentPrice = currentSubscription.price || 0;
-      const newPrice = planPricing.finalPrice + addonsFinal;
-      // Sadece üst pakete geçerken (veya yeni modül alırken) fark alınır
+      const newPrice = annualTotal;
       if (newPrice > currentPrice && remainingDays > 0) {
         proratedAmount = Math.round(((newPrice - currentPrice) / 365) * remainingDays * 100) / 100;
       }
+      planCharge = proratedAmount;
+    } else if (billingMode === 'renewal') {
+      planCharge = annualTotal;
     }
 
-    const totalAmount = Math.round((planPricing.finalPrice + addonsFinal + proratedAmount) * 100) / 100;
+    const extensionAmount =
+      extensionMonths > 0
+        ? Math.round((annualTotal / 12) * extensionMonths * 100) / 100
+        : 0;
+
+    const includeAnnualRenewal = billingMode === 'new' || billingMode === 'renewal';
+    const totalAmount = Math.round((planCharge + extensionAmount) * 100) / 100;
     const discountAmount =
       Math.round((planPricing.discountAmount + (addonsListPrice - addonsFinal)) * 100) / 100;
-      
+
+    const remainingDays = currentSubscription
+      ? subscriptionRemainingDays(currentSubscription.endDate)
+      : 0;
+
+    const baseEnd =
+      currentSubscription && currentSubscription.endDate > new Date()
+        ? new Date(currentSubscription.endDate)
+        : new Date();
+    const projectedEndDate = new Date(baseEnd);
+    if (includeAnnualRenewal) {
+      projectedEndDate.setFullYear(projectedEndDate.getFullYear() + 1);
+    }
+    if (extensionMonths > 0) {
+      projectedEndDate.setMonth(projectedEndDate.getMonth() + extensionMonths);
+    }
+
     return {
       billingPeriod: 'yearly',
+      billingMode,
       plan,
       planAmount: planPricing.finalPrice,
       planListPrice: planPricing.listPrice,
@@ -458,8 +518,14 @@ export class PlatformService {
       addonsAmount: addonsFinal,
       addonsListPrice,
       proratedAmount,
+      extensionMonths,
+      extensionAmount,
+      planCharge,
+      includeAnnualRenewal,
       discountAmount,
       totalAmount,
+      remainingDays,
+      projectedEndDate: projectedEndDate.toISOString(),
       modules: planPricing.modules,
       addonCodes: addons.filter((a) => a.code !== 'EXTRA_BRANCH').map((a) => a.code),
       extraBranchCount,
@@ -474,6 +540,9 @@ export class PlatformService {
       addonCodes?: AddonModuleCode[];
       extraBranchCount?: number;
       buyer?: { email: string; name: string; phone?: string; ip?: string };
+      extensionMonths?: number;
+      includeAnnualRenewal?: boolean;
+      billingMode?: 'new' | 'upgrade' | 'renewal';
       acceptedDocuments?: LegalDocumentId[];
     },
   ) {
@@ -501,15 +570,29 @@ export class PlatformService {
 
     const addonCodes = (dto.addonCodes || []).filter((c) => SUBSCRIPTION_ADDON_CODES.includes(c));
     const extraBranchCount = dto.extraBranchCount || 0;
-    
-    const quote = await this.quoteSubscription(
-      dto.plan, 
-      addonCodes, 
-      extraBranchCount, 
-      target.subscription || undefined
-    );
+    const extensionMonths = dto.extensionMonths ?? 0;
+    const billingMode = dto.billingMode ?? 'new';
+
+    let currentSubCtx;
+    if (billingMode !== 'new' && target.subscription) {
+      currentSubCtx = {
+        plan: target.subscription.plan,
+        price: target.subscription.price ?? 0,
+        endDate: target.subscription.endDate,
+      };
+    }
+
+    const quote = await this.quoteSubscription(dto.plan, addonCodes, extraBranchCount, {
+      currentSubscription: currentSubCtx,
+      extensionMonths,
+      billingMode,
+    });
+
+    const includeAnnualRenewal =
+      dto.includeAnnualRenewal ?? quote.includeAnnualRenewal ?? billingMode !== 'upgrade';
 
     const merchantOid = `sub-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const gatewayRef = `${merchantOid}#ext=${extensionMonths}#renew=${includeAnnualRenewal ? 1 : 0}`;
     const purchase = await this.prisma.subscriptionPurchase.create({
       data: {
         tenantId: dto.tenantId,
@@ -518,11 +601,11 @@ export class PlatformService {
         addonCodes,
         extraBranchCount,
         planAmount: quote.planAmount,
-        addonsAmount: quote.addonsAmount + quote.proratedAmount,
+        addonsAmount: quote.addonsAmount + quote.proratedAmount + quote.extensionAmount,
         discountAmount: quote.discountAmount,
         totalAmount: quote.totalAmount,
         status: 'PENDING',
-        gatewayRef: merchantOid,
+        gatewayRef,
         purchasedByDealerId: actor.tenantType === TenantType.DEALER ? actor.tenantId : null,
       },
     });
@@ -568,13 +651,8 @@ export class PlatformService {
         {
           id: dto.plan,
           name: `Yıllık ${dto.plan} paketi`,
-          price: quote.planAmount,
+          price: quote.totalAmount,
         },
-        ...addonCodes.map((code) => ({
-          id: code,
-          name: `Ek paket ${code}`,
-          price: quote.addonsAmount / Math.max(1, addonCodes.length),
-        })),
       ],
       callbackUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/${panel}/subscribe?payment=ok&tenantId=${dto.tenantId}`,
     });
@@ -596,16 +674,23 @@ export class PlatformService {
 
     const planPricing = await this.resolvePlanPricing(purchase.plan);
     const modules = mergeAddonModules(planPricing.modules, purchase.addonCodes);
-    
-    // Prorata upgrade mantığı: mevcut sürenin üzerine +1 yıl
+
+    const { extensionMonths, includeAnnualRenewal } = this.parsePurchaseGatewayMeta(
+      purchase.gatewayRef,
+    );
+
     const startDate = new Date();
-    const endDate = new Date();
-    if (currentSub && currentSub.endDate > new Date()) {
-      endDate.setTime(currentSub.endDate.getTime());
+    const endDate =
+      currentSub && currentSub.endDate > new Date()
+        ? new Date(currentSub.endDate)
+        : new Date();
+    if (includeAnnualRenewal) {
+      endDate.setFullYear(endDate.getFullYear() + 1);
     }
-    endDate.setFullYear(endDate.getFullYear() + 1);
-    
-    // Ekstra şubelerin toplanması
+    if (extensionMonths > 0) {
+      endDate.setMonth(endDate.getMonth() + extensionMonths);
+    }
+
     const newExtraBranches = (currentSub?.extraBranches || 0) + (purchase.extraBranchCount || 0);
 
     await this.prisma.$transaction([

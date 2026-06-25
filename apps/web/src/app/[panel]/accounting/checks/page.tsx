@@ -1,7 +1,6 @@
 'use client';
 
 import { toast } from '@/lib/toast';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useState, useEffect } from 'react';
 import {
   CreditCard,
@@ -12,19 +11,35 @@ import {
   Search,
   CheckCircle2,
   XCircle,
-  AlertCircle,
   Clock,
-  Building2,
   User,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
+type CheckRow = {
+  id: string;
+  checkNo: string;
+  amount: number;
+  direction: string;
+  status: string;
+  dueDate: string;
+  bankName?: string;
+  contactName?: string;
+  drawerName?: string;
+  contact?: { name?: string };
+  collectionMethod?: string;
+  collectionBank?: { name?: string };
+  endorsedContact?: { name?: string };
+};
+
 export default function ChecksPage() {
-  const [checks, setChecks] = useState<any[]>([]);
-  const [contacts, setContacts] = useState<any[]>([]);
-  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
-  const [summary, setSummary] = useState<any>({});
+  const [checks, setChecks] = useState<CheckRow[]>([]);
+  const [allChecks, setAllChecks] = useState<CheckRow[]>([]);
+  const [contacts, setContacts] = useState<{ id: string; name: string }[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<{ id: string; name: string }[]>([]);
+  const [summary, setSummary] = useState({ incoming: 0, outgoing: 0, pending: 0, cleared: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [search, setSearch] = useState('');
 
   // Quick Sale Modal State
   const [showQuickSale, setShowQuickSale] = useState(false);
@@ -45,28 +60,14 @@ export default function ChecksPage() {
     try {
       const [resChecks, resContacts, resBanks] = await Promise.all([
         api.get('/cash/check-register'),
-        api.get('/contacts'),
+        api.get('/contacts', { params: { limit: 500 } }),
         api.get('/cash/bank-accounts'),
       ]);
 
-      setChecks(resChecks.data.items || []);
-      setContacts(resContacts.data.items || []);
-      setBankAccounts(resBanks.data.items || []);
-
-      // Calculate Summary
-      let incoming = 0;
-      let outgoing = 0;
-      let pending = 0;
-      let cleared = 0;
-
-      (resChecks.data.items || []).forEach((c: any) => {
-        if (c.direction === 'INCOMING') incoming += c.amount;
-        if (c.direction === 'OUTGOING') outgoing += c.amount;
-        if (c.status === 'PENDING') pending += c.amount;
-        if (c.status === 'CLEARED') cleared += c.amount;
-      });
-
-      setSummary({ incoming, outgoing, pending, cleared });
+      const items: CheckRow[] = resChecks.data.all || [];
+      setAllChecks(items);
+      setContacts(resContacts.data.data || resContacts.data || []);
+      setBankAccounts(resBanks.data || []);
     } catch (err: any) {
       toast.error('Veriler yüklenirken hata oluştu');
     } finally {
@@ -77,6 +78,34 @@ export default function ChecksPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) {
+      setChecks(allChecks);
+      return;
+    }
+    setChecks(
+      allChecks.filter((c) => {
+        const name = (c.contactName || c.contact?.name || c.drawerName || '').toLowerCase();
+        return c.checkNo.toLowerCase().includes(q) || name.includes(q);
+      }),
+    );
+  }, [search, allChecks]);
+
+  useEffect(() => {
+    let incoming = 0;
+    let outgoing = 0;
+    let pending = 0;
+    let cleared = 0;
+    allChecks.forEach((c) => {
+      if (c.direction === 'INCOMING') incoming += c.amount;
+      if (c.direction === 'OUTGOING') outgoing += c.amount;
+      if (c.status === 'PENDING') pending += c.amount;
+      if (c.status === 'CLEARED') cleared += c.amount;
+    });
+    setSummary({ incoming, outgoing, pending, cleared });
+  }, [allChecks]);
 
   const handleQuickSaleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,6 +224,9 @@ export default function ChecksPage() {
             <input
               type="text"
               placeholder="Çek No veya Cari ara..."
+              aria-label="Çek veya cari ara"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               className="pl-9 pr-4 py-1.5 text-xs border border-gray-200 rounded-lg w-64 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
@@ -240,7 +272,9 @@ export default function ChecksPage() {
                           <User className="w-4 h-4 text-brand-600" />
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-xs font-bold text-gray-900">{c.contact?.name || c.drawerName || 'Bilinmiyor'}</span>
+                          <span className="text-xs font-bold text-gray-900">
+                            {c.contactName || c.contact?.name || c.drawerName || 'Bilinmiyor'}
+                          </span>
                           {c.collectionMethod && (
                             <span className="text-[10px] text-gray-500 font-semibold flex items-center gap-1">
                               {c.collectionMethod === 'MANUAL' && 'Elden Tahsilat'}
@@ -286,7 +320,12 @@ export default function ChecksPage() {
                 <CreditCard className="w-5 h-5 text-brand-600" />
                 Hızlı Satış & Çek Tahsilatı
               </h2>
-              <button onClick={() => setShowQuickSale(false)} className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
+              <button
+                type="button"
+                onClick={() => setShowQuickSale(false)}
+                aria-label="Kapat"
+                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+              >
                 <XCircle className="w-5 h-5 text-gray-500" />
               </button>
             </div>
@@ -298,8 +337,10 @@ export default function ChecksPage() {
               <form onSubmit={handleQuickSaleSubmit} id="quick-sale-form" className="space-y-5">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2">
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Müşteri (Cari Seçimi) *</label>
+                    <label htmlFor="quick-sale-contact" className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Müşteri (Cari Seçimi) *</label>
                     <select
+                      id="quick-sale-contact"
+                      aria-label="Müşteri cari seçimi"
                       className="w-full text-sm border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 p-2.5 bg-gray-50 font-medium"
                       value={quickSaleData.contactId}
                       onChange={(e) => setQuickSaleData({...quickSaleData, contactId: e.target.value})}
@@ -341,9 +382,11 @@ export default function ChecksPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Çek Vadesi *</label>
+                    <label htmlFor="quick-sale-due-date" className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Çek Vadesi *</label>
                     <input
+                      id="quick-sale-due-date"
                       type="date"
+                      aria-label="Çek vadesi"
                       className="w-full text-sm border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 p-2.5 bg-white font-medium text-gray-700"
                       value={quickSaleData.dueDate}
                       onChange={(e) => setQuickSaleData({...quickSaleData, dueDate: e.target.value})}
@@ -388,8 +431,10 @@ export default function ChecksPage() {
 
                   {quickSaleData.collectionMethod === 'BANK_COLLECTION' && (
                     <div className="col-span-2 mt-2">
-                      <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Hangi Banka Hesabınıza Verildi? *</label>
+                      <label htmlFor="quick-sale-bank-account" className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Hangi Banka Hesabınıza Verildi? *</label>
                       <select
+                        id="quick-sale-bank-account"
+                        aria-label="Tahsilat banka hesabı"
                         className="w-full text-sm border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 p-2.5 bg-gray-50 font-medium"
                         value={quickSaleData.collectionBankId}
                         onChange={(e) => setQuickSaleData({...quickSaleData, collectionBankId: e.target.value})}
@@ -405,8 +450,10 @@ export default function ChecksPage() {
 
                   {quickSaleData.collectionMethod === 'ENDORSEMENT' && (
                     <div className="col-span-2 mt-2">
-                      <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Hangi Cariye Ciro Edildi? *</label>
+                      <label htmlFor="quick-sale-endorsed-contact" className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Hangi Cariye Ciro Edildi? *</label>
                       <select
+                        id="quick-sale-endorsed-contact"
+                        aria-label="Ciro edilen cari"
                         className="w-full text-sm border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 p-2.5 bg-gray-50 font-medium"
                         value={quickSaleData.endorsedContactId}
                         onChange={(e) => setQuickSaleData({...quickSaleData, endorsedContactId: e.target.value})}
