@@ -182,7 +182,8 @@ export class POSService {
 
       const discountRate = l.discount || 0;
       const discountedPrice = l.unitPrice * (1 - discountRate / 100);
-      const vatAmount = (l.quantity * discountedPrice * l.vatRate) / 100;
+      const vatRate = l.vatRate ?? product.vatRate ?? 20;
+      const vatAmount = (l.quantity * discountedPrice * vatRate) / 100;
       const total = l.quantity * discountedPrice + vatAmount;
 
       return {
@@ -191,7 +192,7 @@ export class POSService {
         quantity: l.quantity,
         unitPrice: l.unitPrice,
         discount: l.discount || 0,
-        vatRate: l.vatRate,
+        vatRate,
         vatAmount,
         total,
         _product: product,
