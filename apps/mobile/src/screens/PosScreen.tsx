@@ -20,6 +20,8 @@ interface Product {
   salePrice: number;
   stock: number;
   imageUrl?: string;
+  vatRate?: number;
+  unit?: string;
 }
 
 export default function PosScreen({ navigation }: any) {
@@ -71,14 +73,17 @@ export default function PosScreen({ navigation }: any) {
     if (cart.length === 0) return;
     try {
       setLoading(true);
-      const items = cart.map((i) => ({
+      const lines = cart.map((i) => ({
         productId: i.product.id,
         quantity: i.qty,
         unitPrice: i.product.salePrice,
+        vatRate: i.product.vatRate ?? 20,
+        discount: 0,
+        saleUnit: i.product.unit || 'ADET',
       }));
       await posApi.checkout({
-        items,
-        paymentMethod: 'CASH',
+        lines,
+        paymentType: 'CASH',
       });
       Alert.alert('Başarılı', 'Satış tamamlandı!');
       setCart([]);
