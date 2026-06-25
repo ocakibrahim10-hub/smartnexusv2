@@ -13,6 +13,7 @@ import { extensionOptionsForMode } from '@/lib/subscription-billing';
 import { documentsForContext } from '@/lib/legal-documents';
 import type { LegalDocumentId } from '@/lib/legal-documents';
 import { filterAddonsForPlan, planModulesFromPricing } from '@/lib/plan-addons';
+import { purchasableExtraModulesFromPricing } from '@/lib/submodule-pricing';
 import { PLAN_ORDER, planLabel } from '@/lib/plans';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -49,6 +50,7 @@ export default function KayitForm() {
   });
   const [pricing, setPricing] = useState<any>(null);
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
+  const [selectedExtraModules, setSelectedExtraModules] = useState<string[]>([]);
   const [extraBranchCount, setExtraBranchCount] = useState(0);
   const [extensionIndex, setExtensionIndex] = useState(0);
   const [quote, setQuote] = useState<any>(null);
@@ -75,6 +77,10 @@ export default function KayitForm() {
   }, []);
 
   useEffect(() => {
+    const extras = purchasableExtraModulesFromPricing(pricing, form.plan);
+    const allowedExtraIds = extras.map((m) => m.moduleId);
+    setSelectedExtraModules((prev) => prev.filter((id) => allowedExtraIds.includes(id)));
+
     const mods = planModulesFromPricing(pricing, form.plan);
     const allowed = filterAddonsForPlan(
       mods,
@@ -89,11 +95,19 @@ export default function KayitForm() {
       .quoteSubscriptionPublic(form.plan, selectedAddons, extraBranchCount, {
         extensionMonths: selectedExtension.months,
         billingMode: 'new',
+        extraModuleIds: selectedExtraModules,
+        includeAnnualRenewal: selectedExtension.includeAnnualRenewal,
       })
       .then(setQuote)
       .catch(() => setQuote(null))
       .finally(() => setQuoteLoading(false));
-  }, [form.plan, selectedAddons, extraBranchCount, selectedExtension.months]);
+  }, [form.plan, selectedAddons, selectedExtraModules, extraBranchCount, selectedExtension.months, selectedExtension.includeAnnualRenewal]);
+
+  const toggleExtraModule = (moduleId: string) => {
+    setSelectedExtraModules((prev) =>
+      prev.includes(moduleId) ? prev.filter((id) => id !== moduleId) : [...prev, moduleId],
+    );
+  };
 
   const canStep1 =
     form.name.trim().length >= 2 &&
@@ -134,6 +148,7 @@ export default function KayitForm() {
         tenantId: res.data.user.tenantId,
         plan: form.plan,
         addonCodes: selectedAddons,
+        extraModuleIds: selectedExtraModules,
         extraBranchCount,
         extensionMonths: selectedExtension.months,
         includeAnnualRenewal: selectedExtension.includeAnnualRenewal,
@@ -304,6 +319,8 @@ export default function KayitForm() {
               pricing={pricing}
               selectedAddons={selectedAddons}
               onToggleAddon={toggleAddon}
+              selectedExtraModules={selectedExtraModules}
+              onToggleExtraModule={toggleExtraModule}
               extraBranchCount={extraBranchCount}
               onExtraBranchChange={setExtraBranchCount}
               quote={quote}

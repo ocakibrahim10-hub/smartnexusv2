@@ -2738,6 +2738,20 @@ async function main() {
   }
   cliLog('✓ Addon modüller & kontör paketleri');
 
+  const { buildDefaultSubmodulePricing } = await import('../src/common/submodule-pricing.util');
+  for (const row of buildDefaultSubmodulePricing()) {
+    await prisma.submodulePricing.upsert({
+      where: { moduleId: row.moduleId },
+      update: {
+        yearlyPrice: row.yearlyPrice,
+        sellableExtra: row.sellableExtra,
+        isActive: row.isActive,
+      },
+      create: row,
+    });
+  }
+  cliLog('✓ Alt modül fiyatları');
+
   await prisma.platformNotification.create({
     data: {
       type: 'SYSTEM_ALERT',

@@ -13,6 +13,7 @@ import {
   detectBillingMode,
   extensionOptionsForMode,
 } from '@/lib/subscription-billing';
+import { purchasableExtraModulesFromPricing } from '@/lib/submodule-pricing';
 
 export default function SubscribeCheckout() {
   const params = useParams();
@@ -29,6 +30,7 @@ export default function SubscribeCheckout() {
   const [status, setStatus] = useState<any>(null);
   const [selectedPlan, setSelectedPlan] = useState(planParam || 'BASIC');
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
+  const [selectedExtraModules, setSelectedExtraModules] = useState<string[]>([]);
   const [extraBranchCount, setExtraBranchCount] = useState(0);
   const [extensionIndex, setExtensionIndex] = useState(0);
   const [quote, setQuote] = useState<any>(null);
@@ -61,6 +63,10 @@ export default function SubscribeCheckout() {
   }, [targetTenantId]);
 
   useEffect(() => {
+    const extras = purchasableExtraModulesFromPricing(pricing, selectedPlan);
+    const allowedExtraIds = extras.map((m) => m.moduleId);
+    setSelectedExtraModules((prev) => prev.filter((id) => allowedExtraIds.includes(id)));
+
     const planRow = pricing?.plans?.find((p: any) => p.plan === selectedPlan);
     const allowed = (planRow?.purchasableAddons ?? [])
       .filter((a: any) => a?.code !== 'EXTRA_BRANCH')
@@ -83,6 +89,7 @@ export default function SubscribeCheckout() {
         extensionMonths: selectedExtension.months,
         billingMode,
         includeAnnualRenewal: selectedExtension.includeAnnualRenewal,
+        extraModuleIds: selectedExtraModules,
       })
       .then(setQuote)
       .catch(() => setQuote(null))
@@ -90,6 +97,7 @@ export default function SubscribeCheckout() {
   }, [
     selectedPlan,
     selectedAddons,
+    selectedExtraModules,
     extraBranchCount,
     targetTenantId,
     selectedExtension.months,
@@ -109,6 +117,12 @@ export default function SubscribeCheckout() {
     );
   };
 
+  const toggleExtraModule = (moduleId: string) => {
+    setSelectedExtraModules((prev) =>
+      prev.includes(moduleId) ? prev.filter((id) => id !== moduleId) : [...prev, moduleId],
+    );
+  };
+
   const checkout = async () => {
     if (!targetTenantId) return;
     if (!legalAccepted) {
@@ -121,6 +135,7 @@ export default function SubscribeCheckout() {
         tenantId: targetTenantId,
         plan: selectedPlan,
         addonCodes: selectedAddons,
+        extraModuleIds: selectedExtraModules,
         extraBranchCount,
         extensionMonths: selectedExtension.months,
         includeAnnualRenewal: selectedExtension.includeAnnualRenewal,
@@ -204,6 +219,8 @@ export default function SubscribeCheckout() {
           status={status}
           selectedAddons={selectedAddons}
           onToggleAddon={toggleAddon}
+          selectedExtraModules={selectedExtraModules}
+          onToggleExtraModule={toggleExtraModule}
           extraBranchCount={extraBranchCount}
           onExtraBranchChange={setExtraBranchCount}
           quote={quote}

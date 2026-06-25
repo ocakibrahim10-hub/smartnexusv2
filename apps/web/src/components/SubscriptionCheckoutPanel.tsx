@@ -4,12 +4,15 @@ import { useMemo } from 'react';
 import { CreditCard, Loader2, Shield, Sparkles } from 'lucide-react';
 import LegalAgreementPanel from '@/components/LegalAgreementPanel';
 import AddonModulePicker from '@/components/AddonModulePicker';
+import ExtraModulePicker from '@/components/ExtraModulePicker';
 import LicenseDurationPicker from '@/components/LicenseDurationPicker';
 import type { LegalDocumentId } from '@/lib/legal-documents';
 import { LEGAL_PROVIDER } from '@/lib/legal-provider';
 import { fmtMoney } from '@/lib/format';
 import { PLAN_META, PLAN_ORDER, planLabel } from '@/lib/plans';
 import { filterAddonsForPlan, planModulesFromPricing } from '@/lib/plan-addons';
+import { purchasableExtraModulesFromPricing } from '@/lib/submodule-pricing';
+import { getModuleLabel } from '@/lib/modules';
 import { vatBreakdown, VAT_RATE } from '@/lib/vat';
 import { extensionOptionsForMode, formatShortDate, type BillingMode } from '@/lib/subscription-billing';
 
@@ -31,6 +34,8 @@ type Props = {
   } | null;
   selectedAddons: string[];
   onToggleAddon: (code: string) => void;
+  selectedExtraModules?: string[];
+  onToggleExtraModule?: (moduleId: string) => void;
   extraBranchCount: number;
   onExtraBranchChange: (n: number) => void;
   quote: any;
@@ -58,6 +63,8 @@ export default function SubscriptionCheckoutPanel({
   status,
   selectedAddons,
   onToggleAddon,
+  selectedExtraModules = [],
+  onToggleExtraModule,
   extraBranchCount,
   onExtraBranchChange,
   quote,
@@ -79,17 +86,37 @@ export default function SubscriptionCheckoutPanel({
     [pricing, selectedPlan],
   );
 
+  const purchasableExtraModules = useMemo(
+    () => purchasableExtraModulesFromPricing(pricing, selectedPlan),
+    [pricing, selectedPlan],
+  );
+
   const purchasableAddons = useMemo(() => {
+    if (purchasableExtraModules.length > 0) return [];
     const all = (pricing?.addons ?? []).filter((a: any) => a?.code !== 'EXTRA_BRANCH');
     const planRow = pricing?.plans?.find((p: any) => p.plan === selectedPlan);
     if (planRow?.purchasableAddons?.length) return planRow.purchasableAddons;
     return filterAddonsForPlan(planModules, all);
-  }, [pricing, selectedPlan, planModules]);
+  }, [pricing, selectedPlan, planModules, purchasableExtraModules.length]);
+
+  const planRow = useMemo(
+    () => pricing?.plans?.find((p: any) => p.plan === selectedPlan),
+    [pricing, selectedPlan],
+  );
 
   const extraBranchAddon = useMemo(
     () => (pricing?.addons ?? []).find((a: any) => a?.code === 'EXTRA_BRANCH'),
     [pricing],
   );
+
+  const extraBranchUnitPrice = useMemo(() => {
+    const fromPlan = planRow?.extraBranchPrice ?? 0;
+    if (fromPlan > 0) return fromPlan;
+    return extraBranchAddon?.finalPrice ?? extraBranchAddon?.basePrice ?? 0;
+  }, [planRow, extraBranchAddon]);
+
+  const showExtraBranch =
+    (planRow?.maxBranches ?? 0) < 9999 && extraBranchUnitPrice > 0;
 
   const extensionOptions = useMemo(() => extensionOptionsForMode(billingMode), [billingMode]);
   const vat = useMemo(() => vatBreakdown(quote?.totalAmount ?? 0), [quote?.totalAmount]);
@@ -118,9 +145,15 @@ export default function SubscriptionCheckoutPanel({
         <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white p-5 text-sm text-amber-900">
           <p>
             Mevcut lisans bitişinize kalan{' '}
-            <strong>{status?.remainingDays ?? quote.remainingDays} gün</strong> için yalnızca paket
-            farkı tahsil edilir (prorata).
+            <strong>{status?.remainingDays ?? quote.remainingDays} gün</strong> için paket farkı
+            günlük prorata ile hesaplanır.
           </p>
+          {quote.currentAnnualTotal != null && (
+            <p className="mt-1 text-xs text-amber-800">
+              Mevcut yıllık tutar: {fmtMoney(quote.currentAnnualTotal)} → Yeni:{' '}
+              {fmtMoney(quote.newAnnualTotal ?? 0)}
+            </p>
+          )}
           {quote.proratedAmount > 0 && (
             <p className="mt-2 font-semibold">
               Kalan süre prorata: {fmtMoney(quote.proratedAmount)} + KDV
@@ -128,6 +161,15 @@ export default function SubscriptionCheckoutPanel({
           )}
         </div>
       )}
+
+      {(billingMode === 'renewal' || billingMode === 'upgrade') &&
+        quote?.remainingDays > 0 &&
+        !isUpgrade && (
+          <div className="rounded-2xl border border-[#EFEDF4] bg-white p-4 text-sm text-[#46464F]">
+            Kalan <strong>{quote.remainingDays} gün</strong> — yenileme ve ek modül farkları güncel
+            paket tutarına göre prorata hesaplanır.
+          </div>
+        )}
 
       {showPlanPicker && onPlanChange && (
         <section className="space-y-4">
@@ -171,19 +213,34 @@ export default function SubscriptionCheckoutPanel({
               aşağıda listelenir.
             </p>
           </div>
-          <AddonModulePicker
-            addons={purchasableAddons}
-            selected={selectedAddons}
-            onToggle={onToggleAddon}
-          />
+          {purchasableExtraModules.length > 0 ? (
+            <ExtraModulePicker
+              modules={purchasableExtraModules.map((m) => ({
+                moduleId: m.moduleId,
+                label: m.label ?? getModuleLabel(m.moduleId),
+                groupId: m.moduleId.split('.')[0],
+                yearlyPrice: m.yearlyPrice,
+              }))}
+              selected={selectedExtraModules}
+              onToggle={(id) => onToggleExtraModule?.(id)}
+            />
+          ) : (
+            <AddonModulePicker
+              addons={purchasableAddons}
+              selected={selectedAddons}
+              onToggle={onToggleAddon}
+            />
+          )}
 
-          {selectedPlan !== 'BASIC' && extraBranchAddon && (
+          {showExtraBranch && (
             <div className="rounded-2xl border-2 border-[#EFEDF4] bg-white p-5 flex flex-wrap items-center justify-between gap-4">
               <div>
-                <div className="font-semibold text-[#1B1B1F]">Ekstra şube / alt bayi</div>
-                <p className="text-xs text-[#777680] mt-1">Paket şube limitini aşmak için</p>
+                <div className="font-semibold text-[#1B1B1F]">Ekstra şube</div>
+                <p className="text-xs text-[#777680] mt-1">
+                  Pakete dahil {planRow?.maxBranches ?? 0} şube — her ek şube için yıllık ücret
+                </p>
                 <div className="text-sm font-bold text-[#606BDF] mt-2">
-                  {fmtMoney(extraBranchAddon.finalPrice ?? extraBranchAddon.basePrice ?? 0)} / yıl + KDV
+                  {fmtMoney(extraBranchUnitPrice)} / şube / yıl + KDV
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-[#F5F3FA] rounded-xl px-3 py-2">
@@ -250,21 +307,61 @@ export default function SubscriptionCheckoutPanel({
                 <span className="text-gray-500">Ara toplam (KDV hariç)</span>
                 <span>{fmtMoney(vat.subtotalExVat)}</span>
               </div>
-              {quote.addonsAmount > 0 && (
+              {quote.extraModulesAmount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Ek alt modüller</span>
+                  <span>{fmtMoney(quote.extraModulesAmount)}</span>
+                </div>
+              )}
+              {quote.extraBranchAmount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">
+                    Ek şube ({quote.extraBranchCount}×)
+                  </span>
+                  <span>{fmtMoney(quote.extraBranchAmount)}</span>
+                </div>
+              )}
+              {quote.addonsAmount > 0 &&
+                !quote.extraModulesAmount &&
+                !quote.extraBranchAmount && (
                 <div className="flex justify-between">
                   <span className="text-gray-500">Ek modüller</span>
                   <span>{fmtMoney(quote.addonsAmount)}</span>
                 </div>
               )}
+              {(quote.extraModulesAmount > 0 || quote.extraBranchAmount > 0) &&
+                quote.addonsAmount >
+                  (quote.extraModulesAmount ?? 0) + (quote.extraBranchAmount ?? 0) && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Diğer ek paketler</span>
+                  <span>
+                    {fmtMoney(
+                      quote.addonsAmount -
+                        (quote.extraModulesAmount ?? 0) -
+                        (quote.extraBranchAmount ?? 0),
+                    )}
+                  </span>
+                </div>
+              )}
+              {quote.annualRenewalAmount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Yıllık lisans yenileme</span>
+                  <span>{fmtMoney(quote.annualRenewalAmount)}</span>
+                </div>
+              )}
               {quote.proratedAmount > 0 && (
                 <div className="flex justify-between text-amber-700">
-                  <span>Prorata fark</span>
+                  <span>
+                    Prorata fark ({quote.remainingDays ?? 0} gün)
+                  </span>
                   <span>{fmtMoney(quote.proratedAmount)}</span>
                 </div>
               )}
               {quote.extensionAmount > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Ek süre ({quote.extensionMonths} ay)</span>
+                  <span className="text-gray-500">
+                    Ek süre prorata ({quote.extensionMonths} ay × 30 gün)
+                  </span>
                   <span>{fmtMoney(quote.extensionAmount)}</span>
                 </div>
               )}

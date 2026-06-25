@@ -9,8 +9,14 @@ import { planLabel, PLAN_ORDER, addonLabel, addonDescription, kontorLabel, konto
 import { buildPlansFromTemplates, mapAddonsForPricing } from '@/lib/pricing-catalog';
 import ModulePicker from '@/components/ModulePicker';
 import { applyDiscount } from '@/lib/pricing';
-import { Coins, Package, Plus, Save } from 'lucide-react';
+import { Coins, Package, Plus, Save, Layers, Calculator } from 'lucide-react';
 import { FormField, FormSelect } from '@/components/FormField';
+import {
+  businessSubmoduleIds,
+  sumSubmodulePrices,
+  submodulePriceMap,
+} from '@/lib/submodule-pricing';
+import { MODULE_CATALOG } from '@/lib/modules';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -18,6 +24,8 @@ export default function PackagesPage() {
   const [addons, setAddons] = useState<any[]>([]);
   const [kontorModules, setKontorModules] = useState<any[]>([]);
   const [planTemplates, setPlanTemplates] = useState<any[]>([]);
+  const [submodulePricing, setSubmodulePricing] = useState<any[]>([]);
+  const [subPriceDraft, setSubPriceDraft] = useState<Record<string, string>>({});
   const [editingPlan, setEditingPlan] = useState<string | null>(null);
   const [editModules, setEditModules] = useState<string[]>([]);
   const [editPrice, setEditPrice] = useState('');
@@ -38,6 +46,12 @@ export default function PackagesPage() {
       setAddons(yearly.filter((m: any) => m.code !== 'EXTRA_BRANCH'));
       setKontorModules(all.filter((m: any) => ['EINVOICE', 'EARCHIVE', 'SMS'].includes(m.code)));
     }).catch(() => {});
+    platformApi.getSubmodulePricing().then((rows) => {
+      setSubmodulePricing(Array.isArray(rows) ? rows : []);
+      const draft: Record<string, string> = {};
+      for (const r of rows || []) draft[r.moduleId] = String(r.yearlyPrice ?? 0);
+      setSubPriceDraft(draft);
+    }).catch(() => {});
     fetch(`${API}/tenants/plan-templates`, { headers })
       .then((r) => r.json())
       .then((data) => setPlanTemplates(Array.isArray(data) ? data : []))
@@ -52,6 +66,36 @@ export default function PackagesPage() {
   );
 
   const pricingAddons = useMemo(() => mapAddonsForPricing(addons), [addons]);
+
+  const subPriceById = useMemo(() => submodulePriceMap(submodulePricing), [submodulePricing]);
+
+  const planModuleTotal = useMemo(
+    () => sumSubmodulePrices(editModules, subPriceById),
+    [editModules, subPriceById],
+  );
+
+  const saveSubmodulePricing = async () => {
+    setSaving(true);
+    try {
+      const items = businessSubmoduleIds().map((moduleId) => {
+        const existing = subPriceById[moduleId];
+        return {
+          moduleId,
+          yearlyPrice: parseFloat(subPriceDraft[moduleId] ?? '0') || 0,
+          sellableExtra: existing?.sellableExtra ?? true,
+          isActive: existing?.isActive ?? true,
+        };
+      });
+      await platformApi.upsertSubmodulePricing(items);
+      load();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const applyModuleTotalToPlanPrice = () => {
+    setEditPrice(String(planModuleTotal));
+  };
 
   const startEditPlan = (plan: string) => {
     const tpl = planTemplates.find((p) => p.plan === plan);
@@ -148,6 +192,20 @@ export default function PackagesPage() {
                 value={editPrice}
                 onChange={(e) => setEditPrice(e.target.value)}
               />
+              <div className="md:col-span-3 flex flex-wrap items-end gap-3">
+                <div className="rounded-xl border border-[#EFEDF4] bg-[#FBF8FF] px-4 py-2 text-sm">
+                  <span className="text-gray-500">Seçili modül toplamı: </span>
+                  <strong className="text-[#606BDF]">{fmtMoney(planModuleTotal)}</strong>
+                  <span className="text-gray-400 text-xs"> / yıl (KDV hariç)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={applyModuleTotalToPlanPrice}
+                  className="px-3 py-2 rounded-xl border border-[#606BDF] text-[#606BDF] text-sm font-medium flex items-center gap-1.5 hover:bg-[#F0EFFF]"
+                >
+                  <Calculator className="w-4 h-4" /> Toplamı paket fiyatına yaz
+                </button>
+              </div>
               <FormField
                 label="İndirim (%)"
                 type="number"
@@ -195,6 +253,14 @@ export default function PackagesPage() {
                 tenantType="BUSINESS"
                 showAll
                 variant="light"
+                renderExtraNode={(childId) => {
+                  const p = subPriceById[childId]?.yearlyPrice ?? 0;
+                  return (
+                    <span className="text-xs text-[#606BDF] font-medium shrink-0">
+                      {fmtMoney(p)}
+                    </span>
+                  );
+                }}
               />
             </div>
           </div>
@@ -202,7 +268,51 @@ export default function PackagesPage() {
 
         <section className="border-t border-gray-200 pt-8">
           <h2 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
-            <Package className="w-5 h-5 text-[#606BDF]" /> Ek Paket Fiyatları
+            <Layers className="w-5 h-5 text-[#606BDF]" /> Alt Modül Fiyatları
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Her alt modül için yıllık ek satış fiyatı. Pakete dahil olmayan modüller işletmeye satın
+            alma ekranında bu fiyatlarla gösterilir. Paket düzenlerken modül toplamı otomatik hesaplanır.
+          </p>
+          <div className="space-y-6">
+            {MODULE_CATALOG.filter((g) => g.id !== 'DEALER').map((group) => (
+              <div key={group.id} className="card p-4">
+                <h3 className="font-semibold text-gray-900 mb-3">{group.label}</h3>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {group.children.map((child) => (
+                    <div key={child.id} className="flex items-center gap-2 text-sm">
+                      <span className="flex-1 text-gray-700 truncate" title={child.label}>
+                        {child.label}
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        className="w-24 px-2 py-1.5 border rounded-lg text-right"
+                        value={subPriceDraft[child.id] ?? subPriceById[child.id]?.yearlyPrice ?? '0'}
+                        onChange={(e) =>
+                          setSubPriceDraft((d) => ({ ...d, [child.id]: e.target.value }))
+                        }
+                      />
+                      <span className="text-xs text-gray-400">₺/yıl</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={saveSubmodulePricing}
+            className="mt-4 px-4 py-2 rounded-xl text-white font-medium bg-[#606BDF] flex items-center gap-2"
+          >
+            <Save className="w-4 h-4" /> Alt modül fiyatlarını kaydet
+          </button>
+        </section>
+
+        <section className="border-t border-gray-200 pt-8">
+          <h2 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
+            <Package className="w-5 h-5 text-[#606BDF]" /> Ek Paket Fiyatları (eski paket kodları)
           </h2>
           <p className="text-sm text-gray-500 mb-4">
             Yıllık abonelik — admin panelden aktif edilen modüller satışa sunulur. İşletme seçtiği ana

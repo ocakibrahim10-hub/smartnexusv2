@@ -19,14 +19,86 @@ export function subscriptionRemainingDays(endDate: Date | string): number {
   return Math.max(0, Math.ceil(diff / (24 * 60 * 60 * 1000)));
 }
 
+export function annualDailyRate(annualTotal: number): number {
+  return annualTotal / 365;
+}
+
+/** Ek süre: günlük prorata (30 gün / ay) */
+export function calculateProratedExtension(annualTotal: number, extensionMonths: number): number {
+  if (extensionMonths <= 0 || annualTotal <= 0) return 0;
+  const extensionDays = extensionMonths * 30;
+  return Math.round(annualDailyRate(annualTotal) * extensionDays * 100) / 100;
+}
+
 export function calculateProratedUpgrade(
-  currentPlanPrice: number,
-  newPlanPrice: number,
+  currentAnnualTotal: number,
+  newAnnualTotal: number,
   remainingDays: number,
 ): number {
-  if (remainingDays <= 0 || newPlanPrice <= currentPlanPrice) {
+  if (remainingDays <= 0 || newAnnualTotal <= currentAnnualTotal) {
     return 0;
   }
-  const diff = newPlanPrice - currentPlanPrice;
-  return Math.round((diff / 365) * remainingDays * 100) / 100;
+  const diff = newAnnualTotal - currentAnnualTotal;
+  return Math.round(annualDailyRate(diff) * remainingDays * 100) / 100;
+}
+
+export type SubscriptionQuoteInput = {
+  billingMode: 'new' | 'upgrade' | 'renewal';
+  includeAnnualRenewal: boolean;
+  extensionMonths: number;
+  newAnnualTotal: number;
+  currentAnnualTotal: number;
+  remainingDays: number;
+};
+
+export type SubscriptionQuoteBreakdown = {
+  annualRenewalAmount: number;
+  proratedAmount: number;
+  extensionAmount: number;
+  planCharge: number;
+  totalAmount: number;
+};
+
+export function buildSubscriptionQuoteBreakdown(
+  input: SubscriptionQuoteInput,
+): SubscriptionQuoteBreakdown {
+  const {
+    billingMode,
+    includeAnnualRenewal,
+    extensionMonths,
+    newAnnualTotal,
+    currentAnnualTotal,
+    remainingDays,
+  } = input;
+
+  const hasActive = remainingDays > 0;
+
+  const proratedAmount =
+    hasActive && newAnnualTotal > currentAnnualTotal
+      ? calculateProratedUpgrade(currentAnnualTotal, newAnnualTotal, remainingDays)
+      : 0;
+
+  const extensionAmount = calculateProratedExtension(newAnnualTotal, extensionMonths);
+
+  const annualRenewalAmount =
+    includeAnnualRenewal && billingMode !== 'upgrade' ? newAnnualTotal : 0;
+
+  let planCharge = 0;
+  if (billingMode === 'upgrade') {
+    planCharge = proratedAmount;
+  } else if (billingMode === 'renewal') {
+    planCharge = annualRenewalAmount + proratedAmount;
+  } else {
+    planCharge = annualRenewalAmount;
+  }
+
+  const totalAmount = Math.round((planCharge + extensionAmount) * 100) / 100;
+
+  return {
+    annualRenewalAmount,
+    proratedAmount,
+    extensionAmount,
+    planCharge,
+    totalAmount,
+  };
 }

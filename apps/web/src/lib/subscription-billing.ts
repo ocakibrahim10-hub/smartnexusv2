@@ -9,10 +9,15 @@ export type ExtensionOption = {
 };
 
 export function detectBillingMode(
-  status: { plan?: string; isActive?: boolean; remainingDays?: number } | null | undefined,
+  status:
+    | { plan?: string; isActive?: boolean; active?: boolean; remainingDays?: number }
+    | null
+    | undefined,
   selectedPlan: string,
 ): BillingMode {
-  if (!status?.isActive || (status.remainingDays ?? 0) <= 0) return 'new';
+  const licensed =
+    (status?.isActive ?? status?.active) && (status?.remainingDays ?? 0) > 0;
+  if (!licensed) return 'new';
   const cur = PLAN_ORDER.indexOf(status.plan as (typeof PLAN_ORDER)[number]);
   const next = PLAN_ORDER.indexOf(selectedPlan as (typeof PLAN_ORDER)[number]);
   if (next > cur) return 'upgrade';

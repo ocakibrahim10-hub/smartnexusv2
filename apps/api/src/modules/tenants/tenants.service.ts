@@ -674,7 +674,7 @@ export class TenantsService {
 
     const sub = await this.prisma.subscription.findUnique({
       where: { tenantId: targetId },
-      include: { tenant: { select: { name: true, plan: true, type: true } } },
+      include: { tenant: { select: { name: true, plan: true, type: true, isActive: true } } },
     });
     if (!sub) {
       return { active: false, remainingDays: 0, plan: null, endDate: null, purchasedAddons: [] };
@@ -684,6 +684,7 @@ export class TenantsService {
 
     return {
       active: remainingDays > 0,
+      isActive: sub.tenant.isActive && remainingDays > 0,
       remainingDays,
       plan: sub.plan,
       startDate: sub.startDate,

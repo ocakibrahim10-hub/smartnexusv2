@@ -1292,6 +1292,16 @@ model KontorPurchase {
   @@map("kontor_purchases")
 }
 
+model SubmodulePricing {
+  moduleId      String   @id
+  yearlyPrice   Float    @default(0)
+  sellableExtra Boolean  @default(true)
+  isActive      Boolean  @default(true)
+  updatedAt     DateTime @updatedAt
+
+  @@map("submodule_pricing")
+}
+
 model SubscriptionPurchase {
   id                  String               @id @default(cuid())
   tenantId            String
@@ -1300,6 +1310,7 @@ model SubscriptionPurchase {
   user                User                 @relation(fields: [userId], references: [id])
   plan                PlanType
   addonCodes          AddonModuleCode[]    @default([])
+  extraModuleIds      String[]             @default([])
   extraBranchCount    Int                  @default(0)
   planAmount          Float
   addonsAmount        Float                @default(0)

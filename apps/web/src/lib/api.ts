@@ -121,6 +121,15 @@ export const platformApi = {
   getKontorPackages: () => api.get('/platform/kontor/packages').then((r) => r.data),
   getSubscriptionAddons: () => api.get('/platform/addons').then((r) => r.data),
   getPublicPricing: () => api.get('/platform/pricing/public').then((r) => r.data),
+  getSubmodulePricing: () => api.get('/platform/submodule-pricing').then((r) => r.data),
+  upsertSubmodulePricing: (
+    items: Array<{
+      moduleId: string;
+      yearlyPrice: number;
+      sellableExtra?: boolean;
+      isActive?: boolean;
+    }>,
+  ) => api.post('/platform/submodule-pricing', { items }).then((r) => r.data),
   getPlatformReports: (period?: string) =>
     api.get('/platform/reports', { params: { period } }).then((r) => r.data),
   purchaseKontor: (packageId: string) =>
@@ -145,6 +154,7 @@ export const platformApi = {
       extensionMonths?: number;
       billingMode?: 'new' | 'upgrade' | 'renewal';
       includeAnnualRenewal?: boolean;
+      extraModuleIds?: string[];
     },
   ) =>
     api
@@ -152,6 +162,7 @@ export const platformApi = {
         plan,
         addonCodes,
         extraBranchCount,
+        extraModuleIds: opts?.extraModuleIds ?? [],
         ...opts,
       })
       .then((r) => r.data),
@@ -162,6 +173,9 @@ export const platformApi = {
     opts?: {
       extensionMonths?: number;
       billingMode?: 'new' | 'upgrade' | 'renewal';
+      extraModuleIds?: string[];
+      includeAnnualRenewal?: boolean;
+      tenantId?: string;
     },
   ) =>
     api
@@ -169,6 +183,7 @@ export const platformApi = {
         plan,
         addonCodes,
         extraBranchCount,
+        extraModuleIds: opts?.extraModuleIds ?? [],
         ...opts,
       })
       .then((r) => r.data),
@@ -176,6 +191,7 @@ export const platformApi = {
     tenantId: string;
     plan: string;
     addonCodes?: string[];
+    extraModuleIds?: string[];
     extraBranchCount?: number;
     extensionMonths?: number;
     includeAnnualRenewal?: boolean;

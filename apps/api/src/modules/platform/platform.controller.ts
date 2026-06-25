@@ -114,6 +114,7 @@ export class PlatformController {
     body: {
       plan: string;
       addonCodes?: AddonModuleCode[];
+      extraModuleIds?: string[];
       extraBranchCount?: number;
       tenantId?: string;
       extensionMonths?: number;
@@ -123,12 +124,13 @@ export class PlatformController {
   ) {
     const tenantId = body.tenantId || req.user?.tenantId;
     let currentSubscription;
-    if (tenantId && body.billingMode && body.billingMode !== 'new') {
+    if (tenantId) {
       const ctx = await this.platform.getTenantSubscriptionQuoteContext(tenantId);
       if (ctx) {
         currentSubscription = {
           plan: ctx.plan,
           price: ctx.price,
+          currentAnnualTotal: ctx.currentAnnualTotal,
           endDate: ctx.endDate,
         };
       }
@@ -137,24 +139,44 @@ export class PlatformController {
       currentSubscription,
       extensionMonths: body.extensionMonths ?? 0,
       billingMode: body.billingMode ?? 'new',
+      extraModuleIds: body.extraModuleIds ?? [],
+      includeAnnualRenewal: body.includeAnnualRenewal,
     });
   }
 
   @Public()
   @Post('subscription/quote-public')
-  quoteSubscriptionPublic(
+  async quoteSubscriptionPublic(
     @Body()
     body: {
       plan: string;
       addonCodes?: AddonModuleCode[];
+      extraModuleIds?: string[];
       extraBranchCount?: number;
       extensionMonths?: number;
       billingMode?: 'new' | 'upgrade' | 'renewal';
+      includeAnnualRenewal?: boolean;
+      tenantId?: string;
     },
   ) {
+    let currentSubscription;
+    if (body.tenantId) {
+      const ctx = await this.platform.getTenantSubscriptionQuoteContext(body.tenantId);
+      if (ctx) {
+        currentSubscription = {
+          plan: ctx.plan,
+          price: ctx.price,
+          currentAnnualTotal: ctx.currentAnnualTotal,
+          endDate: ctx.endDate,
+        };
+      }
+    }
     return this.platform.quoteSubscription(body.plan, body.addonCodes || [], body.extraBranchCount || 0, {
       extensionMonths: body.extensionMonths ?? 0,
       billingMode: body.billingMode ?? 'new',
+      extraModuleIds: body.extraModuleIds ?? [],
+      includeAnnualRenewal: body.includeAnnualRenewal,
+      currentSubscription,
     });
   }
 
@@ -166,6 +188,7 @@ export class PlatformController {
       tenantId?: string;
       plan: string;
       addonCodes?: AddonModuleCode[];
+      extraModuleIds?: string[];
       extraBranchCount?: number;
       extensionMonths?: number;
       includeAnnualRenewal?: boolean;
@@ -179,6 +202,7 @@ export class PlatformController {
       tenantId,
       plan: body.plan,
       addonCodes: body.addonCodes,
+      extraModuleIds: body.extraModuleIds,
       extraBranchCount: body.extraBranchCount,
       extensionMonths: body.extensionMonths,
       includeAnnualRenewal: body.includeAnnualRenewal,
@@ -206,6 +230,31 @@ export class PlatformController {
   @Get('pricing/public')
   getPublicPricing() {
     return this.platform.getPublicPricing();
+  }
+
+  @Get('submodule-pricing')
+  @ApiOperation({ summary: 'Alt modül yıllık fiyat listesi (admin)' })
+  listSubmodulePricing(@Request() req: any) {
+    this.platform.assertSuperAdmin(req.user.tenantType);
+    return this.platform.listSubmodulePricing();
+  }
+
+  @Post('submodule-pricing')
+  @ApiOperation({ summary: 'Alt modül fiyatlarını toplu güncelle (admin)' })
+  upsertSubmodulePricing(
+    @Request() req: any,
+    @Body()
+    body: {
+      items: Array<{
+        moduleId: string;
+        yearlyPrice: number;
+        sellableExtra?: boolean;
+        isActive?: boolean;
+      }>;
+    },
+  ) {
+    this.platform.assertSuperAdmin(req.user.tenantType);
+    return this.platform.upsertSubmodulePricingBulk(body.items || []);
   }
 
   @Get('reports')
