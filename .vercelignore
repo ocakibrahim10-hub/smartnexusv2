@@ -1,0 +1,21 @@
+# Mobile app - not needed for web deploy
+apps/mobile
+
+# API dist
+apps/api/dist
+apps/api/node_modules
+
+# Build artifacts
+.next
+*.apk
+
+# Development files
+.gradle
+.expo
+android/.gradle
+android/build
+android/app/build
+
+# Large files
+presentations
+gerekli programlar

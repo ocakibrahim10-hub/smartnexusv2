@@ -1,0 +1,33 @@
+# SmartNexus API — Render Blueprint
+# Web: Vercel (smartnexus-erp.vercel.app)
+# API: Bu servis
+
+services:
+  - type: web
+    name: smartnexus-api
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm install && npx prisma generate --schema=apps/api/prisma/schema.prisma && npm run build --workspace=apps/api && npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
+    startCommand: node apps/api/dist/src/main.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_PREFIX
+        value: api
+      - key: DATABASE_URL
+        fromDatabase:
+          name: smartnexus-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://smartnexusv2.vercel.app
+
+databases:
+  - name: smartnexus-db
+    plan: free
+    region: frankfurt

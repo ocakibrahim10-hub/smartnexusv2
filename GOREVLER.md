@@ -1,0 +1,267 @@
+# 23 Ajan - Gorev Listesi
+**Proje:** SmartERP
+**Tarih:** 2026-06-22_18-14
+**Kalite Puani:** 77/100
+**Toplam Gorev:** 243
+
+---
+## Cursor Agent Talimatlari
+Bu dosyadaki tum gorevleri sirayla tamamla.
+Her gorev tamamlandiginda [ ] isareti [x] yap.
+Bitince 23 AJAN panelinde **CURSOR TAMAMLADI** butonuna basin
+veya proje klasorune **TAMAMLANDI.txt** dosyasi olusturun.
+
+---
+
+## [KRITIK] 1 adet - ONCELIKLE BUNLARI DUZELT
+- [ ] **[TS]** Kritik dusuk test kapsami
+
+## [YUKSEK] 0 adet
+_Yuksek bulgu yok_
+
+## [UYARI] 242 adet
+- [ ] **[QA]** Debug ciktisi `mark-gorevler-complete.js`
+- [ ] **[QA]** Debug ciktisi `cli-log.ts`
+- [ ] **[QA]** Uzun satir (190 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (194 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (182 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (198 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (172 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (192 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (188 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (198 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (182 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (192 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (192 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (174 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (174 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (186 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (184 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (182 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (188 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (175 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (175 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (189 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (180 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (186 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (178 kar) `seed.ts`
+- [ ] **[QA]** Uzun satir (217 kar) `b2b.controller.ts`
+- [ ] **[QA]** Uzun satir (214 kar) `b2b.controller.ts`
+- [ ] **[QA]** Uzun satir (210 kar) `b2b.controller.ts`
+- [ ] **[QA]** Uzun satir (211 kar) `b2b.service.ts`
+- [ ] **[QA]** Uzun satir (217 kar) `b2b.service.ts`
+- [ ] **[QA]** Uzun satir (203 kar) `b2b.service.ts`
+- [ ] **[QA]** Uzun satir (210 kar) `b2b.service.ts`
+- [ ] **[QA]** Uzun satir (215 kar) `cash.service.ts`
+- [ ] **[QA]** Uzun satir (213 kar) `cash.service.ts`
+- [ ] **[QA]** Uzun satir (204 kar) `cash.service.ts`
+- [ ] **[QA]** Uzun satir (209 kar) `inventory.service.ts`
+- [ ] **[QA]** Uzun satir (192 kar) `inventory.service.ts`
+- [ ] **[QA]** Uzun satir (162 kar) `inventory.service.ts`
+- [ ] **[QA]** Uzun satir (193 kar) `inventory.service.ts`
+- [ ] **[QA]** Uzun satir (201 kar) `inventory.service.ts`
+- [ ] **[QA]** Uzun satir (191 kar) `inventory.service.ts`
+- [ ] **[QA]** Uzun satir (162 kar) `inventory.service.ts`
+- [ ] **[QA]** Uzun satir (193 kar) `inventory.service.ts`
+- [ ] **[QA]** Uzun satir (179 kar) `invoices.controller.ts`
+- [ ] **[QA]** Uzun satir (209 kar) `invoices.service.ts`
+- [ ] **[QA]** Uzun satir (200 kar) `marketplace.service.ts`
+- [ ] **[QA]** Uzun satir (193 kar) `marketplace.service.ts`
+- [ ] **[QA]** Uzun satir (203 kar) `marketplace.service.ts`
+- [ ] **[QA]** Uzun satir (188 kar) `marketplace.service.ts`
+- [ ] **[QA]** Uzun satir (183 kar) `marketplace.service.ts`
+- [ ] **[QA]** Uzun satir (205 kar) `marketplace.service.ts`
+- [ ] **[QA]** Uzun satir (128 kar) `pos.service.ts`
+- [ ] **[QA]** Uzun satir (201 kar) `reports.service.ts`
+- [ ] **[QA]** Uzun satir (194 kar) `reports.service.ts`
+- [ ] **[QA]** Uzun satir (191 kar) `reports.service.ts`
+- [ ] **[QA]** Uzun satir (193 kar) `reports.service.ts`
+- [ ] **[QA]** Uzun satir (178 kar) `reports.service.ts`
+- [ ] **[QA]** Uzun satir (189 kar) `reports.service.ts`
+- [ ] **[QA]** Uzun satir (213 kar) `tms.controller.ts`
+- [ ] **[QA]** Uzun satir (211 kar) `tms.controller.ts`
+- [ ] **[QA]** Uzun satir (211 kar) `tms.service.ts`
+- [ ] **[QA]** Uzun satir (213 kar) `tms.service.ts`
+- [ ] **[QA]** Uzun satir (211 kar) `tms.service.ts`
+- [ ] **[QA]** Uzun satir (156 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (160 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (144 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (160 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (144 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (188 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (192 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (186 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (204 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (149 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (152 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (168 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (152 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (153 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (178 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (150 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (161 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (170 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (158 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (135 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (186 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (188 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (163 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (147 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (125 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (197 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (180 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (207 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (199 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (129 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (213 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (249 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (161 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (123 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (121 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (189 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (157 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (232 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (156 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (195 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (267 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (156 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (197 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (125 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (163 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (141 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (159 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (147 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (152 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (159 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (232 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (156 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (207 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (136 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (259 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (149 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (167 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (162 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (182 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (150 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (153 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (155 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (137 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (213 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (222 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (189 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (148 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (189 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (123 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (206 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (192 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (169 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (131 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (209 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (123 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (223 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (236 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (149 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (223 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (196 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (217 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (189 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (155 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (163 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (199 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (209 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (217 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (177 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (121 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (157 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (145 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (149 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (153 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (161 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (161 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (145 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (137 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (136 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (245 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (152 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (148 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (150 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (150 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (148 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (219 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (155 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (170 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (121 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (121 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (172 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (167 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (130 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (173 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (172 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (217 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (269 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (182 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (280 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (137 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (284 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (125 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (131 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (132 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (180 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (207 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (199 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (133 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (150 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (141 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (143 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (199 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (129 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (125 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (275 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (129 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (169 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (165 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (205 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (124 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (150 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (129 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (195 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (143 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (172 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (154 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (139 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (142 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (143 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (129 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (183 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (126 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (200 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (125 kar) `page.tsx`
+- [ ] **[QA]** Uzun satir (159 kar) `ModulePicker.tsx`
+- [ ] **[QA]** Uzun satir (132 kar) `Sidebar.tsx`
+- [ ] **[QA]** Uzun satir (127 kar) `generate_competitive_analysis_ppt.py`
+- [ ] **[QA]** Uzun satir (123 kar) `generate_competitive_analysis_ppt.py`
+- [ ] **[QA]** Uzun satir (121 kar) `generate_competitive_analysis_ppt.py`
+- [ ] **[QA]** Uzun satir (133 kar) `generate_competitive_analysis_ppt.py`
+- [ ] **[QA]** Uzun satir (122 kar) `globals.css`
+- [ ] **[QA]** Uzun satir (179 kar) `kurulum.ps1`
+- [ ] **[QA]** Uzun satir (179 kar) `kurulum.ps1`
+- [ ] **[QA]** Uzun satir (155 kar) `kurulum.ps1`
+- [ ] **[QA]** Uzun satir (142 kar) `kurulum.ps1`
+- [ ] **[QA]** Uzun satir (180 kar) `kurulum.ps1`
+- [ ] **[QA]** Uzun satir (180 kar) `kurulum.ps1`
+- [ ] **[QA]** Uzun satir (180 kar) `kurulum.ps1`
+- [ ] **[DK]** Az dokumantasyon
+- [ ] **[KM]** 49 cok uzun satir (>200)
+- [ ] **[KM]** 993 derin ic ice kod (>6 seviye)
+- [ ] **[TK]** 308 tekrar eden kod blogu
+- [ ] **[AP]** API endpoint - kimlik dogrulama eksik olabilir `contacts.controller.ts`
+- [ ] **[AP]** API endpoint - kimlik dogrulama eksik olabilir `api.ts`
+- [ ] **[GT]** Git gecmisi alinamadi (git kurulu olmayabilir)
+- [ ] **[BY]** Buyuk dosya: 0.pack (50587 KB) `0.pack`
+- [ ] **[BY]** Buyuk dosya: 0.pack (21971 KB) `0.pack`
+- [ ] **[BY]** Buyuk dosya: 8.pack (12192 KB) `8.pack`
+- [ ] **[BY]** Buyuk dosya: 7.pack (11518 KB) `7.pack`
+- [ ] **[BY]** Buyuk dosya: 15.pack (11018 KB) `15.pack`
+
+---
+*23 Ajan AI Kontrol Merkezi - 2026-06-22_18-14*

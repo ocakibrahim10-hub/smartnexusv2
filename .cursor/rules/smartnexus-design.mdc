@@ -1,0 +1,44 @@
+---
+description: SmartNexus dashboard tasarım sistemi — Saasable UI Hosting (açık SaaS)
+alwaysApply: true
+globs: "apps/web/**/*.{tsx,css}"
+---
+
+# SmartNexus Tasarım Sistemi (KALICI)
+
+**Referans:** Saasable UI v2.1 — Hosting preset (açık, profesyonel SaaS)
+
+## Katmanlar
+| Sınıf | Kullanım | Arka plan | Metin |
+|-------|----------|-----------|-------|
+| `.dashboard-main` | İçerik alanı | `#FBF8FF` | `#1B1B1F` |
+| `.dashboard-sidebar` | Sidebar | `#FFFFFF` | `#46464F` |
+| `.card` / `.kpi-card` | Paneller | `#FFFFFF` + ince border | `#1B1B1F` |
+| `.modal-card` | Modal | beyaz | koyu |
+| `.topbar` | Üst bar | beyaz | koyu |
+
+## Renkler (Hosting)
+- Primary: `#606BDF`
+- Sayfa bg: `#FBF8FF`
+- Kart: `#FFFFFF`, border `#EFEDF4`
+- Sidebar seçili: `#E0E0FF`
+
+## ASLA yapma
+- Dashboard'da siyah/koyu arka plan (`#060612`, `#12122a`) kullanma
+- `.card` üzerinde `text-white` (açık kart = koyu metin)
+- Modal içinde `.card` → `.modal-card`
+- ModulePicker modal içinde `variant="light"`
+
+## Fonksiyonel geliştirme kuralı
+- Yeni özellik eklerken **mevcut kart/grid/layout yapısını değiştirme**
+- Referans sayfa: `accounting/cash/page.tsx` — yeni sayfa veya panel aynı kalıpları kullanır
+- Görsel yama (`!important`, toplu class replace) yapma; doğrudan template sınıflarını kullan
+
+## Build sonrası
+```bash
+npm run restart
+```
+
+## Tema
+- `lib/theme.ts` — varsayılan `hosting` (Saasable)
+- Ayarlar → Görünüm & Tema

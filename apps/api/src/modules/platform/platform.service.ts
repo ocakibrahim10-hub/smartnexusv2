@@ -1,0 +1,1264 @@
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { PaymentService } from '../integrations/payments/payment.service';
+import {
+  DEFAULT_PLAN_MODULES,
+  getModuleLabel,
+} from '../../common/plan-modules';
+import { applyDiscount, subscriptionRemainingDays } from '../../common/pricing.util';
+import { mergeAddonModules } from '../../common/addon-module-map';
+import {
+  CHATBOT_SETTING_KEY,
+  DEFAULT_CHATBOT_CONFIG,
+  DEFAULT_OLLAMA_BASE_URL,
+  DEFAULT_OLLAMA_MODEL,
+  isOllamaMemoryError,
+  isMaskedSecret,
+  maskSecret,
+  normalizeOllamaModel,
+  OLLAMA_FALLBACK_MODELS,
+  OLLAMA_LIGHT_MODEL,
+  ollamaMemoryHelp,
+  parseChatbotConfig,
+  type ChatbotConfig,
+} from '../../common/chatbot-config';
+import {
+  TenantType,
+  AddonModuleCode,
+  CommissionInvoiceStatus,
+  PlatformNotificationType,
+} from '@prisma/client';
+import {
+  documentsForContext,
+  LEGAL_DOCUMENTS,
+  LEGAL_DOCUMENT_VERSION,
+  type LegalDocumentId,
+} from '../../common/legal-documents';
+
+const KONTOR_LOW_THRESHOLD = 50;
+const SUBSCRIPTION_ADDON_CODES: AddonModuleCode[] = ['POS_YAZARKASA', 'API_ACCESS', 'MARKETPLACE', 'EXTRA_BRANCH'];
+const KONTOR_MODULE_CODES: AddonModuleCode[] = ['EINVOICE', 'EARCHIVE', 'SMS'];
+
+function isKontorModule(code: AddonModuleCode, flag?: boolean) {
+  return flag === true || KONTOR_MODULE_CODES.includes(code);
+}
+
+type Period = 'day' | 'week' | 'month' | 'year';
+
+@Injectable()
+export class PlatformService {
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => PaymentService))
+    private paymentService: PaymentService,
+  ) {}
+
+  private periodStart(period: Period): Date {
+    const now = new Date();
+    if (period === 'day') return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (period === 'week') {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 7);
+      return d;
+    }
+    if (period === 'year') return new Date(now.getFullYear(), 0, 1);
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+
+  // ─── System Health ────────────────────────────────────────────────────────
+
+  async getSystemHealth() {
+    const checks = [
+      { id: 'api', name: 'API Sunucusu', status: 'OK', latencyMs: 12 },
+      { id: 'db', name: 'PostgreSQL', status: 'OK', latencyMs: 8 },
+    ];
+
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+    } catch {
+      checks[1].status = 'ERROR';
+    }
+
+    const integrations = await this.prisma.tenantIntegration.groupBy({
+      by: ['type', 'provider'],
+      _count: { id: true },
+      where: { isActive: true },
+    });
+
+    const moduleHealth = [
+      { code: 'EINVOICE', name: 'E-Fatura / E-Arşiv', status: 'OK', activeTenants: 0 },
+      { code: 'OPEN_BANKING', name: 'Open Banking', status: 'OK', activeTenants: 0 },
+      { code: 'PAYMENT', name: 'Ödeme (PayTR/iyzico)', status: 'OK', activeTenants: 0 },
+      { code: 'EMAIL', name: 'E-posta (Resend)', status: 'OK', activeTenants: 0 },
+      { code: 'SMS', name: 'SMS (Netgsm)', status: 'OK', activeTenants: 0 },
+    ].map((m) => {
+      const match = integrations.find((i) => i.type === m.code);
+      return { ...m, activeTenants: match?._count.id ?? 0, status: match ? 'OK' : 'WARNING' };
+    });
+
+    const errors = await this.prisma.tenantIntegration.findMany({
+      where: { lastError: { not: null } },
+      take: 10,
+      select: { tenantId: true, type: true, provider: true, lastError: true, lastSyncAt: true },
+    });
+
+    const failedPayments = await this.prisma.paymentTransaction.count({
+      where: { status: 'FAILED', createdAt: { gte: this.periodStart('day') } },
+    });
+
+    return {
+      overall: checks.every((c) => c.status === 'OK') ? 'HEALTHY' : 'DEGRADED',
+      checkedAt: new Date().toISOString(),
+      infrastructure: checks,
+      modules: moduleHealth,
+      recentErrors: errors,
+      stats: {
+        failedPaymentsToday: failedPayments,
+        openTickets: await this.prisma.supportTicket.count({ where: { status: 'OPEN' } }),
+      },
+    };
+  }
+
+  // ─── Addon Modules & Kontor Packages ──────────────────────────────────────
+
+  async listAddonModules() {
+    return this.prisma.addonModule.findMany({
+      orderBy: { sortOrder: 'asc' },
+      include: { kontorPackages: { where: { isActive: true }, orderBy: { quantity: 'asc' } } },
+    });
+  }
+
+  async listSubscriptionAddons() {
+    return this.prisma.addonModule.findMany({
+      where: { code: { in: SUBSCRIPTION_ADDON_CODES }, isActive: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+  }
+
+  async listKontorModules() {
+    return this.prisma.addonModule.findMany({
+      where: { code: { in: KONTOR_MODULE_CODES }, isActive: true },
+      orderBy: { sortOrder: 'asc' },
+      include: { kontorPackages: { where: { isActive: true }, orderBy: { quantity: 'asc' } } },
+    });
+  }
+
+  async getPublicPricing() {
+    const templates = await this.prisma.planTemplate.findMany({ orderBy: { plan: 'asc' } });
+    const plans =
+      templates.length > 0
+        ? templates.map((t) => ({
+            plan: t.plan,
+            price: t.price ?? DEFAULT_PLAN_MODULES[t.plan]?.price ?? 0,
+            discountPercent: t.discountPercent ?? 0,
+            description: t.description ?? DEFAULT_PLAN_MODULES[t.plan]?.description ?? '',
+            modules: t.modules,
+            maxBranches: t.maxBranches ?? 0,
+          }))
+        : Object.entries(DEFAULT_PLAN_MODULES).map(([plan, cfg]) => ({
+            plan,
+            price: cfg.price,
+            discountPercent: cfg.discountPercent ?? 0,
+            description: cfg.description,
+            modules: cfg.modules,
+            maxBranches: 0,
+          }));
+
+    const addons = await this.listSubscriptionAddons();
+    const kontorModules = await this.listKontorModules();
+
+    return {
+      billingPeriod: 'yearly',
+      plans: plans.map((p) => {
+        const pricing = applyDiscount(p.price, p.discountPercent);
+        return {
+          ...p,
+          ...pricing,
+          moduleLabels: p.modules.map((id: string) => getModuleLabel(id)),
+          displayMode: p.plan === 'BASIC' ? 'grouped' : 'listed',
+        };
+      }),
+      addons: addons.map((a) => {
+        const pricing = applyDiscount(a.basePrice ?? 0, a.discountPercent ?? 0);
+        return { ...a, ...pricing, billingPeriod: 'yearly' };
+      }),
+      kontorModules,
+    };
+  }
+
+  async upsertAddonModule(dto: {
+    code: AddonModuleCode;
+    name: string;
+    description?: string;
+    basePrice?: number;
+    discountPercent?: number;
+    isKontorBased?: boolean;
+    isActive?: boolean;
+    sortOrder?: number;
+  }) {
+    return this.prisma.addonModule.upsert({
+      where: { code: dto.code },
+      create: {
+        code: dto.code,
+        name: dto.name,
+        description: dto.description,
+        basePrice: dto.basePrice,
+        discountPercent: dto.discountPercent ?? 0,
+        isKontorBased:
+          dto.isKontorBased ??
+          !SUBSCRIPTION_ADDON_CODES.includes(dto.code as AddonModuleCode),
+        isActive: dto.isActive ?? true,
+        sortOrder: dto.sortOrder ?? 0,
+      },
+      update: {
+        name: dto.name,
+        description: dto.description,
+        basePrice: dto.basePrice,
+        discountPercent: dto.discountPercent,
+        isKontorBased: dto.isKontorBased,
+        isActive: dto.isActive ?? true,
+        sortOrder: dto.sortOrder ?? 0,
+      },
+    });
+  }
+
+  async createKontorPackage(dto: {
+    addonModuleId: string;
+    name: string;
+    quantity: number;
+    unitPrice: number;
+  }) {
+    const mod = await this.prisma.addonModule.findUnique({ where: { id: dto.addonModuleId } });
+    if (!mod || !isKontorModule(mod.code, mod.isKontorBased)) {
+      throw new BadRequestException('Kontör paketi yalnızca kontör tabanlı modüllere eklenebilir');
+    }
+    const totalPrice = Math.round(dto.quantity * dto.unitPrice * 100) / 100;
+    return this.prisma.kontorPackage.create({
+      data: { ...dto, totalPrice },
+    });
+  }
+
+  async updateKontorPackage(id: string, dto: Partial<{ name: string; quantity: number; unitPrice: number; isActive: boolean }>) {
+    const existing = await this.prisma.kontorPackage.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Kontör paketi bulunamadı');
+    const quantity = dto.quantity ?? existing.quantity;
+    const unitPrice = dto.unitPrice ?? existing.unitPrice;
+    return this.prisma.kontorPackage.update({
+      where: { id },
+      data: {
+        ...dto,
+        totalPrice: Math.round(quantity * unitPrice * 100) / 100,
+      },
+    });
+  }
+
+  async setPlanModules(plan: string, moduleCodes: AddonModuleCode[]) {
+    const modules = await this.prisma.addonModule.findMany({
+      where: { code: { in: moduleCodes } },
+    });
+    await this.prisma.planModuleItem.deleteMany({ where: { plan: plan as any } });
+    if (modules.length === 0) return [];
+    await this.prisma.planModuleItem.createMany({
+      data: modules.map((m) => ({ plan: plan as any, addonModuleId: m.id, included: true })),
+    });
+    return this.getPlanModules(plan);
+  }
+
+  async getPlanModules(plan: string) {
+    return this.prisma.planModuleItem.findMany({
+      where: { plan: plan as any },
+      include: { addonModule: true },
+    });
+  }
+
+  // ─── Kontor Balance & Purchase ────────────────────────────────────────────
+
+  async getKontorBalances(tenantId: string) {
+    return this.getKontorSummary(tenantId);
+  }
+
+  async getKontorSummary(tenantId: string) {
+    const kontorModules = await this.prisma.addonModule.findMany({
+      where: { code: { in: KONTOR_MODULE_CODES }, isActive: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+    const balances = await this.prisma.tenantKontorBalance.findMany({ where: { tenantId } });
+    const purchases = await this.prisma.kontorPurchase.groupBy({
+      by: ['moduleCode'],
+      where: { tenantId, status: 'SUCCESS' },
+      _sum: { quantity: true },
+    });
+
+    const items = kontorModules.map((m) => {
+      const balance = balances.find((b) => b.moduleCode === m.code)?.balance ?? 0;
+      const totalPurchased = purchases.find((p) => p.moduleCode === m.code)?._sum.quantity ?? 0;
+      const totalUsed = Math.max(0, totalPurchased - balance);
+      return {
+        moduleCode: m.code,
+        moduleName: m.name,
+        balance,
+        totalPurchased,
+        totalUsed,
+        lowBalance: balance <= KONTOR_LOW_THRESHOLD,
+      };
+    });
+
+    const anyLow = items.some((i) => i.lowBalance);
+    return { items, anyLow, threshold: KONTOR_LOW_THRESHOLD };
+  }
+
+  async initiateKontorPurchase(
+    tenantId: string,
+    userId: string,
+    packageId: string,
+    buyer: { email: string; name: string; phone?: string; ip?: string },
+  ) {
+    const pkg = await this.prisma.kontorPackage.findUnique({
+      where: { id: packageId },
+      include: { addonModule: true },
+    });
+    if (!pkg || !pkg.isActive) throw new NotFoundException('Kontör paketi bulunamadı');
+    if (!isKontorModule(pkg.addonModule.code, pkg.addonModule.isKontorBased)) {
+      throw new BadRequestException('Bu modül kontör ile satılmaz; ek paket olarak abone olun');
+    }
+
+    const merchantOid = `kontor-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const purchase = await this.prisma.kontorPurchase.create({
+      data: {
+        tenantId,
+        userId,
+        packageId: pkg.id,
+        moduleCode: pkg.addonModule.code,
+        quantity: pkg.quantity,
+        amount: pkg.totalPrice,
+        status: 'PENDING',
+        gatewayRef: merchantOid,
+      },
+    });
+
+    const result = await this.paymentService.charge({
+      tenantId,
+      amount: pkg.totalPrice,
+      currency: 'TRY',
+      conversationId: merchantOid,
+      sourceType: 'KONTOR',
+      sourceId: purchase.id,
+      buyer: {
+        id: userId,
+        email: buyer.email,
+        name: buyer.name.split(' ')[0] || buyer.name,
+        surname: buyer.name.split(' ').slice(1).join(' ') || '-',
+        phone: buyer.phone,
+        ip: buyer.ip,
+      },
+      basketItems: [{ id: pkg.id, name: `${pkg.addonModule.name} ${pkg.name}`, price: pkg.totalPrice }],
+      callbackUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/isletme/kontor?payment=ok`,
+    });
+
+    return { purchaseId: purchase.id, ...result };
+  }
+
+  async creditKontorOnPayment(merchantOid: string, status: string) {
+    if (status !== 'SUCCESS') return;
+    const purchase = await this.prisma.kontorPurchase.findFirst({
+      where: { gatewayRef: merchantOid },
+    });
+    if (!purchase || purchase.status === 'SUCCESS') return;
+
+    await this.prisma.$transaction([
+      this.prisma.kontorPurchase.update({
+        where: { id: purchase.id },
+        data: { status: 'SUCCESS', completedAt: new Date() },
+      }),
+      this.prisma.tenantKontorBalance.upsert({
+        where: {
+          tenantId_moduleCode: { tenantId: purchase.tenantId, moduleCode: purchase.moduleCode },
+        },
+        create: {
+          tenantId: purchase.tenantId,
+          moduleCode: purchase.moduleCode,
+          balance: purchase.quantity,
+        },
+        update: { balance: { increment: purchase.quantity } },
+      }),
+    ]);
+
+    await this.createNotification({
+      type: 'KONTOR_PURCHASE',
+      title: 'Kontör yüklendi',
+      body: `${purchase.quantity} adet kontör bakiyenize eklendi.`,
+      targetTenantId: purchase.tenantId,
+      metadata: { purchaseId: purchase.id, quantity: purchase.quantity },
+    });
+  }
+
+  private async resolvePlanPricing(plan: string) {
+    const row = await this.prisma.planTemplate.findUnique({ where: { plan: plan as any } });
+    const listPrice = row?.price ?? DEFAULT_PLAN_MODULES[plan]?.price ?? 0;
+    const discountPercent = row?.discountPercent ?? DEFAULT_PLAN_MODULES[plan]?.discountPercent ?? 0;
+    const modules = row?.modules ?? DEFAULT_PLAN_MODULES[plan]?.modules ?? [];
+    return { ...applyDiscount(listPrice, discountPercent), modules };
+  }
+
+  async quoteSubscription(
+    plan: string,
+    addonCodes: AddonModuleCode[] = [],
+    extraBranchCount: number = 0,
+    currentSubscription?: { plan: string; price: number; endDate: Date }
+  ) {
+    const planPricing = await this.resolvePlanPricing(plan);
+    const codesToFetch = [...addonCodes];
+    if (extraBranchCount > 0) codesToFetch.push('EXTRA_BRANCH');
+    
+    const addons = await this.prisma.addonModule.findMany({
+      where: { code: { in: codesToFetch.filter((c) => SUBSCRIPTION_ADDON_CODES.includes(c)) } },
+    });
+    let addonsListPrice = 0;
+    let addonsFinal = 0;
+    
+    for (const a of addons) {
+      const p = applyDiscount(a.basePrice ?? 0, a.discountPercent ?? 0);
+      if (a.code === 'EXTRA_BRANCH') {
+        addonsListPrice += p.listPrice * extraBranchCount;
+        addonsFinal += p.finalPrice * extraBranchCount;
+      } else {
+        addonsListPrice += p.listPrice;
+        addonsFinal += p.finalPrice;
+      }
+    }
+    
+    let proratedAmount = 0;
+    if (currentSubscription) {
+      const remainingDays = subscriptionRemainingDays(currentSubscription.endDate);
+      const currentPrice = currentSubscription.price || 0;
+      const newPrice = planPricing.finalPrice + addonsFinal;
+      // Sadece üst pakete geçerken (veya yeni modül alırken) fark alınır
+      if (newPrice > currentPrice && remainingDays > 0) {
+        proratedAmount = Math.round(((newPrice - currentPrice) / 365) * remainingDays * 100) / 100;
+      }
+    }
+
+    const totalAmount = Math.round((planPricing.finalPrice + addonsFinal + proratedAmount) * 100) / 100;
+    const discountAmount =
+      Math.round((planPricing.discountAmount + (addonsListPrice - addonsFinal)) * 100) / 100;
+      
+    return {
+      billingPeriod: 'yearly',
+      plan,
+      planAmount: planPricing.finalPrice,
+      planListPrice: planPricing.listPrice,
+      planDiscountPercent: planPricing.discountPercent,
+      addonsAmount: addonsFinal,
+      addonsListPrice,
+      proratedAmount,
+      discountAmount,
+      totalAmount,
+      modules: planPricing.modules,
+      addonCodes: addons.filter((a) => a.code !== 'EXTRA_BRANCH').map((a) => a.code),
+      extraBranchCount,
+    };
+  }
+
+  async initiateSubscriptionPurchase(
+    actor: { id: string; tenantId: string; tenantType: TenantType; email: string; name?: string },
+    dto: {
+      tenantId: string;
+      plan: string;
+      addonCodes?: AddonModuleCode[];
+      extraBranchCount?: number;
+      buyer?: { email: string; name: string; phone?: string; ip?: string };
+      acceptedDocuments?: LegalDocumentId[];
+    },
+  ) {
+    const requiredLegal = documentsForContext('subscription_checkout').map((d) => d.id);
+    const accepted: string[] = dto.acceptedDocuments || [];
+    if (!requiredLegal.every((id) => accepted.includes(id))) {
+      throw new BadRequestException('Ödeme için tüm sözleşmeleri kabul etmelisiniz');
+    }
+
+    const target = await this.prisma.tenant.findUnique({
+      where: { id: dto.tenantId },
+      include: { subscription: true },
+    });
+    if (!target || !['BUSINESS', 'BRANCH'].includes(target.type)) {
+      throw new BadRequestException('Geçersiz işletme');
+    }
+
+    if (actor.tenantType === TenantType.DEALER) {
+      if (target.parentId !== actor.tenantId) {
+        throw new ForbiddenException('Sadece kendi işletmelerinize paket tanımlayabilirsiniz');
+      }
+    } else if (actor.tenantType !== TenantType.SUPERADMIN && actor.tenantId !== dto.tenantId) {
+      throw new ForbiddenException('Bu işletme için ödeme yetkiniz yok');
+    }
+
+    const addonCodes = (dto.addonCodes || []).filter((c) => SUBSCRIPTION_ADDON_CODES.includes(c));
+    const extraBranchCount = dto.extraBranchCount || 0;
+    
+    const quote = await this.quoteSubscription(
+      dto.plan, 
+      addonCodes, 
+      extraBranchCount, 
+      target.subscription || undefined
+    );
+
+    const merchantOid = `sub-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const purchase = await this.prisma.subscriptionPurchase.create({
+      data: {
+        tenantId: dto.tenantId,
+        userId: actor.id,
+        plan: dto.plan as any,
+        addonCodes,
+        extraBranchCount,
+        planAmount: quote.planAmount,
+        addonsAmount: quote.addonsAmount + quote.proratedAmount,
+        discountAmount: quote.discountAmount,
+        totalAmount: quote.totalAmount,
+        status: 'PENDING',
+        gatewayRef: merchantOid,
+        purchasedByDealerId: actor.tenantType === TenantType.DEALER ? actor.tenantId : null,
+      },
+    });
+
+    await this.prisma.legalAcceptance.createMany({
+      data: requiredLegal.map((documentId) => ({
+        userId: actor.id,
+        tenantId: dto.tenantId,
+        documentId,
+        documentVersion: LEGAL_DOCUMENT_VERSION,
+        context: 'subscription_checkout',
+      })),
+    });
+
+    const buyer = dto.buyer || {
+      email: actor.email,
+      name: actor.name || 'Kullanıcı',
+    };
+
+    const panel =
+      actor.tenantType === TenantType.DEALER
+        ? 'bayi'
+        : actor.tenantType === TenantType.SUPERADMIN
+          ? 'nexusadmin'
+          : 'isletme';
+
+    const result = await this.paymentService.charge({
+      tenantId: dto.tenantId,
+      amount: quote.totalAmount,
+      currency: 'TRY',
+      conversationId: merchantOid,
+      sourceType: 'SUBSCRIPTION',
+      sourceId: purchase.id,
+      buyer: {
+        id: actor.id,
+        email: buyer.email,
+        name: buyer.name.split(' ')[0] || buyer.name,
+        surname: buyer.name.split(' ').slice(1).join(' ') || '-',
+        phone: buyer.phone,
+        ip: buyer.ip,
+      },
+      basketItems: [
+        {
+          id: dto.plan,
+          name: `Yıllık ${dto.plan} paketi`,
+          price: quote.planAmount,
+        },
+        ...addonCodes.map((code) => ({
+          id: code,
+          name: `Ek paket ${code}`,
+          price: quote.addonsAmount / Math.max(1, addonCodes.length),
+        })),
+      ],
+      callbackUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/${panel}/subscribe?payment=ok&tenantId=${dto.tenantId}`,
+    });
+
+    return { purchaseId: purchase.id, quote, ...result };
+  }
+
+  async activateSubscriptionPurchase(purchaseId: string) {
+    const purchase = await this.prisma.subscriptionPurchase.findUnique({
+      where: { id: purchaseId },
+    });
+    if (!purchase || purchase.status === 'SUCCESS') return;
+
+    const target = await this.prisma.tenant.findUnique({
+      where: { id: purchase.tenantId },
+      include: { subscription: true },
+    });
+    const currentSub = target?.subscription;
+
+    const planPricing = await this.resolvePlanPricing(purchase.plan);
+    const modules = mergeAddonModules(planPricing.modules, purchase.addonCodes);
+    
+    // Prorata upgrade mantığı: mevcut sürenin üzerine +1 yıl
+    const startDate = new Date();
+    const endDate = new Date();
+    if (currentSub && currentSub.endDate > new Date()) {
+      endDate.setTime(currentSub.endDate.getTime());
+    }
+    endDate.setFullYear(endDate.getFullYear() + 1);
+    
+    // Ekstra şubelerin toplanması
+    const newExtraBranches = (currentSub?.extraBranches || 0) + (purchase.extraBranchCount || 0);
+
+    await this.prisma.$transaction([
+      this.prisma.subscriptionPurchase.update({
+        where: { id: purchase.id },
+        data: { status: 'SUCCESS', completedAt: new Date() },
+      }),
+      this.prisma.subscription.upsert({
+        where: { tenantId: purchase.tenantId },
+        create: {
+          tenantId: purchase.tenantId,
+          plan: purchase.plan,
+          startDate,
+          endDate,
+          autoRenew: false,
+          price: purchase.totalAmount,
+          modules,
+          purchasedAddons: purchase.addonCodes,
+          extraBranches: newExtraBranches,
+          dealerId: purchase.purchasedByDealerId,
+        },
+        update: {
+          plan: purchase.plan,
+          startDate,
+          endDate,
+          price: purchase.totalAmount,
+          modules,
+          purchasedAddons: purchase.addonCodes,
+          extraBranches: newExtraBranches,
+          dealerId: purchase.purchasedByDealerId ?? undefined,
+        },
+      }),
+      this.prisma.tenant.update({
+        where: { id: purchase.tenantId },
+        data: { plan: purchase.plan, isActive: true },
+      }),
+      this.prisma.subscriptionHistory.create({
+        data: {
+          tenantId: purchase.tenantId,
+          plan: purchase.plan,
+          modules,
+          price: purchase.totalAmount,
+          action: 'PURCHASE',
+          note: `PayTR — ${purchase.addonCodes.join(', ') || 'ek paket yok'}`,
+          actorUserId: purchase.userId,
+        },
+      }),
+    ]);
+
+    await this.createNotification({
+      type: 'SUBSCRIPTION',
+      title: 'Abonelik aktif',
+      body: `Yıllık paketiniz tanımlandı. Bitiş: ${endDate.toLocaleDateString('tr-TR')}`,
+      targetTenantId: purchase.tenantId,
+      metadata: {
+        purchaseId: purchase.id,
+        plan: purchase.plan,
+        remainingDays: subscriptionRemainingDays(endDate),
+      },
+    });
+  }
+
+  // ─── Dealer Commission Invoices ───────────────────────────────────────────
+
+  async listCommissionInvoices(dealerId: string, tenantType: TenantType) {
+    const where =
+      tenantType === TenantType.SUPERADMIN ? {} : { dealerId };
+    return this.prisma.dealerCommissionInvoice.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: { dealer: { select: { id: true, name: true, code: true } } },
+    });
+  }
+
+  async createCommissionInvoice(
+    dealerId: string,
+    dto: {
+      periodStart: string;
+      periodEnd: string;
+      amount: number;
+      integratorName: string;
+      invoiceNo?: string;
+      description?: string;
+    },
+  ) {
+    const invoice = await this.prisma.dealerCommissionInvoice.create({
+      data: {
+        dealerId,
+        periodStart: new Date(dto.periodStart),
+        periodEnd: new Date(dto.periodEnd),
+        amount: dto.amount,
+        integratorName: dto.integratorName,
+        invoiceNo: dto.invoiceNo,
+        description: dto.description,
+        status: 'DRAFT',
+      },
+    });
+    return invoice;
+  }
+
+  async sendCommissionInvoice(dealerId: string, invoiceId: string) {
+    const invoice = await this.prisma.dealerCommissionInvoice.findFirst({
+      where: { id: invoiceId, dealerId },
+    });
+    if (!invoice) throw new NotFoundException('Fatura bulunamadı');
+    if (invoice.status !== 'DRAFT' && invoice.status !== 'REJECTED') {
+      throw new BadRequestException('Bu fatura zaten gönderilmiş');
+    }
+
+    const updated = await this.prisma.dealerCommissionInvoice.update({
+      where: { id: invoiceId },
+      data: { status: 'SENT', sentAt: new Date() },
+      include: { dealer: { select: { name: true } } },
+    });
+
+    await this.createNotification({
+      type: 'COMMISSION_INVOICE',
+      title: 'Yeni hakediş faturası',
+      body: `${updated.dealer.name} — ${updated.amount.toLocaleString('tr-TR')} ₺ hakediş faturası gönderdi.`,
+      targetTenantId: null,
+      metadata: { invoiceId, dealerId, amount: updated.amount },
+    });
+
+    return updated;
+  }
+
+  async updateCommissionInvoiceStatus(
+    invoiceId: string,
+    status: CommissionInvoiceStatus,
+    rejectedReason?: string,
+  ) {
+    const data: any = { status };
+    if (status === 'APPROVED') data.approvedAt = new Date();
+    if (status === 'PAID') data.paidAt = new Date();
+    if (status === 'REJECTED') data.rejectedReason = rejectedReason;
+    return this.prisma.dealerCommissionInvoice.update({ where: { id: invoiceId }, data });
+  }
+
+  // ─── Notifications ────────────────────────────────────────────────────────
+
+  async createNotification(dto: {
+    type: PlatformNotificationType;
+    title: string;
+    body: string;
+    targetTenantId?: string | null;
+    metadata?: Record<string, unknown>;
+  }) {
+    return this.prisma.platformNotification.create({ data: dto as any });
+  }
+
+  async listNotifications(tenantId: string | null, tenantType: TenantType) {
+    const where =
+      tenantType === TenantType.SUPERADMIN
+        ? {}
+        : { OR: [{ targetTenantId: tenantId }, { targetTenantId: null }] };
+    return this.prisma.platformNotification.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+  }
+
+  async markNotificationRead(id: string) {
+    return this.prisma.platformNotification.update({
+      where: { id },
+      data: { isRead: true },
+    });
+  }
+
+  // ─── Enhanced Platform Boss Screen ────────────────────────────────────────
+
+  async getPlatformBossScreen(period: Period = 'month') {
+    const since = this.periodStart(period);
+
+    const [dealers, businesses, branches, subscriptions, kontorPurchases, webRegistrations] =
+      await Promise.all([
+        this.prisma.tenant.count({ where: { type: 'DEALER', isActive: true } }),
+        this.prisma.tenant.count({ where: { type: 'BUSINESS', isActive: true } }),
+        this.prisma.tenant.count({ where: { type: 'BRANCH', isActive: true } }),
+        this.prisma.subscription.findMany({
+          include: { tenant: { select: { name: true, type: true, parentId: true } } },
+        }),
+        this.prisma.kontorPurchase.findMany({
+          where: { status: 'SUCCESS', completedAt: { gte: since } },
+          include: { tenant: { select: { name: true, type: true } } },
+        }),
+        this.prisma.tenant.count({
+          where: { type: 'BUSINESS', createdAt: { gte: since }, parentId: 'ten-root' },
+        }),
+      ]);
+
+    const activeSubs = subscriptions.filter((s) => s.endDate >= new Date());
+    const mrr = activeSubs.reduce((sum, s) => sum + (s.price || 0), 0);
+    const expiringSoon = activeSubs.filter((s) => {
+      const days = (s.endDate.getTime() - Date.now()) / 86400000;
+      return days <= 30 && days > 0;
+    });
+
+    const dealerSales = await this.prisma.tenant.findMany({
+      where: { type: 'BUSINESS', createdAt: { gte: since }, parent: { type: 'DEALER' } },
+      include: {
+        parent: { select: { id: true, name: true } },
+        subscription: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    const dealerRevenueMap = new Map<string, { name: string; count: number; revenue: number }>();
+    for (const b of dealerSales) {
+      const key = b.parentId || 'direct';
+      const prev = dealerRevenueMap.get(key) || {
+        name: b.parent?.name || 'Doğrudan',
+        count: 0,
+        revenue: 0,
+      };
+      prev.count += 1;
+      prev.revenue += b.subscription?.price || 0;
+      dealerRevenueMap.set(key, prev);
+    }
+
+    const kontorRevenue = kontorPurchases.reduce((s, p) => s + p.amount, 0);
+
+    return {
+      period,
+      since: since.toISOString(),
+      kpis: {
+        dealers,
+        businesses,
+        branches,
+        mrr,
+        arr: mrr * 12,
+        activeSubscriptions: activeSubs.length,
+        expiringSoon: expiringSoon.length,
+        webRegistrations,
+        dealerSalesCount: dealerSales.length,
+        kontorRevenue,
+        totalRevenue: mrr + kontorRevenue,
+      },
+      expiringSubscriptions: expiringSoon.slice(0, 15).map((s) => ({
+        tenantId: s.tenantId,
+        tenantName: s.tenant.name,
+        plan: s.plan,
+        endDate: s.endDate,
+        price: s.price,
+        dealerId: s.dealerId,
+      })),
+      dealerPerformance: [...dealerRevenueMap.values()].sort((a, b) => b.revenue - a.revenue),
+      recentDealerSales: dealerSales.map((b) => ({
+        id: b.id,
+        name: b.name,
+        dealerName: b.parent?.name,
+        plan: b.plan,
+        price: b.subscription?.price,
+        createdAt: b.createdAt,
+        source: 'DEALER',
+      })),
+      kontorPurchases: kontorPurchases.slice(0, 10).map((p) => ({
+        tenantName: p.tenant.name,
+        moduleCode: p.moduleCode,
+        quantity: p.quantity,
+        amount: p.amount,
+        completedAt: p.completedAt,
+      })),
+      subscriptionChanges: await this.prisma.subscriptionHistory.findMany({
+        where: { createdAt: { gte: since } },
+        orderBy: { createdAt: 'desc' },
+        take: 15,
+      }),
+    };
+  }
+
+  async getPlatformReports(period: Period = 'month') {
+    const boss = await this.getPlatformBossScreen(period);
+    const planBreakdown = await this.prisma.subscription.groupBy({
+      by: ['plan'],
+      _count: { id: true },
+      _sum: { price: true },
+    });
+
+    const lowBalanceTenants = await this.prisma.tenantKontorBalance.findMany({
+      where: { balance: { lte: KONTOR_LOW_THRESHOLD } },
+      include: { tenant: { select: { id: true, name: true, type: true } } },
+      take: 20,
+    });
+
+    return {
+      ...boss,
+      planBreakdown: planBreakdown.map((p) => ({
+        plan: p.plan,
+        count: p._count.id,
+        revenue: p._sum.price ?? 0,
+      })),
+      lowBalanceAlerts: lowBalanceTenants.map((b) => ({
+        tenantId: b.tenantId,
+        tenantName: b.tenant.name,
+        tenantType: b.tenant.type,
+        moduleCode: b.moduleCode,
+        balance: b.balance,
+      })),
+    };
+  }
+
+  // ─── Tenant Reports (for admin) ───────────────────────────────────────────
+
+  async getTenantDetailReport(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      include: {
+        subscription: true,
+        parent: { select: { id: true, name: true, type: true } },
+        children: { select: { id: true, name: true, type: true, plan: true, isActive: true } },
+        users: { select: { id: true, name: true, role: true, phone: true, isActive: true } },
+        kontorBalances: true,
+      },
+    });
+    if (!tenant) throw new NotFoundException('Tenant bulunamadı');
+
+    const history = await this.prisma.subscriptionHistory.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    const purchases = await this.prisma.kontorPurchase.findMany({
+      where: { tenantId, status: 'SUCCESS' },
+      orderBy: { completedAt: 'desc' },
+      take: 10,
+    });
+
+    return { tenant, history, kontorPurchases: purchases };
+  }
+
+  assertSuperAdmin(tenantType: TenantType) {
+    if (tenantType !== TenantType.SUPERADMIN) {
+      throw new ForbiddenException('Bu işlem için platform yöneticisi gerekli');
+    }
+  }
+
+  // ─── Chatbot (Nexus Asistan) ──────────────────────────────────────────────
+
+  private async loadChatbotConfig(): Promise<ChatbotConfig> {
+    const row = await this.prisma.platformSetting.findUnique({
+      where: { key: CHATBOT_SETTING_KEY },
+    });
+    return parseChatbotConfig(row?.value);
+  }
+
+  private async saveChatbotConfig(config: ChatbotConfig) {
+    await this.prisma.platformSetting.upsert({
+      where: { key: CHATBOT_SETTING_KEY },
+      create: { key: CHATBOT_SETTING_KEY, value: config as object },
+      update: { value: config as object },
+    });
+  }
+
+  private resolveRuntimeKeys(config: ChatbotConfig) {
+    const envOpenAi = process.env.OPENAI_API_KEY || '';
+    const envGateway = process.env.AI_GATEWAY_API_KEY || '';
+    const envModel = process.env.AI_CHAT_MODEL || config.model || 'openai/gpt-4o-mini';
+
+    if (config.provider === 'openai') {
+      return {
+        provider: 'openai' as const,
+        openaiApiKey: config.openaiApiKey || envOpenAi,
+        gatewayApiKey: undefined,
+        ollamaBaseUrl: undefined,
+        model: config.model || envModel,
+      };
+    }
+    if (config.provider === 'gateway') {
+      return {
+        provider: 'gateway' as const,
+        openaiApiKey: undefined,
+        gatewayApiKey: config.gatewayApiKey || envGateway,
+        ollamaBaseUrl: undefined,
+        model: config.model || envModel,
+      };
+    }
+    if (config.provider === 'ollama') {
+      return {
+        provider: 'ollama' as const,
+        openaiApiKey: undefined,
+        gatewayApiKey: undefined,
+        ollamaBaseUrl:
+          config.ollamaBaseUrl ||
+          process.env.OLLAMA_BASE_URL?.replace(/\/$/, '') ||
+          DEFAULT_OLLAMA_BASE_URL,
+        model: normalizeOllamaModel(
+          config.model || process.env.OLLAMA_MODEL || DEFAULT_OLLAMA_MODEL,
+        ),
+      };
+    }
+    return {
+      provider: 'env' as const,
+      openaiApiKey: envOpenAi || undefined,
+      gatewayApiKey: envGateway || undefined,
+      ollamaBaseUrl: undefined,
+      model: envModel,
+    };
+  }
+
+  async getChatbotSettingsAdmin() {
+    const config = await this.loadChatbotConfig();
+    return {
+      enabled: config.enabled,
+      provider: config.provider,
+      model: config.model,
+      extraSystemPrompt: config.extraSystemPrompt || '',
+      welcomeMessage: config.welcomeMessage || DEFAULT_CHATBOT_CONFIG.welcomeMessage,
+      openaiApiKeyMasked: maskSecret(config.openaiApiKey),
+      gatewayApiKeyMasked: maskSecret(config.gatewayApiKey),
+      hasOpenaiKey: !!config.openaiApiKey,
+      hasGatewayKey: !!config.gatewayApiKey,
+      ollamaBaseUrl:
+        config.ollamaBaseUrl ||
+        process.env.OLLAMA_BASE_URL?.replace(/\/$/, '') ||
+        DEFAULT_OLLAMA_BASE_URL,
+      envFallback: {
+        openai: !!process.env.OPENAI_API_KEY,
+        gateway: !!process.env.AI_GATEWAY_API_KEY,
+        ollama: !!process.env.OLLAMA_BASE_URL,
+        model: process.env.AI_CHAT_MODEL || null,
+        ollamaModel: process.env.OLLAMA_MODEL || null,
+      },
+      updatedAt: (
+        await this.prisma.platformSetting.findUnique({ where: { key: CHATBOT_SETTING_KEY } })
+      )?.updatedAt,
+    };
+  }
+
+  async updateChatbotSettings(body: Partial<ChatbotConfig> & { openaiApiKey?: string; gatewayApiKey?: string }) {
+    const current = await this.loadChatbotConfig();
+    const next: ChatbotConfig = {
+      ...current,
+      enabled: body.enabled ?? current.enabled,
+      provider: body.provider ?? current.provider,
+      model: body.model?.trim() || current.model,
+      extraSystemPrompt: body.extraSystemPrompt ?? current.extraSystemPrompt,
+      welcomeMessage: body.welcomeMessage ?? current.welcomeMessage,
+      ollamaBaseUrl: body.ollamaBaseUrl?.trim()
+        ? body.ollamaBaseUrl.trim().replace(/\/$/, '')
+        : current.ollamaBaseUrl,
+    };
+
+    if (body.openaiApiKey && !isMaskedSecret(body.openaiApiKey)) {
+      next.openaiApiKey = body.openaiApiKey.trim();
+    }
+    if (body.gatewayApiKey && !isMaskedSecret(body.gatewayApiKey)) {
+      next.gatewayApiKey = body.gatewayApiKey.trim();
+    }
+
+    await this.saveChatbotConfig(next);
+    return this.getChatbotSettingsAdmin();
+  }
+
+  async getChatbotPublicStatus() {
+    const config = await this.loadChatbotConfig();
+    const keys = this.resolveRuntimeKeys(config);
+    const configured =
+      keys.provider === 'ollama'
+        ? !!keys.ollamaBaseUrl
+        : keys.provider === 'env'
+          ? !!(keys.gatewayApiKey || keys.openaiApiKey || process.env.OLLAMA_BASE_URL)
+          : !!(keys.gatewayApiKey || keys.openaiApiKey);
+    return {
+      enabled: config.enabled,
+      configured,
+      welcomeMessage: config.welcomeMessage || DEFAULT_CHATBOT_CONFIG.welcomeMessage,
+    };
+  }
+
+  async getChatbotRuntimeConfig() {
+    const config = await this.loadChatbotConfig();
+    const keys = this.resolveRuntimeKeys(config);
+    return {
+      enabled: config.enabled,
+      provider: keys.provider,
+      openaiApiKey: keys.openaiApiKey,
+      gatewayApiKey: keys.gatewayApiKey,
+      ollamaBaseUrl: keys.ollamaBaseUrl,
+      model: normalizeOllamaModel(keys.model),
+      extraSystemPrompt: config.extraSystemPrompt || '',
+    };
+  }
+
+  private async ollamaChatOnce(base: string, modelName: string, content: string) {
+    const res = await fetch(`${base}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: modelName,
+        messages: [{ role: 'user', content }],
+        stream: false,
+        options: {
+          num_ctx: 2048,
+          num_predict: 256,
+        },
+      }),
+      signal: AbortSignal.timeout(120_000),
+    });
+    const errText = res.ok ? '' : await res.text();
+    const json = res.ok
+      ? ((await res.json()) as { choices?: { message?: { content?: string } }[] })
+      : null;
+    return {
+      ok: res.ok,
+      status: res.status,
+      errText,
+      reply: json?.choices?.[0]?.message?.content?.trim() || '',
+    };
+  }
+
+  async listOllamaModels(baseUrl?: string) {
+    const url = (baseUrl || DEFAULT_OLLAMA_BASE_URL).replace(/\/$/, '');
+    try {
+      const res = await fetch(`${url}/api/tags`, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) {
+        throw new BadRequestException(`Ollama erişilemedi (${res.status}). Sunucu çalışıyor mu?`);
+      }
+      const json = (await res.json()) as { models?: { name: string }[] };
+      return {
+        baseUrl: url,
+        models: (json.models || []).map((m) => m.name),
+      };
+    } catch (e) {
+      if (e instanceof BadRequestException) throw e;
+      throw new BadRequestException(
+        `Ollama'ya bağlanılamadı (${url}). ollama serve çalıştırın veya adresi kontrol edin.`,
+      );
+    }
+  }
+
+  async testChatbotConnection() {
+    const config = await this.loadChatbotConfig();
+    if (!config.enabled) {
+      throw new BadRequestException('Asistan panelden kapalı. Önce etkinleştirin.');
+    }
+    const keys = this.resolveRuntimeKeys(config);
+
+    if (keys.provider === 'ollama') {
+      const base = (keys.ollamaBaseUrl || DEFAULT_OLLAMA_BASE_URL).replace(/\/$/, '');
+      const primary = normalizeOllamaModel(keys.model || DEFAULT_OLLAMA_MODEL);
+      const tryModels = [...new Set([primary, ...OLLAMA_FALLBACK_MODELS])];
+
+      let lastErr = '';
+      for (const modelName of tryModels) {
+        const attempt = await this.ollamaChatOnce(
+          base,
+          modelName,
+          'Test. Tek kelimeyle yanıt ver: OK',
+        );
+        if (attempt.ok) {
+          const savedModel = (config.model || '').replace(/^openai\//, '').trim();
+          const notice =
+            modelName !== savedModel && modelName !== primary
+              ? `RAM yetersizliği nedeniyle model otomatik olarak "${modelName}" olarak ayarlandı.`
+              : savedModel !== modelName
+                ? `"${savedModel}" yerine hafif model "${modelName}" kullanılıyor.`
+                : undefined;
+
+          if (config.model !== modelName) {
+            await this.saveChatbotConfig({ ...config, model: modelName, provider: 'ollama' });
+          }
+
+          return {
+            ok: true,
+            provider: 'ollama',
+            model: modelName,
+            reply: attempt.reply || 'OK',
+            notice,
+          };
+        }
+
+        lastErr = attempt.errText;
+        if (!isOllamaMemoryError(attempt.errText)) break;
+      }
+
+      if (isOllamaMemoryError(lastErr)) {
+        throw new BadRequestException(ollamaMemoryHelp(primary));
+      }
+      throw new BadRequestException(
+        `Ollama bağlantısı başarısız: ${lastErr.slice(0, 280) || 'bilinmeyen hata'}`,
+      );
+    }
+
+    const useGateway = keys.provider === 'gateway' || (!!keys.gatewayApiKey && !keys.openaiApiKey);
+    const apiKey = useGateway ? keys.gatewayApiKey : keys.openaiApiKey;
+    if (!apiKey) {
+      throw new BadRequestException(
+        'API anahtarı tanımlı değil. Panelden anahtar girin veya .env dosyasına OPENAI_API_KEY / AI_GATEWAY_API_KEY ekleyin.',
+      );
+    }
+
+    const model = keys.model || 'openai/gpt-4o-mini';
+    const baseUrl = useGateway ? 'https://ai-gateway.vercel.sh/v1' : 'https://api.openai.com/v1';
+    const modelName = useGateway ? model : model.replace(/^openai\//, '') || 'gpt-4o-mini';
+
+    const res = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages: [
+          {
+            role: 'user',
+            content: 'Test. Tek kelimeyle yanıt ver: OK',
+          },
+        ],
+        max_tokens: 8,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new BadRequestException(
+        `Bağlantı başarısız (${res.status}): ${errText.slice(0, 240)}`,
+      );
+    }
+
+    const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+    return {
+      ok: true,
+      provider: useGateway ? 'gateway' : 'openai',
+      model: modelName,
+      reply: json.choices?.[0]?.message?.content?.trim() || 'OK',
+    };
+  }
+
+  listLegalDocuments(context?: string) {
+    const ctx =
+      context === 'subscription_checkout' ? 'subscription_checkout' : 'dealer_business';
+    return documentsForContext(ctx).map((d) => ({
+      id: d.id,
+      title: d.title,
+      shortLabel: d.shortLabel,
+      version: LEGAL_DOCUMENT_VERSION,
+      content: d.content,
+    }));
+  }
+
+  getLegalDocument(id: string) {
+    const doc = LEGAL_DOCUMENTS.find((d) => d.id === id);
+    if (!doc) throw new NotFoundException('Sözleşme bulunamadı');
+    return {
+      id: doc.id,
+      title: doc.title,
+      shortLabel: doc.shortLabel,
+      version: LEGAL_DOCUMENT_VERSION,
+      content: doc.content,
+    };
+  }
+}

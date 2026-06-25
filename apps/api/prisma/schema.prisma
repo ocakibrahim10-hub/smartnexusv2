@@ -1,0 +1,1672 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Enums -------------------------------------------------------------------
+
+enum TenantType {
+  SUPERADMIN
+  DEALER
+  BUSINESS
+  BRANCH
+}
+
+enum PlanType {
+  BASIC
+  PROFESSIONAL
+  PLATINUM
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  STAFF
+  ACCOUNTANT
+  CASHIER
+  WAREHOUSE
+  DRIVER
+}
+
+enum ContactType {
+  CUSTOMER
+  SUPPLIER
+  BOTH
+}
+
+enum InvoiceType {
+  SALES
+  PURCHASE
+  RETURN_SALES
+  RETURN_PURCHASE
+  PROFORMA
+}
+
+enum InvoiceStatus {
+  DRAFT
+  APPROVED
+  PARTIAL
+  SENT
+  PAID
+  CANCELLED
+}
+
+enum EInvoiceStatus {
+  PENDING
+  SENT
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum TransferStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  SHIPPED
+  RECEIVED
+  CANCELLED
+}
+
+enum ShipmentStatus {
+  PLANNED
+  PREPARED
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+enum OrderStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum MovementType {
+  IN
+  OUT
+  TRANSFER_OUT
+  TRANSFER_IN
+  ADJUSTMENT
+  ADJUST
+  RETURN
+  DAMAGE
+  COUNT
+}
+
+enum PaymentType {
+  CASH
+  CARD
+  CREDIT
+  CHECK
+  WIRE
+  MIXED
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+enum CheckStatus {
+  PENDING
+  CLEARED
+  BOUNCED
+  CANCELLED
+}
+
+enum CheckCollectionMethod {
+  MANUAL
+  BANK_COLLECTION
+  ENDORSEMENT
+}
+
+enum CheckDirection {
+  INCOMING
+  OUTGOING
+}
+
+enum MessageTargetType {
+  ALL
+  DEALERS
+  BUSINESSES
+  BRANCHES
+  SPECIFIC
+}
+
+// --- Core --------------------------------------------------------------------
+
+model Tenant {
+  id        String     @id @default(cuid())
+  type      TenantType
+  name      String
+  code      String?    @unique
+  parentId  String?
+  parent    Tenant?    @relation("TenantHierarchy", fields: [parentId], references: [id])
+  children  Tenant[]   @relation("TenantHierarchy")
+  plan      PlanType   @default(BASIC)
+  isActive  Boolean    @default(true)
+  expiresAt DateTime?
+  phone     String?
+  email     String?
+  address   String?
+  city      String?
+  region    String?
+  taxNo     String?
+  taxOffice String?
+  logoUrl   String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  users                 User[]
+  contacts              Contact[]
+  products              Product[]
+  warehouses            Warehouse[]
+  invoices              Invoice[]
+  stockMovements        StockMovement[]
+  transfersFrom         StockTransfer[]           @relation("TransferFrom")
+  transfersTo           StockTransfer[]           @relation("TransferTo")
+  shipments             Shipment[]
+  vehicles              Vehicle[]
+  b2bOrders             B2BOrder[]
+  supportTickets        SupportTicket[]
+  subscription          Subscription?
+  sentMessages          Message[]                 @relation("MessageSender")
+  receivedMessages      MessageRecipient[]
+  integrations          TenantIntegration[]
+  kontorBalances        TenantKontorBalance[]
+  kontorPurchases       KontorPurchase[]
+  subscriptionPurchases SubscriptionPurchase[]
+  commissionInvoices    DealerCommissionInvoice[] @relation("DealerCommissionInvoices")
+  notifications         PlatformNotification[]
+  checkRegisters        CheckRegister[]
+  legalAcceptances      LegalAcceptance[]
+  EmployeeLeave         EmployeeLeave[]
+  Payroll               Payroll[]
+  Lead                  Lead[]
+  Deal                  Deal[]
+  Activity              Activity[]
+  boms                  BillOfMaterial[]
+  workOrders            WorkOrder[]
+  hrDepartments         HrDepartment[]
+  hrPositions           HrPosition[]
+
+  @@map("tenants")
+}
+
+model User {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email       String    @unique
+  password    String
+  name        String
+  role        UserRole  @default(STAFF)
+  permissions String[]  @default([])
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+  avatarUrl   String?
+  phone       String?
+  contactId   String?   @unique
+  contact     Contact?  @relation("UserPersonnelContact", fields: [contactId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  refreshTokens         RefreshToken[]
+  kontorPurchases       KontorPurchase[]
+  subscriptionPurchases SubscriptionPurchase[]
+  legalAcceptances      LegalAcceptance[]
+  EmployeeLeave         EmployeeLeave[]
+  Payroll               Payroll[]
+
+  @@index([phone])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+// --- Products & Inventory ----------------------------------------------------
+
+model Product {
+  id               String           @id @default(cuid())
+  tenantId         String
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code             String
+  name             String
+  description      String?
+  unit             String           @default("ADET")
+  vatRate          Float            @default(20)
+  purchasePrice    Float?           @default(0)
+  salePrice        Float?           @default(0)
+  barcode          String?
+  imageUrl         String?
+  categoryId       String?
+  category         ProductCategory? @relation(fields: [categoryId], references: [id])
+  type             String           @default("PRODUCT") // PRODUCT | SERVICE
+  isActive         Boolean          @default(true)
+  isService        Boolean          @default(false)
+  minQuantity      Float            @default(0)
+  saleUnit         String? // Satış birimi (yoksa unit kullanılır)
+  parentProductId  String?
+  parentProduct    Product?         @relation("ProductMirror", fields: [parentProductId], references: [id])
+  mirroredProducts Product[]        @relation("ProductMirror")
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  deletedAt        DateTime?
+
+  stockItems     StockItem[]
+  stockMovements StockMovement[]
+  invoiceLines   InvoiceLine[]
+  transferLines  StockTransferLine[]
+  b2bOrderLines  B2BOrderLine[]
+  priceLists     PriceListItem[]
+  posLines       POSReceiptLine[]
+  productUnits   ProductUnit[]
+  bomsAsMamul    BillOfMaterial[]
+  bomItems       BomItem[]        @relation("BomItemProduct")
+  workOrderItems WorkOrderItem[]  @relation("WorkOrderItemProduct")
+
+  @@unique([tenantId, code])
+  @@index([parentProductId])
+  @@map("products")
+}
+
+model ProductUnit {
+  id             String   @id @default(cuid())
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  unit           String
+  factorToBase   Float // 1 birim = factorToBase adet (temel birimde)
+  isPurchaseUnit Boolean  @default(false)
+  isSaleUnit     Boolean  @default(false)
+  barcode        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([productId, unit])
+  @@map("product_units")
+}
+
+model ProductCategory {
+  id       String            @id @default(cuid())
+  tenantId String            @default("")
+  name     String
+  parentId String?
+  parent   ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children ProductCategory[] @relation("CategoryTree")
+  products Product[]
+
+  @@map("product_categories")
+}
+
+model Warehouse {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  code      String?
+  address   String?
+  city      String?
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  managerId String?
+  manager   Contact? @relation("WarehouseManager", fields: [managerId], references: [id])
+
+  stockItems     StockItem[]
+  stockMovements StockMovement[]
+  transfersFrom  StockTransfer[] @relation("WarehouseFrom")
+  transfersTo    StockTransfer[] @relation("WarehouseTo")
+  locations      WarehouseLocation[]
+
+  @@map("warehouses")
+}
+
+model WarehouseLocation {
+  id          String    @id @default(cuid())
+  tenantId    String
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  code        String    // Örn: A-01-03 (Koridor-Raf-Bölme)
+  label       String?   // Açıklama: "A Koridoru Raf 1 Bölme 3"
+  type        String    @default("SHELF") // SHELF, BIN, FLOOR, PALLET, COLD
+  aisle       String?   // Koridor
+  rack        String?   // Raf
+  level       String?   // Kat/Seviye
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  stockItems     StockItem[]
+  stockMovements StockMovement[]
+
+  @@unique([warehouseId, code])
+  @@map("warehouse_locations")
+}
+
+model StockItem {
+  id          String             @id @default(cuid())
+  tenantId    String
+  productId   String
+  product     Product            @relation(fields: [productId], references: [id])
+  warehouseId String
+  warehouse   Warehouse          @relation(fields: [warehouseId], references: [id])
+  locationId  String?
+  location    WarehouseLocation? @relation(fields: [locationId], references: [id])
+  quantity    Float              @default(0)
+  minQuantity Float              @default(0)
+  maxQuantity Float?
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([productId, warehouseId, tenantId])
+  @@map("stock_items")
+}
+
+model StockMovement {
+  id            String             @id @default(cuid())
+  tenantId      String
+  tenant        Tenant             @relation(fields: [tenantId], references: [id])
+  productId     String
+  product       Product            @relation(fields: [productId], references: [id])
+  warehouseId   String
+  warehouse     Warehouse          @relation(fields: [warehouseId], references: [id])
+  locationId    String?
+  location      WarehouseLocation? @relation(fields: [locationId], references: [id])
+  type          MovementType
+  quantity      Float // Temel birimde miktar
+  inputUnit     String?
+  inputQuantity Float?
+  unitCost      Float?
+  reference     String?
+  description   String?
+  userId        String?
+  createdAt     DateTime           @default(now())
+
+  @@map("stock_movements")
+}
+
+model StockTransfer {
+  id              String         @id @default(cuid())
+  fromTenantId    String
+  fromTenant      Tenant         @relation("TransferFrom", fields: [fromTenantId], references: [id])
+  toTenantId      String
+  toTenant        Tenant         @relation("TransferTo", fields: [toTenantId], references: [id])
+  fromWarehouseId String?
+  fromWarehouse   Warehouse?     @relation("WarehouseFrom", fields: [fromWarehouseId], references: [id])
+  toWarehouseId   String?
+  toWarehouse     Warehouse?     @relation("WarehouseTo", fields: [toWarehouseId], references: [id])
+  status          TransferStatus @default(DRAFT)
+  isRequest       Boolean        @default(false) // Şube/alt bayi stok talebi
+  notes           String?
+  expectedDate    DateTime?
+  createdById     String?
+  requestedAt     DateTime       @default(now())
+  approvedAt      DateTime?
+  shippedAt       DateTime?
+  receivedAt      DateTime?
+
+  lines StockTransferLine[]
+
+  @@map("stock_transfers")
+}
+
+model StockTransferLine {
+  id            String        @id @default(cuid())
+  transferId    String
+  transfer      StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  productId     String // Kaynak tenant ürünü (genelde ana işletme)
+  product       Product       @relation(fields: [productId], references: [id])
+  quantity      Float // Temel birimde miktar
+  inputUnit     String?
+  inputQuantity Float?
+  sentQty       Float         @default(0)
+  receivedQty   Float         @default(0)
+  unitCost      Float?
+
+  @@map("stock_transfer_lines")
+}
+
+// --- Contacts & Accounting ---------------------------------------------------
+
+model Contact {
+  id             String      @id @default(cuid())
+  tenantId       String
+  tenant         Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type           ContactType
+  name           String
+  contactPerson  String?
+  code           String?
+  taxNo          String?
+  taxOffice      String?
+  phone          String?
+  email          String?
+  address        String?
+  city           String?
+  district       String?
+  nationalId     String?
+  creditLimit    Float?
+  balance        Float       @default(0)
+  isActive       Boolean     @default(true)
+  portalEnabled  Boolean     @default(false)
+  portalPassword String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  invoices         Invoice[]
+  b2bOrders        B2BOrder[]
+  expenses         Expense[]
+  posReceipts      POSReceipt[]
+  cashTransactions CashTransaction[]
+  bankTransactions BankTransaction[]
+  priceListId      String?
+  priceList        PriceList?        @relation(fields: [priceListId], references: [id])
+  personnelUser    User?             @relation("UserPersonnelContact")
+  isPersonnel      Boolean           @default(false)
+  personnelRole    String?
+  checkRegisters   CheckRegister[] @relation("ContactChecks")
+  endorsedChecks   CheckRegister[] @relation("EndorsedChecks")
+  Deal             Deal[]
+  drivenVehicles   Vehicle[]       @relation("VehicleDriver")
+  drivenShipments  Shipment[]      @relation("ShipmentDriver")
+  managedWarehouses Warehouse[]    @relation("WarehouseManager")
+  personnelProfile PersonnelProfile?
+  leaveRequests    LeaveRequest[]
+  payrollSlips     PayrollSlip[]
+
+  @@unique([tenantId, code])
+  @@map("contacts")
+}
+
+model Invoice {
+  id             String          @id @default(cuid())
+  tenantId       String
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type           InvoiceType
+  status         InvoiceStatus   @default(DRAFT)
+  series         String          @default("SNX")
+  number         Int
+  externalNumber String?
+  date           DateTime        @default(now())
+  dueDate        DateTime?
+  contactId      String
+  contact        Contact         @relation(fields: [contactId], references: [id])
+  subtotal       Float           @default(0)
+  vatTotal       Float           @default(0)
+  total          Float           @default(0)
+  notes          String?
+  eInvoiceId     String?
+  eStatus        EInvoiceStatus?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  lines          InvoiceLine[]
+  payments       InvoicePayment[]
+  checkRegisters CheckRegister[]
+
+  @@unique([tenantId, type, series, number])
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id])
+  description String
+  quantity    Float
+  unitPrice   Float
+  vatRate     Float    @default(20)
+  vatAmount   Float    @default(0)
+  total       Float
+
+  @@map("invoice_lines")
+}
+
+model PriceList {
+  id        String    @id @default(cuid())
+  tenantId  String
+  name      String
+  currency  String    @default("TRY")
+  isDefault Boolean   @default(false)
+  validFrom DateTime?
+  validTo   DateTime?
+  createdAt DateTime  @default(now())
+
+  items    PriceListItem[]
+  contacts Contact[]
+
+  @@map("price_lists")
+}
+
+model PriceListItem {
+  id          String    @id @default(cuid())
+  priceListId String
+  priceList   PriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  price       Float
+  minQuantity Float     @default(1)
+
+  @@unique([priceListId, productId])
+  @@map("price_list_items")
+}
+
+// --- TMS ---------------------------------------------------------------------
+
+model Vehicle {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  plate     String
+  type      String // TRUCK | VAN | MOTORCYCLE
+  brand     String?
+  model     String?
+  capacity  Float?
+  driverId  String?
+  driver    Contact? @relation("VehicleDriver", fields: [driverId], references: [id])
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  shipments Shipment[]
+
+  @@map("vehicles")
+}
+
+model Shipment {
+  id               String         @id @default(cuid())
+  tenantId         String
+  tenant           Tenant         @relation(fields: [tenantId], references: [id])
+  code             String
+  vehicleId        String?
+  vehicle          Vehicle?       @relation(fields: [vehicleId], references: [id])
+  driverId         String?
+  driver           Contact?       @relation("ShipmentDriver", fields: [driverId], references: [id])
+  driverName       String?
+  driverPhone      String?
+  driverNationalId String?
+  driverAddress    String?
+  eDespatchId      String?
+  eDespatchStatus  String?
+  status           ShipmentStatus @default(PLANNED)
+  plannedDate      DateTime?
+  deliveredAt      DateTime?
+  route            String?
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  orders ShipmentOrder[]
+
+  @@map("shipments")
+}
+
+model EDocumentSyncLog {
+  id           String   @id @default(cuid())
+  tenantId     String
+  documentType String
+  externalId   String
+  localRef     String?
+  status       String   @default("SYNCED")
+  syncedAt     DateTime @default(now())
+
+  @@unique([tenantId, documentType, externalId])
+  @@index([tenantId, documentType])
+  @@map("edocument_sync_logs")
+}
+
+model ShipmentOrder {
+  id         String    @id @default(cuid())
+  shipmentId String
+  shipment   Shipment  @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  b2bOrderId String?
+  b2bOrder   B2BOrder? @relation(fields: [b2bOrderId], references: [id])
+  address    String?
+  sequence   Int       @default(0)
+
+  @@map("shipment_orders")
+}
+
+// --- B2B ---------------------------------------------------------------------
+
+model B2BOrder {
+  id          String      @id @default(cuid())
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  contactId   String
+  contact     Contact     @relation(fields: [contactId], references: [id])
+  code        String
+  status      OrderStatus @default(DRAFT)
+  subtotal    Float       @default(0)
+  vatTotal    Float       @default(0)
+  total       Float       @default(0)
+  notes       String?
+  requestedAt DateTime    @default(now())
+  approvedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  lines     B2BOrderLine[]
+  shipments ShipmentOrder[]
+
+  @@map("b2b_orders")
+}
+
+model B2BOrderLine {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     B2BOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Float
+  unitPrice Float
+  vatRate   Float    @default(20)
+  vatAmount Float    @default(0)
+  total     Float
+
+  @@map("b2b_order_lines")
+}
+
+// --- SaaS & CRM --------------------------------------------------------------
+
+model Subscription {
+  id              String            @id @default(cuid())
+  tenantId        String            @unique
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  plan            PlanType
+  startDate       DateTime
+  endDate         DateTime
+  autoRenew       Boolean           @default(false)
+  dealerId        String?
+  price           Float?
+  currency        String            @default("TRY")
+  modules         String[]          @default([])
+  purchasedAddons AddonModuleCode[] @default([])
+  extraBranches   Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@map("subscriptions")
+}
+
+model PlanTemplate {
+  id              String   @id @default(cuid())
+  plan            PlanType @unique
+  modules         String[] @default([])
+  price           Float?
+  discountPercent Float    @default(0)
+  description     String?
+  maxBranches     Int      @default(0)
+  extraBranchPrice Float   @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("plan_templates")
+}
+
+model SupportTicket {
+  id        String         @id @default(cuid())
+  tenantId  String
+  tenant    Tenant         @relation(fields: [tenantId], references: [id])
+  subject   String
+  status    TicketStatus   @default(OPEN)
+  priority  TicketPriority @default(MEDIUM)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  messages TicketMessage[]
+
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id        String        @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderId  String
+  body      String
+  isAdmin   Boolean       @default(false)
+  createdAt DateTime      @default(now())
+
+  @@map("ticket_messages")
+}
+
+model Message {
+  id           String            @id @default(cuid())
+  fromTenantId String
+  fromTenant   Tenant            @relation("MessageSender", fields: [fromTenantId], references: [id])
+  title        String
+  body         String
+  targetType   MessageTargetType @default(ALL)
+  sentAt       DateTime?
+  scheduledAt  DateTime?
+  isScheduled  Boolean           @default(false)
+  createdAt    DateTime          @default(now())
+
+  recipients MessageRecipient[]
+
+  @@map("messages")
+}
+
+model MessageRecipient {
+  id        String    @id @default(cuid())
+  messageId String
+  message   Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
+
+  @@unique([messageId, tenantId])
+  @@map("message_recipients")
+}
+
+// --- Kasa & Banka ------------------------------------------------------------
+
+model CashAccount {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  code      String?
+  balance   Float    @default(0)
+  currency  String   @default("TRY")
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions CashTransaction[]
+
+  @@map("cash_accounts")
+}
+
+model BankAccount {
+  id                  String    @id @default(cuid())
+  tenantId            String
+  name                String
+  bankName            String?
+  bankCode            String? // ZIRAAT, ISBANK, GARANTI, AKBANK, YAPIKREDI
+  iban                String?
+  accountNo           String?
+  branchCode          String?
+  balance             Float     @default(0)
+  currency            String    @default("TRY")
+  integrationProvider String    @default("MANUAL") // MANUAL | OPEN_BANKING | API
+  lastStatementSync   DateTime?
+  isDefault           Boolean   @default(false)
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  transactions BankTransaction[]
+  collectionChecks CheckRegister[] @relation("BankCollectionChecks")
+
+  @@map("bank_accounts")
+}
+
+model CashTransaction {
+  id            String          @id @default(cuid())
+  tenantId      String
+  cashAccountId String
+  cashAccount   CashAccount     @relation(fields: [cashAccountId], references: [id])
+  type          TransactionType
+  amount        Float
+  description   String?
+  reference     String?
+  contactId     String?
+  contact       Contact?        @relation(fields: [contactId], references: [id])
+  invoiceId     String?
+  posReceiptId  String?
+  createdAt     DateTime        @default(now())
+
+  @@map("cash_transactions")
+}
+
+model BankTransaction {
+  id            String          @id @default(cuid())
+  tenantId      String
+  bankAccountId String
+  bankAccount   BankAccount     @relation(fields: [bankAccountId], references: [id])
+  type          TransactionType
+  amount        Float
+  description   String?
+  reference     String?
+  externalRef   String?
+  importSource  String?
+  reconciledAt  DateTime?
+  contactId     String?
+  contact       Contact?        @relation(fields: [contactId], references: [id])
+  checkNo       String?
+  checkStatus   CheckStatus?
+  dueDate       DateTime?
+  invoiceId     String?
+  createdAt     DateTime        @default(now())
+
+  @@unique([tenantId, bankAccountId, externalRef])
+  @@index([tenantId, bankAccountId, reconciledAt])
+  @@map("bank_transactions")
+}
+
+// --- POS ---------------------------------------------------------------------
+
+model POSSession {
+  id           String    @id @default(cuid())
+  tenantId     String
+  userId       String
+  openedAt     DateTime  @default(now())
+  closedAt     DateTime?
+  openingCash  Float     @default(0)
+  closingCash  Float?
+  totalSales   Float     @default(0)
+  receiptCount Int       @default(0)
+  notes        String?
+
+  receipts POSReceipt[]
+
+  @@map("pos_sessions")
+}
+
+model POSReceipt {
+  id            String      @id @default(cuid())
+  tenantId      String
+  sessionId     String?
+  session       POSSession? @relation(fields: [sessionId], references: [id])
+  receiptNo     String
+  contactId     String?
+  contact       Contact?    @relation(fields: [contactId], references: [id])
+  subtotal      Float       @default(0)
+  vatTotal      Float       @default(0)
+  discount      Float       @default(0)
+  total         Float       @default(0)
+  paymentType   PaymentType @default(CASH)
+  cashGiven     Float?
+  changeAmount  Float?
+  cardRef       String?
+  checkNo       String?
+  checkDueDate  DateTime?
+  wireRef       String?
+  huginPrinted  Boolean     @default(false)
+  huginFiscalNo String?
+  cancelled     Boolean     @default(false)
+  cancelReason  String?
+  createdAt     DateTime    @default(now())
+
+  lines POSReceiptLine[]
+
+  @@map("pos_receipts")
+}
+
+model POSReceiptLine {
+  id          String     @id @default(cuid())
+  receiptId   String
+  receipt     POSReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product    @relation(fields: [productId], references: [id])
+  description String?
+  quantity    Float
+  unitPrice   Float
+  discount    Float      @default(0)
+  vatRate     Float      @default(20)
+  vatAmount   Float      @default(0)
+  total       Float
+
+  @@map("pos_receipt_lines")
+}
+
+// --- Payment (Fatura Odemeleri) -----------------------------------------------
+
+model InvoicePayment {
+  id            String         @id @default(cuid())
+  tenantId      String
+  invoiceId     String
+  invoice       Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  paymentType   PaymentType
+  amount        Float
+  cashAccountId String?
+  bankAccountId String?
+  reference     String?
+  notes         String?
+  checkNo       String?
+  checkDueDate  DateTime?
+  paidAt        DateTime       @default(now())
+  createdAt     DateTime       @default(now())
+  checkRegister CheckRegister?
+
+  @@map("invoice_payments")
+}
+
+model CheckRegister {
+  id               String          @id @default(cuid())
+  tenantId         String
+  tenant           Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  direction        CheckDirection
+  checkNo          String
+  amount           Float
+  dueDate          DateTime
+  status           CheckStatus     @default(PENDING)
+  contactId        String?
+  contact          Contact?        @relation("ContactChecks", fields: [contactId], references: [id])
+  drawerName       String?
+  payeeName        String?
+  bankName         String?
+  branchName       String?
+  accountNo        String?
+  description      String?
+
+  collectionMethod  CheckCollectionMethod?
+  collectionBankId  String?
+  collectionBank    BankAccount? @relation("BankCollectionChecks", fields: [collectionBankId], references: [id])
+  endorsedContactId String?
+  endorsedContact   Contact?     @relation("EndorsedChecks", fields: [endorsedContactId], references: [id])
+  invoiceId        String?
+  invoice          Invoice?        @relation(fields: [invoiceId], references: [id])
+  invoicePaymentId String?         @unique
+  invoicePayment   InvoicePayment? @relation(fields: [invoicePaymentId], references: [id])
+  receivedAt       DateTime?
+  givenAt          DateTime?
+  clearedAt        DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([tenantId, dueDate])
+  @@index([tenantId, status])
+  @@index([tenantId, direction])
+  @@map("check_register")
+}
+
+// --- Genel Muhasebe -----------------------------------------------------------
+
+model LedgerAccount {
+  id        String   @id @default(cuid())
+  tenantId  String
+  code      String
+  name      String
+  type      String // ASSET | LIABILITY | EQUITY | REVENUE | EXPENSE
+  parentId  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  lines JournalLine[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, type])
+  @@map("ledger_accounts")
+}
+
+model JournalEntry {
+  id          String   @id @default(cuid())
+  tenantId    String
+  date        DateTime @default(now())
+  description String
+  reference   String?
+  sourceType  String?
+  sourceId    String?
+  createdAt   DateTime @default(now())
+
+  lines JournalLine[]
+
+  @@index([tenantId, date])
+  @@map("journal_entries")
+}
+
+model JournalLine {
+  id        String        @id @default(cuid())
+  entryId   String
+  entry     JournalEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountId String
+  account   LedgerAccount @relation(fields: [accountId], references: [id])
+  debit     Float         @default(0)
+  credit    Float         @default(0)
+
+  @@map("journal_lines")
+}
+
+// --- Gider Yönetimi -----------------------------------------------------------
+
+enum ExpenseCategory {
+  RENT
+  UTILITIES
+  SALARY
+  MARKETING
+  TRAVEL
+  SUPPLIES
+  OTHER
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  tenantId    String
+  category    ExpenseCategory @default(OTHER)
+  amount      Float
+  vatRate     Float           @default(20)
+  vatAmount   Float           @default(0)
+  description String
+  vendor      String?
+  expenseDate DateTime        @default(now())
+  contactId   String?
+  contact     Contact?        @relation(fields: [contactId], references: [id])
+  receiptNo   String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  payrollSlip PayrollSlip?
+
+  @@index([tenantId, expenseDate])
+  @@map("expenses")
+}
+
+// --- Denetim İzi --------------------------------------------------------------
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String?
+  userEmail String?
+  action    String
+  entity    String?
+  entityId  String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@map("audit_logs")
+}
+
+// --- Entegrasyonlar (Faz 9) ---------------------------------------------------
+
+enum IntegrationType {
+  EINVOICE
+  OPEN_BANKING
+  PAYMENT
+  EMAIL
+  SMS
+  B2C_ECOMMERCE
+}
+
+model TenantIntegration {
+  id         String          @id @default(cuid())
+  tenantId   String
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type       IntegrationType
+  provider   String
+  config     Json            @default("{}")
+  isActive   Boolean         @default(true)
+  lastSyncAt DateTime?
+  lastError  String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@unique([tenantId, type, provider])
+  @@index([tenantId, type])
+  @@map("tenant_integrations")
+}
+
+enum PaymentGatewayStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum AddonModuleCode {
+  POS_YAZARKASA
+  API_ACCESS
+  MARKETPLACE
+  EINVOICE
+  EARCHIVE
+  SMS
+  HR_PAYROLL
+  ADVANCED_CRM
+  MOBILE_ACCESS
+  AI_FEATURES
+  B2C_ECOMMERCE
+  MANUFACTURING
+  EXTRA_BRANCH
+}
+
+enum CommissionInvoiceStatus {
+  DRAFT
+  SENT
+  APPROVED
+  PAID
+  REJECTED
+}
+
+enum PlatformNotificationType {
+  COMMISSION_INVOICE
+  KONTOR_PURCHASE
+  NEW_REGISTRATION
+  SUBSCRIPTION
+  SYSTEM_ALERT
+  PAYMENT
+}
+
+model PaymentTransaction {
+  id           String               @id @default(cuid())
+  tenantId     String
+  provider     String
+  gatewayRef   String?
+  amount       Float
+  currency     String               @default("TRY")
+  status       PaymentGatewayStatus @default(PENDING)
+  sourceType   String?
+  sourceId     String?
+  cardLast4    String?
+  errorMessage String?
+  metadata     Json?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@index([tenantId, status])
+  @@index([gatewayRef])
+  @@map("payment_transactions")
+}
+
+model TenantApiKey {
+  id         String    @id @default(cuid())
+  tenantId   String
+  name       String
+  keyPrefix  String
+  keyHash    String
+  scopes     String[]  @default(["read"])
+  isActive   Boolean   @default(true)
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([tenantId, isActive])
+  @@map("tenant_api_keys")
+}
+
+model AddonModule {
+  id              String          @id @default(cuid())
+  code            AddonModuleCode @unique
+  name            String
+  description     String?
+  basePrice       Float?
+  discountPercent Float           @default(0)
+  // kontör tabanlı modül (e-Fatura, e-Arşiv, SMS) vs yıllık ek paket
+  isKontorBased   Boolean         @default(false)
+  isActive        Boolean         @default(true)
+  sortOrder       Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  kontorPackages KontorPackage[]
+  planModules    PlanModuleItem[]
+
+  @@map("addon_modules")
+}
+
+model KontorPackage {
+  id            String      @id @default(cuid())
+  addonModuleId String
+  addonModule   AddonModule @relation(fields: [addonModuleId], references: [id], onDelete: Cascade)
+  name          String
+  quantity      Int
+  unitPrice     Float
+  totalPrice    Float
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  purchases KontorPurchase[]
+
+  @@map("kontor_packages")
+}
+
+model PlanModuleItem {
+  id            String      @id @default(cuid())
+  plan          PlanType
+  addonModuleId String
+  addonModule   AddonModule @relation(fields: [addonModuleId], references: [id], onDelete: Cascade)
+  included      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+
+  @@unique([plan, addonModuleId])
+  @@map("plan_module_items")
+}
+
+model TenantKontorBalance {
+  id         String          @id @default(cuid())
+  tenantId   String
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  moduleCode AddonModuleCode
+  balance    Int             @default(0)
+  updatedAt  DateTime        @updatedAt
+
+  @@unique([tenantId, moduleCode])
+  @@map("tenant_kontor_balances")
+}
+
+model KontorPurchase {
+  id          String               @id @default(cuid())
+  tenantId    String
+  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User                 @relation(fields: [userId], references: [id])
+  packageId   String
+  package     KontorPackage        @relation(fields: [packageId], references: [id])
+  moduleCode  AddonModuleCode
+  quantity    Int
+  amount      Float
+  status      PaymentGatewayStatus @default(PENDING)
+  gatewayRef  String?              @unique
+  paymentTxId String?
+  createdAt   DateTime             @default(now())
+  completedAt DateTime?
+
+  @@index([tenantId, status])
+  @@map("kontor_purchases")
+}
+
+model SubscriptionPurchase {
+  id                  String               @id @default(cuid())
+  tenantId            String
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId              String
+  user                User                 @relation(fields: [userId], references: [id])
+  plan                PlanType
+  addonCodes          AddonModuleCode[]    @default([])
+  extraBranchCount    Int                  @default(0)
+  planAmount          Float
+  addonsAmount        Float                @default(0)
+  discountAmount      Float                @default(0)
+  totalAmount         Float
+  status              PaymentGatewayStatus @default(PENDING)
+  gatewayRef          String?              @unique
+  paymentTxId         String?
+  purchasedByDealerId String?
+  createdAt           DateTime             @default(now())
+  completedAt         DateTime?
+
+  @@index([tenantId, status])
+  @@map("subscription_purchases")
+}
+
+// Sözleşme / KVKK onay kayıtları (denetim izi)
+model LegalAcceptance {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId        String?
+  tenant          Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  documentId      String
+  documentVersion String
+  context         String
+  ipAddress       String?
+  userAgent       String?
+  acceptedAt      DateTime @default(now())
+
+  @@index([userId, documentId])
+  @@index([tenantId])
+  @@map("legal_acceptances")
+}
+
+model DealerCommissionInvoice {
+  id             String                  @id @default(cuid())
+  dealerId       String
+  dealer         Tenant                  @relation("DealerCommissionInvoices", fields: [dealerId], references: [id], onDelete: Cascade)
+  periodStart    DateTime
+  periodEnd      DateTime
+  amount         Float
+  integratorName String
+  invoiceNo      String?
+  description    String?
+  status         CommissionInvoiceStatus @default(DRAFT)
+  sentAt         DateTime?
+  approvedAt     DateTime?
+  paidAt         DateTime?
+  rejectedReason String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@index([dealerId, status])
+  @@map("dealer_commission_invoices")
+}
+
+model PlatformNotification {
+  id             String                   @id @default(cuid())
+  type           PlatformNotificationType
+  title          String
+  body           String
+  targetTenantId String?
+  targetTenant   Tenant?                  @relation(fields: [targetTenantId], references: [id], onDelete: SetNull)
+  isRead         Boolean                  @default(false)
+  metadata       Json?
+  createdAt      DateTime                 @default(now())
+
+  @@index([targetTenantId, isRead])
+  @@map("platform_notifications")
+}
+
+model SubscriptionHistory {
+  id          String   @id @default(cuid())
+  tenantId    String
+  plan        PlanType
+  modules     String[] @default([])
+  price       Float?
+  action      String
+  note        String?
+  actorUserId String?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@map("subscription_history")
+}
+
+model PlatformSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("platform_settings")
+}
+
+// --- İnsan Kaynakları & Bordro (HR & Payroll) --------------------------------
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  UNPAID
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model EmployeeLeave {
+  id        String      @id @default(cuid())
+  tenantId  String
+  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startDate DateTime
+  endDate   DateTime
+  type      LeaveType   @default(ANNUAL)
+  status    LeaveStatus @default(PENDING)
+  reason    String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([tenantId, userId])
+  @@map("employee_leaves")
+}
+
+model Payroll {
+  id         String    @id @default(cuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  period     String // e.g. "2026-06"
+  baseSalary Float
+  bonus      Float     @default(0)
+  deduction  Float     @default(0)
+  netPay     Float
+  isPaid     Boolean   @default(false)
+  paidAt     DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([tenantId, userId, period])
+  @@map("payrolls")
+}
+
+// --- CRM & Satış Hunisi (Pipeline) -------------------------------------------
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  LOST
+}
+
+enum DealStage {
+  PROSPECTING
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum ActivityType {
+  CALL
+  EMAIL
+  MEETING
+  NOTE
+}
+
+model Lead {
+  id        String     @id @default(cuid())
+  tenantId  String
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  company   String?
+  email     String?
+  phone     String?
+  status    LeadStatus @default(NEW)
+  notes     String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([tenantId, status])
+  @@map("leads")
+}
+
+model Deal {
+  id                String    @id @default(cuid())
+  tenantId          String
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title             String
+  value             Float     @default(0)
+  stage             DealStage @default(PROSPECTING)
+  contactId         String?
+  contact           Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  expectedCloseDate DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  activities Activity[]
+
+  @@index([tenantId, stage])
+  @@map("deals")
+}
+
+model Activity {
+  id        String       @id @default(cuid())
+  tenantId  String
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type      ActivityType @default(NOTE)
+  notes     String
+  date      DateTime     @default(now())
+  dealId    String?
+  deal      Deal?        @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([tenantId, dealId])
+  @@map("activities")
+}
+
+// --- MRP (Manufacturing Resource Planning) -------------------------------------
+
+model BillOfMaterial {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code        String
+  name        String
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  quantity    Float    @default(1)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items       BomItem[]
+  workOrders  WorkOrder[]
+
+  @@unique([tenantId, code])
+  @@map("bill_of_materials")
+}
+
+model BomItem {
+  id        String         @id @default(cuid())
+  bomId     String
+  bom       BillOfMaterial @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product        @relation("BomItemProduct", fields: [productId], references: [id])
+  quantity  Float
+  unit      String?
+
+  @@map("bom_items")
+}
+
+model WorkOrder {
+  id          String         @id @default(cuid())
+  tenantId    String
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code        String
+  bomId       String
+  bom         BillOfMaterial @relation(fields: [bomId], references: [id])
+  status      String         @default("PLANNED")
+  quantity    Float          @default(1)
+  plannedDate DateTime?
+  startDate   DateTime?
+  endDate     DateTime?
+  notes       String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  items       WorkOrderItem[]
+
+  @@unique([tenantId, code])
+  @@map("work_orders")
+}
+
+model WorkOrderItem {
+  id          String    @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product   @relation("WorkOrderItemProduct", fields: [productId], references: [id])
+  quantity    Float
+  type        String    @default("MATERIAL")
+  
+  @@map("work_order_items")
+}
+
+// --- HR & Payroll -------------------------------------------------------------
+
+model PersonnelProfile {
+  id               String   @id @default(cuid())
+  contactId        String   @unique
+  contact          Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  departmentId     String?
+  department       HrDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  positionId       String?
+  position         HrPosition?   @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  hireDate         DateTime?
+  baseSalary       Float    @default(0)
+  currency         String   @default("TRY")
+  leaveDaysTotal   Int      @default(14)
+  leaveDaysUsed    Int      @default(0)
+  
+  @@map("personnel_profiles")
+}
+
+model HrDepartment {
+  id        String             @id @default(cuid())
+  tenantId  String
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  isActive  Boolean            @default(true)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  personnel PersonnelProfile[]
+}
+
+model HrPosition {
+  id        String             @id @default(cuid())
+  tenantId  String
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  isActive  Boolean            @default(true)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  personnel PersonnelProfile[]
+}
+
+model LeaveRequest {
+  id          String   @id @default(cuid())
+  tenantId    String
+  contactId   String
+  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  type        String   // ANNUAL, SICK, UNPAID, MATERNITY
+  startDate   DateTime
+  endDate     DateTime
+  days        Int
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  reason      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("leave_requests")
+}
+
+model PayrollSlip {
+  id          String   @id @default(cuid())
+  tenantId    String
+  contactId   String
+  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  periodMonth Int
+  periodYear  Int
+  baseSalary  Float
+  bonus       Float    @default(0)
+  deductions  Float    @default(0)
+  netSalary   Float
+  status      String   @default("DRAFT") // DRAFT, FINALIZED, PAID
+  expenseId   String?  @unique
+  expense     Expense? @relation(fields: [expenseId], references: [id])
+  paymentDate DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("payroll_slips")
+}

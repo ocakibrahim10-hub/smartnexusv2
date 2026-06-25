@@ -1,0 +1,9 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npm install && npx prisma generate --schema=apps/api/prisma/schema.prisma && npm run build --workspace=apps/api"
+
+[deploy]
+startCommand = "node apps/api/dist/src/main.js"
+restartPolicyType = "on_failure"
+healthcheckPath = "/api"
+healthcheckTimeout = 30
