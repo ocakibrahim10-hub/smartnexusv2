@@ -14,8 +14,8 @@ export class HealthController {
   async seedAdmin() {
     const { execSync } = require('child_process');
     try {
-      // Run migrations at runtime
-      execSync('npx prisma db push --accept-data-loss --schema=apps/api/prisma/schema.prisma');
+      // Run migrations at runtime and completely reset the database to avoid foreign key conflicts
+      execSync('npx prisma db push --force-reset --accept-data-loss --schema=apps/api/prisma/schema.prisma');
       
       // Run the FULL seed script using compiled JS to avoid OOM from ts-node
       const output = execSync('node apps/api/dist/prisma/seed.js', { encoding: 'utf-8' });
