@@ -53,6 +53,7 @@ export default function TransfersPage() {
   const [showRequest, setShowRequest] = useState(false);
 
   const [products, setProducts] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [form, setForm] = useState({
     toTenantId: '',
     notes: '',
@@ -110,6 +111,10 @@ export default function TransfersPage() {
       api
         .get('/products', { params: { limit: 200 } })
         .then((r) => setProducts(r.data.data || []))
+        .catch(() => {});
+      api
+        .get('/tenants', { params: { limit: 200 } }) // Will list business's branches since they are children
+        .then((r) => setBranches((r.data.data || []).filter((t: any) => t.tenantType === 'BRANCH')))
         .catch(() => {});
     }
   }, [isBranch, isBusiness]);
@@ -620,13 +625,19 @@ export default function TransfersPage() {
               </IconButton>
             </div>
             <div className="p-6 space-y-4">
-              <FormField
-                label="Alıcı Şube Tenant ID *"
+              <FormSelect
+                label="Alıcı Şube *"
                 value={form.toTenantId}
                 onChange={(e) => setForm((f) => ({ ...f, toTenantId: e.target.value }))}
                 className="input"
-                placeholder="ten-s1"
-              />
+              >
+                <option value="">Şube Seçin</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </FormSelect>
               <div className="space-y-2">
                 {form.lines.map((l, i) => {
                   const prod = products.find((p) => p.id === l.productId);
