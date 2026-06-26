@@ -9,7 +9,7 @@ import LicenseDurationPicker from '@/components/LicenseDurationPicker';
 import type { LegalDocumentId } from '@/lib/legal-documents';
 import { LEGAL_PROVIDER } from '@/lib/legal-provider';
 import { fmtMoney } from '@/lib/format';
-import { PLAN_META, PLAN_ORDER, planLabel } from '@/lib/plans';
+import { PLAN_META, PLAN_ORDER, planLabel, addonLabel } from '@/lib/plans';
 import { filterAddonsForPlan, planModulesFromPricing } from '@/lib/plan-addons';
 import { purchasableExtraModulesFromPricing, prorataModulePrice } from '@/lib/submodule-pricing';
 import { getModuleLabel } from '@/lib/modules';
@@ -50,6 +50,7 @@ type Props = {
   payLabel?: string;
   showLegal?: boolean;
   showAddons?: boolean;
+  showLicenseDuration?: boolean;
   legalContexts?: LegalContext[];
 };
 
@@ -79,6 +80,7 @@ export default function SubscriptionCheckoutPanel({
   payLabel = 'Ödeme Yap',
   showLegal = true,
   showAddons = true,
+  showLicenseDuration = true,
   legalContexts,
 }: Props) {
   const planModules = useMemo(
@@ -140,6 +142,40 @@ export default function SubscriptionCheckoutPanel({
   const vat = useMemo(() => vatBreakdown(quote?.totalAmount ?? 0), [quote?.totalAmount]);
   const isUpgrade = billingMode === 'upgrade' && (status?.remainingDays ?? 0) > 0;
   const planMeta = PLAN_META[selectedPlan];
+
+  const extraModuleLines = useMemo(
+    () =>
+      selectedExtraModules.map((id) => {
+        const row = purchasableExtraModules.find((m) => m.moduleId === id);
+        const price = useProrataModulePrices
+          ? prorataModulePrice(row?.yearlyPrice ?? 0, remainingDaysForProrata)
+          : row?.yearlyPrice ?? 0;
+        return {
+          id,
+          label: row?.label ?? getModuleLabel(id),
+          price,
+        };
+      }),
+    [
+      selectedExtraModules,
+      purchasableExtraModules,
+      useProrataModulePrices,
+      remainingDaysForProrata,
+    ],
+  );
+
+  const addonLines = useMemo(
+    () =>
+      selectedAddons.map((code) => {
+        const row = (pricing?.addons ?? []).find((a: any) => a.code === code);
+        return {
+          code,
+          label: addonLabel(code, row?.name),
+          price: row?.finalPrice ?? row?.basePrice ?? 0,
+        };
+      }),
+    [selectedAddons, pricing?.addons],
+  );
 
   return (
     <div className="space-y-8">
@@ -278,14 +314,16 @@ export default function SubscriptionCheckoutPanel({
         </section>
       )}
 
-      <LicenseDurationPicker
-        options={extensionOptions}
-        activeIndex={extensionIndex}
-        onSelect={onExtensionIndexChange}
-        quote={quote}
-        quoteLoading={quoteLoading}
-        isUpgrade={isUpgrade}
-      />
+      {showLicenseDuration && (
+        <LicenseDurationPicker
+          options={extensionOptions}
+          activeIndex={extensionIndex}
+          onSelect={onExtensionIndexChange}
+          quote={quote}
+          quoteLoading={quoteLoading}
+          isUpgrade={isUpgrade}
+        />
+      )}
 
       <section className="card p-6 space-y-5 shadow-sm">
         <h3 className="text-base font-bold text-[#1B1B1F]">Ödeme özeti</h3>
@@ -317,15 +355,23 @@ export default function SubscriptionCheckoutPanel({
 
             <div className="space-y-1.5 text-sm max-w-md">
               <div className="flex justify-between">
-                <span className="text-gray-500">Ara toplam (KDV hariç)</span>
-                <span>{fmtMoney(vat.subtotalExVat)}</span>
+                <span className="text-gray-500">
+                  {billingMode === 'new' ? 'Paket (1 yıl)' : 'Paket'}
+                </span>
+                <span>{fmtMoney(quote.planAmount)}</span>
               </div>
-              {quote.extraModulesAmount > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Ek alt modüller</span>
-                  <span>{fmtMoney(quote.extraModulesAmount)}</span>
+              {extraModuleLines.map((line) => (
+                <div key={line.id} className="flex justify-between gap-4">
+                  <span className="text-gray-500 truncate">{line.label}</span>
+                  <span className="shrink-0">{fmtMoney(line.price)}</span>
                 </div>
-              )}
+              ))}
+              {addonLines.map((line) => (
+                <div key={line.code} className="flex justify-between gap-4">
+                  <span className="text-gray-500 truncate">{line.label}</span>
+                  <span className="shrink-0">{fmtMoney(line.price)}</span>
+                </div>
+              ))}
               {quote.extraBranchAmount > 0 && (
                 <div className="flex justify-between">
                   <span className="text-gray-500">
@@ -334,29 +380,7 @@ export default function SubscriptionCheckoutPanel({
                   <span>{fmtMoney(quote.extraBranchAmount)}</span>
                 </div>
               )}
-              {quote.addonsAmount > 0 &&
-                !quote.extraModulesAmount &&
-                !quote.extraBranchAmount && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Ek modüller</span>
-                  <span>{fmtMoney(quote.addonsAmount)}</span>
-                </div>
-              )}
-              {(quote.extraModulesAmount > 0 || quote.extraBranchAmount > 0) &&
-                quote.addonsAmount >
-                  (quote.extraModulesAmount ?? 0) + (quote.extraBranchAmount ?? 0) && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Diğer ek paketler</span>
-                  <span>
-                    {fmtMoney(
-                      quote.addonsAmount -
-                        (quote.extraModulesAmount ?? 0) -
-                        (quote.extraBranchAmount ?? 0),
-                    )}
-                  </span>
-                </div>
-              )}
-              {quote.annualRenewalAmount > 0 && (
+              {quote.annualRenewalAmount > 0 && billingMode !== 'new' && (
                 <div className="flex justify-between">
                   <span className="text-gray-500">Yıllık lisans yenileme</span>
                   <span>{fmtMoney(quote.annualRenewalAmount)}</span>
@@ -378,6 +402,10 @@ export default function SubscriptionCheckoutPanel({
                   <span>{fmtMoney(quote.extensionAmount)}</span>
                 </div>
               )}
+              <div className="flex justify-between pt-1 border-t border-dashed border-gray-100">
+                <span className="text-gray-500">Ara toplam (KDV hariç)</span>
+                <span>{fmtMoney(vat.subtotalExVat)}</span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">KDV (%{VAT_RATE})</span>
                 <span>{fmtMoney(vat.vatAmount)}</span>

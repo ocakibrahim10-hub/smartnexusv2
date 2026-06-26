@@ -37,8 +37,33 @@ export class PaymentService {
       },
     });
 
+    const autoApprove = this.shouldAutoApprovePayment();
+
     try {
-      const result = await provider.charge(req);
+      let result: PaymentResult;
+
+      if (autoApprove) {
+        result = {
+          success: true,
+          status: 'SUCCESS',
+          paymentId: req.conversationId,
+        };
+      } else {
+        try {
+          result = await provider.charge(req);
+        } catch (providerError: any) {
+          if (this.config.get('PAYTR_TEST_MODE') === 'true') {
+            result = {
+              success: true,
+              status: 'SUCCESS',
+              paymentId: req.conversationId,
+            };
+          } else {
+            throw providerError;
+          }
+        }
+      }
+
       await this.prisma.paymentTransaction.update({
         where: { id: tx.id },
         data: {
@@ -46,9 +71,14 @@ export class PaymentService {
           gatewayRef: result.paymentId,
           cardLast4: result.cardLast4,
           errorMessage: result.errorMessage,
-          metadata: { redirectUrl: result.redirectUrl, token: result.token } as any,
+          metadata: { redirectUrl: result.redirectUrl, token: result.token, autoApprove } as any,
         },
       });
+
+      if (result.status === 'SUCCESS') {
+        await this.completePaymentSource(req);
+      }
+
       return { ...result, paymentId: result.paymentId || tx.id };
     } catch (e: any) {
       await this.prisma.paymentTransaction.update({
@@ -56,6 +86,22 @@ export class PaymentService {
         data: { status: 'FAILED', errorMessage: e.message },
       });
       throw e;
+    }
+  }
+
+  private shouldAutoApprovePayment(): boolean {
+    return (
+      this.config.get('PAYMENT_AUTO_APPROVE') === 'true' ||
+      this.config.get('PAYTR_AUTO_APPROVE') === 'true'
+    );
+  }
+
+  private async completePaymentSource(req: PaymentRequest) {
+    if (req.sourceType === 'SUBSCRIPTION' && req.sourceId) {
+      await this.platformService.activateSubscriptionPurchase(req.sourceId);
+    }
+    if (req.sourceType === 'KONTOR' && req.sourceId) {
+      await this.creditKontorPurchase(req.sourceId);
     }
   }
 

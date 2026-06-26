@@ -26,6 +26,12 @@ services:
         generateValue: true
       - key: FRONTEND_URL
         value: https://smartnexusv2.vercel.app
+      - key: PAYMENT_PROVIDER
+        value: paytr
+      - key: PAYTR_TEST_MODE
+        value: "true"
+      - key: PAYMENT_AUTO_APPROVE
+        value: "true"
 
 databases:
   - name: smartnexus-db

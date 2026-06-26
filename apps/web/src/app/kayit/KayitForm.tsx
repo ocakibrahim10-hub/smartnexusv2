@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import axios from 'axios';
@@ -9,13 +9,11 @@ import { FormField, FormSelect } from '@/components/FormField';
 import SubscriptionCheckoutPanel from '@/components/SubscriptionCheckoutPanel';
 import { setSession } from '@/lib/auth';
 import { platformApi } from '@/lib/api';
-import { extensionOptionsForMode } from '@/lib/subscription-billing';
-import { documentsForContext } from '@/lib/legal-documents';
-import type { LegalDocumentId } from '@/lib/legal-documents';
 import { filterAddonsForPlan, planModulesFromPricing } from '@/lib/plan-addons';
 import { purchasableExtraModulesFromPricing } from '@/lib/submodule-pricing';
 import { PLAN_ORDER, planLabel } from '@/lib/plans';
-
+import { documentsForContext } from '@/lib/legal-documents';
+import type { LegalDocumentId } from '@/lib/legal-documents';
 import { getApiBaseUrl } from '@/lib/api-url';
 
 const STEPS = [
@@ -56,7 +54,6 @@ export default function KayitForm() {
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [selectedExtraModules, setSelectedExtraModules] = useState<string[]>(preExtras);
   const [extraBranchCount, setExtraBranchCount] = useState(0);
-  const [extensionIndex, setExtensionIndex] = useState(0);
   const [quote, setQuote] = useState<any>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [legalOk, setLegalOk] = useState(false);
@@ -65,8 +62,8 @@ export default function KayitForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const extensionOptions = useMemo(() => extensionOptionsForMode('new'), []);
-  const selectedExtension = extensionOptions[extensionIndex] ?? extensionOptions[0];
+  const extensionMonths = 0;
+  const includeAnnualRenewal = true;
 
   const onLegalChange = useCallback((ok: boolean, ids: LegalDocumentId[]) => {
     const dealerIds = documentsForContext('dealer_business').map((d) => d.id);
@@ -97,15 +94,15 @@ export default function KayitForm() {
     setQuoteLoading(true);
     platformApi
       .quoteSubscriptionPublic(form.plan, selectedAddons, extraBranchCount, {
-        extensionMonths: selectedExtension.months,
+        extensionMonths,
         billingMode: 'new',
         extraModuleIds: selectedExtraModules,
-        includeAnnualRenewal: selectedExtension.includeAnnualRenewal,
+        includeAnnualRenewal,
       })
       .then(setQuote)
       .catch(() => setQuote(null))
       .finally(() => setQuoteLoading(false));
-  }, [form.plan, selectedAddons, selectedExtraModules, extraBranchCount, selectedExtension.months, selectedExtension.includeAnnualRenewal]);
+  }, [form.plan, selectedAddons, selectedExtraModules, extraBranchCount]);
 
   const toggleExtraModule = (moduleId: string) => {
     setSelectedExtraModules((prev) =>
@@ -154,14 +151,18 @@ export default function KayitForm() {
         addonCodes: selectedAddons,
         extraModuleIds: selectedExtraModules,
         extraBranchCount,
-        extensionMonths: selectedExtension.months,
-        includeAnnualRenewal: selectedExtension.includeAnnualRenewal,
+        extensionMonths,
+        includeAnnualRenewal,
         billingMode: 'new',
         acceptedDocuments: payLegalDocs,
       });
 
       if (purchase.redirectUrl) {
         window.location.href = purchase.redirectUrl;
+        return;
+      }
+      if (purchase.status === 'SUCCESS' || purchase.success) {
+        router.push('/isletme/dashboard?payment=ok');
         return;
       }
       router.push(`/isletme/subscribe?plan=${form.plan}&payment=ok`);
@@ -317,7 +318,7 @@ export default function KayitForm() {
           <div className="space-y-6">
             <SubscriptionCheckoutPanel
               title={`${planLabel(form.plan)} — yıllık abonelik`}
-              subtitle="Paketinize dahil olmayan modülleri ekleyebilir, lisans süresini seçip güvenli ödeme ile kaydı tamamlayabilirsiniz."
+              subtitle="Paketinize dahil olmayan modülleri ekleyin. Kayıt sonrası 1 yıllık lisans otomatik başlar; uzatma işlemlerini panelden yapabilirsiniz."
               selectedPlan={form.plan}
               onPlanChange={(p) => setForm((f) => ({ ...f, plan: p }))}
               pricing={pricing}
@@ -330,8 +331,9 @@ export default function KayitForm() {
               quote={quote}
               quoteLoading={quoteLoading}
               billingMode="new"
-              extensionIndex={extensionIndex}
-              onExtensionIndexChange={setExtensionIndex}
+              extensionIndex={0}
+              onExtensionIndexChange={() => {}}
+              showLicenseDuration={false}
               onLegalChange={onLegalChange}
               onPay={submitPayment}
               payLoading={loading}

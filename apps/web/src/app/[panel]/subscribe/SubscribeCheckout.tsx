@@ -2,7 +2,7 @@
 
 import { toast } from '@/lib/toast';
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import TopBar from '@/components/layout/TopBar';
 import SubscriptionCheckoutPanel from '@/components/SubscriptionCheckoutPanel';
 import { platformApi, tenantsApi } from '@/lib/api';
@@ -17,6 +17,7 @@ import { purchasableExtraModulesFromPricing } from '@/lib/submodule-pricing';
 
 export default function SubscribeCheckout() {
   const params = useParams();
+  const router = useRouter();
   const panel = params?.panel as string;
   const searchParams = useSearchParams();
   const tenantIdParam = searchParams.get('tenantId');
@@ -149,8 +150,16 @@ export default function SubscribeCheckout() {
         billingMode,
         acceptedDocuments,
       });
-      if (res.redirectUrl) window.location.href = res.redirectUrl;
-      else toast.info('Ödeme başlatıldı');
+      if (res.redirectUrl) {
+        window.location.href = res.redirectUrl;
+        return;
+      }
+      if (res.status === 'SUCCESS' || res.success) {
+        toast.success('Ödeme onaylandı, lisansınız aktif');
+        router.push(`/${panel}/dashboard?payment=ok`);
+        return;
+      }
+      toast.info('Ödeme başlatıldı');
     } catch (e: any) {
       toast.info(
         e.response?.data?.message || 'Ödeme başlatılamadı — Sanal POS yapılandırmasını kontrol edin',
