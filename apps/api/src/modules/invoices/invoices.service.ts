@@ -634,6 +634,9 @@ export class InvoicesService {
       data: { balance: isOutgoing ? { increment: dto.amount } : { decrement: dto.amount } },
     });
 
+    // Otomatik Yevmiye Fişi (Faz 2)
+    await this.ledger.postPayment(tenantId, payment.id);
+
     return payment;
   }
 

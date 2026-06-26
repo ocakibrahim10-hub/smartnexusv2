@@ -87,4 +87,50 @@ export class ExportController {
     res.setHeader('Content-Disposition', 'attachment; filename=cariler.csv');
     res.send(csv);
   }
+
+  @Get('luca-excel')
+  @Roles('OWNER', 'ADMIN', 'ACCOUNTANT')
+  async lucaExcel(@Request() req, @Query() q: any, @Res() res: Response) {
+    const where: any = { tenantId: req.user.tenantId };
+    if (q.startDate || q.endDate) {
+      where.date = {};
+      if (q.startDate) where.date.gte = new Date(q.startDate);
+      if (q.endDate) where.date.lte = new Date(q.endDate + 'T23:59:59');
+    }
+
+    const entries = await this.prisma.journalEntry.findMany({
+      where,
+      orderBy: { date: 'asc' },
+      include: { lines: { include: { account: true } } },
+    });
+
+    const rows: any[] = [];
+    for (const entry of entries) {
+      for (const line of entry.lines) {
+        rows.push({
+          date: entry.date.toISOString().split('T')[0],
+          evrakNo: entry.reference || '',
+          hesapKodu: line.account?.code || '',
+          hesapAdi: line.account?.name || '',
+          aciklama: entry.description || '',
+          borc: line.debit || 0,
+          alacak: line.credit || 0,
+        });
+      }
+    }
+
+    const csv = toCsv(rows, [
+      { key: 'date', label: 'Tarih' },
+      { key: 'evrakNo', label: 'Evrak No' },
+      { key: 'hesapKodu', label: 'Hesap Kodu' },
+      { key: 'hesapAdi', label: 'Hesap Adı' },
+      { key: 'aciklama', label: 'Açıklama' },
+      { key: 'borc', label: 'Borç' },
+      { key: 'alacak', label: 'Alacak' },
+    ]);
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename=luca_aktarim.csv');
+    res.send(csv);
+  }
 }

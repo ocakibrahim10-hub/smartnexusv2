@@ -1,17 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BookOpen, FileText, TrendingUp, Download } from 'lucide-react';
+import { BookOpen, FileText, TrendingUp, Download, Layers, Scale, Plus } from 'lucide-react';
 import { api } from '@/lib/api';
 import { FormField } from '@/components/FormField';
 import { fmtMoney } from '@/lib/format';
+import { LedgerAccountsTab } from './components/LedgerAccountsTab';
+import { BalanceSheetTab } from './components/BalanceSheetTab';
+import { ManualJournalModal } from './components/ManualJournalModal';
 
-type LedgerTab = 'trial' | 'journal' | 'income';
+type LedgerTab = 'accounts' | 'trial' | 'journal' | 'balance' | 'income';
 
 const fmt = (n: number) => fmtMoney(n);
 
 export default function LedgerPage() {
-  const [tab, setTab] = useState<LedgerTab>('trial');
+  const [tab, setTab] = useState<LedgerTab>('accounts');
   const [asOf, setAsOf] = useState(new Date().toISOString().split('T')[0]);
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
@@ -21,8 +24,11 @@ export default function LedgerPage() {
   const [journal, setJournal] = useState<any>(null);
   const [income, setIncome] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [isJournalModalOpen, setIsJournalModalOpen] = useState(false);
 
   const load = async () => {
+    // We only load data here for trial, journal, income
+    if (tab === 'accounts' || tab === 'balance') return;
     setLoading(true);
     try {
       if (tab === 'trial') {
@@ -31,7 +37,7 @@ export default function LedgerPage() {
       } else if (tab === 'journal') {
         const r = await api.get('/ledger/journal', { params: { limit: 50 } });
         setJournal(r.data);
-      } else {
+      } else if (tab === 'income') {
         const r = await api.get('/ledger/income-statement', {
           params: { startDate: dateRange.start, endDate: dateRange.end },
         });
@@ -69,14 +75,16 @@ export default function LedgerPage() {
         <h1 className="page-title">Genel Muhasebe</h1>
         <button type="button" onClick={exportCsv} className="btn-secondary text-sm flex items-center gap-2">
           <Download className="w-4 h-4" />
-          Fatura CSV
+          Mali Müşavire Gönder (Excel)
         </button>
       </div>
 
-      <div className="tab-group">
+      <div className="tab-group flex-wrap">
         {[
-          { key: 'trial', label: 'Mizan', icon: BookOpen },
+          { key: 'accounts', label: 'Hesap Planı', icon: Layers },
           { key: 'journal', label: 'Yevmiye', icon: FileText },
+          { key: 'trial', label: 'Mizan', icon: BookOpen },
+          { key: 'balance', label: 'Bilanço', icon: Scale },
           { key: 'income', label: 'Gelir Tablosu', icon: TrendingUp },
         ].map(({ key, label, icon: Icon }) => (
           <button
@@ -91,18 +99,35 @@ export default function LedgerPage() {
         ))}
       </div>
 
+      {tab === 'accounts' && <LedgerAccountsTab />}
+      {tab === 'balance' && <BalanceSheetTab />}
+
       {tab === 'trial' && (
-        <FormField
-          label="Tarih itibarıyla"
-          type="date"
-          value={asOf}
-          onChange={(e) => setAsOf(e.target.value)}
-          className="input text-sm py-1.5 px-3 w-36"
-        />
+        <div className="mb-4">
+          <FormField
+            label="Tarih itibarıyla"
+            type="date"
+            value={asOf}
+            onChange={(e) => setAsOf(e.target.value)}
+            className="input text-sm py-1.5 px-3 w-36"
+          />
+        </div>
+      )}
+
+      {tab === 'journal' && (
+        <div className="mb-4">
+          <button
+            onClick={() => setIsJournalModalOpen(true)}
+            className="btn-primary text-sm flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Yeni Yevmiye Fişi
+          </button>
+        </div>
       )}
 
       {tab === 'income' && (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mb-4">
           <FormField
             label="Başlangıç tarihi"
             hideLabel
@@ -154,9 +179,7 @@ export default function LedgerPage() {
                 </tbody>
                 <tfoot>
                   <tr className="bg-gray-50 font-semibold">
-                    <td colSpan={2} className="p-3">
-                      Toplam
-                    </td>
+                    <td colSpan={2} className="p-3">Toplam</td>
                     <td className="p-3 text-right">{fmt(trial.totalDebit)}</td>
                     <td className="p-3 text-right">{fmt(trial.totalCredit)}</td>
                     <td />
@@ -169,22 +192,26 @@ export default function LedgerPage() {
           {tab === 'journal' && journal && (
             <div className="space-y-4">
               {(journal.data || []).map((entry: any) => (
-                <div key={entry.id} className="card p-4">
-                  <div className="flex justify-between mb-2">
-                    <span className="font-medium">{entry.description}</span>
-                    <span className="text-xs text-gray-500">
+                <div key={entry.id} className="card p-4 border-l-4 border-l-brand-500">
+                  <div className="flex justify-between mb-3 border-b border-gray-50 pb-2">
+                    <div>
+                      <span className="font-semibold text-gray-800">{entry.description}</span>
+                      {entry.reference && <span className="ml-2 text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600">Ref: {entry.reference}</span>}
+                    </div>
+                    <span className="text-sm font-medium text-gray-500">
                       {new Date(entry.date).toLocaleDateString('tr-TR')}
                     </span>
                   </div>
-                  <table className="w-full text-xs">
+                  <table className="w-full text-sm">
                     <tbody>
                       {(entry.lines || []).map((l: any) => (
-                        <tr key={l.id} className="border-t border-gray-50">
-                          <td className="py-1.5">
-                            {l.account?.code} — {l.account?.name}
+                        <tr key={l.id} className="border-b border-gray-50 last:border-0">
+                          <td className="py-2">
+                            <span className="font-mono text-gray-500 mr-2">{l.account?.code}</span>
+                            {l.account?.name}
                           </td>
-                          <td className="py-1.5 text-right">{l.debit > 0 ? fmt(l.debit) : ''}</td>
-                          <td className="py-1.5 text-right">{l.credit > 0 ? fmt(l.credit) : ''}</td>
+                          <td className="py-2 text-right w-32 font-medium text-gray-700">{l.debit > 0 ? fmt(l.debit) : ''}</td>
+                          <td className="py-2 text-right w-32 font-medium text-gray-700">{l.credit > 0 ? fmt(l.credit) : ''}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -206,15 +233,23 @@ export default function LedgerPage() {
               </div>
               <div className="kpi-card">
                 <p className="text-sm text-gray-500">Net Kar</p>
-                <p
-                  className={`text-2xl font-bold ${income.netIncome >= 0 ? 'text-brand-600' : 'text-red-600'}`}
-                >
+                <p className={`text-2xl font-bold ${income.netIncome >= 0 ? 'text-brand-600' : 'text-red-600'}`}>
                   {fmt(income.netIncome)}
                 </p>
               </div>
             </div>
           )}
         </>
+      )}
+
+      {isJournalModalOpen && (
+        <ManualJournalModal
+          onClose={() => setIsJournalModalOpen(false)}
+          onSaved={() => {
+            setIsJournalModalOpen(false);
+            if (tab === 'journal') load();
+          }}
+        />
       )}
     </div>
   );
