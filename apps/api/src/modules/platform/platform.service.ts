@@ -50,7 +50,6 @@ import {
 } from '../../common/subscription-addons.util';
 import {
   buildDefaultSubmodulePricing,
-  effectiveSubmodulePrice,
   getPurchasableExtraModules,
   isExtraModulePurchasable,
   pricingMap,
@@ -212,13 +211,17 @@ export class PlatformService {
       billingPeriod: 'yearly',
       submodulePricing: submoduleRows.map((r) => ({
         ...r,
-        yearlyPrice: effectiveSubmodulePrice(r),
         label: getModuleLabel(r.moduleId),
       })),
       plans: plans.map((p) => {
         const pricing = applyDiscount(p.price, p.discountPercent);
-        const purchasableAddons = filterAddonsForPlan(p.modules, addonRows);
-        const purchasableExtraModules = getPurchasableExtraModules(p.modules, submoduleRows);
+        const includedModules =
+          DEFAULT_PLAN_MODULES[p.plan]?.modules ?? p.modules;
+        const purchasableAddons = filterAddonsForPlan(includedModules, addonRows);
+        const purchasableExtraModules = getPurchasableExtraModules(
+          includedModules,
+          submoduleRows,
+        );
         const computedModuleTotal = sumSubmodulePrices(p.modules, priceMap);
         return {
           ...p,
@@ -671,7 +674,7 @@ export class PlatformService {
     const subPriceMap = pricingMap(submoduleRows);
 
     for (const id of extraModuleIds) {
-      if (!isExtraModulePurchasable(planPricing.modules, id, subPriceMap)) {
+      if (!isExtraModulePurchasable(planPricing.modules, id, subPriceMap, plan)) {
         throw new BadRequestException(`Ek modül bu plan için satın alınamaz: ${id}`);
       }
     }
@@ -807,7 +810,7 @@ export class PlatformService {
     const submoduleRows = await this.ensureSubmodulePricing();
     const subPriceMap = pricingMap(submoduleRows);
     for (const id of extraModuleIds) {
-      if (!isExtraModulePurchasable(planPricing.modules, id, subPriceMap)) {
+      if (!isExtraModulePurchasable(planPricing.modules, id, subPriceMap, dto.plan)) {
         throw new BadRequestException(`Ek modül bu plan için uygun değil: ${id}`);
       }
     }

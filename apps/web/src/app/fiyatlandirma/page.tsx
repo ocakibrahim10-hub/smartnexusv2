@@ -21,9 +21,13 @@ export default function FiyatlandirmaPage() {
   }, []);
 
   useEffect(() => {
-    const allowed = purchasableExtraModulesFromPricing(pricing, selectedPlan).map((m) => m.moduleId);
+    const allowed = purchasableExtraModulesFromPricing(pricing, selectedPlan).map(
+      (m) => m.moduleId,
+    );
     if (allowed.length) {
       setExtraCart((prev) => prev.filter((id) => allowed.includes(id)));
+    } else {
+      setExtraCart([]);
     }
   }, [selectedPlan, pricing]);
 

@@ -128,7 +128,7 @@ export default function PricingPlanCards({
                   : undefined
               }
               className={`card pricing-plan-card ${meta.color} ${
-                isSelected ? 'ring-2 ring-[#606BDF] ring-offset-2' : ''
+                isSelected ? 'ring-2 ring-[#606BDF] border-[#606BDF]' : ''
               } ${onPlanSelect ? 'cursor-pointer' : ''}`}
             >
               {meta.badge && (

@@ -1,4 +1,5 @@
 import { ADDON_CODE_TO_MODULES } from './addon-module-map';
+import { DEFAULT_PLAN_MODULES } from './plan-modules';
 import {
   MODULE_CATALOG,
   expandLegacyModules,
@@ -33,10 +34,7 @@ export function getBusinessSubmoduleIds(): string[] {
   return [...new Set([...fromCatalog, ...fromAddons])];
 }
 
-let defaultPriceByModuleCache: Record<string, number> | null = null;
-
-export function getDefaultSubmodulePriceMap(): Record<string, number> {
-  if (defaultPriceByModuleCache) return defaultPriceByModuleCache;
+export function buildDefaultSubmodulePricing(): SubmodulePricingRow[] {
   const priceByModule: Record<string, number> = {};
   for (const [code, moduleIds] of Object.entries(ADDON_CODE_TO_MODULES)) {
     const base = ADDON_BASE_PRICES[code];
@@ -44,26 +42,11 @@ export function getDefaultSubmodulePriceMap(): Record<string, number> {
     const each = Math.round((base / moduleIds.length) * 100) / 100;
     for (const id of moduleIds) priceByModule[id] = each;
   }
+
   const defaultYearly = 199;
-  for (const moduleId of getBusinessSubmoduleIds()) {
-    if (priceByModule[moduleId] == null) priceByModule[moduleId] = defaultYearly;
-  }
-  defaultPriceByModuleCache = priceByModule;
-  return priceByModule;
-}
-
-export function effectiveSubmodulePrice(
-  row: Pick<SubmodulePricingRow, 'moduleId' | 'yearlyPrice'>,
-): number {
-  if ((row.yearlyPrice ?? 0) > 0) return row.yearlyPrice;
-  return getDefaultSubmodulePriceMap()[row.moduleId] ?? 0;
-}
-
-export function buildDefaultSubmodulePricing(): SubmodulePricingRow[] {
-  const priceByModule = getDefaultSubmodulePriceMap();
   return getBusinessSubmoduleIds().map((moduleId) => ({
     moduleId,
-    yearlyPrice: priceByModule[moduleId] ?? 199,
+    yearlyPrice: priceByModule[moduleId] ?? defaultYearly,
     sellableExtra: true,
     isActive: true,
   }));
@@ -98,15 +81,12 @@ export function getPurchasableExtraModules(
   const result: Array<SubmodulePricingRow & { label: string; groupId: string }> = [];
 
   for (const row of rows) {
-    if (!row.isActive || !row.sellableExtra) continue;
-    const yearlyPrice = effectiveSubmodulePrice(row);
-    if (yearlyPrice <= 0) continue;
+    if (!row.isActive || !row.sellableExtra || row.yearlyPrice <= 0) continue;
     if (included.has(row.moduleId)) continue;
     const groupId = row.moduleId.split('.')[0] ?? row.moduleId;
     if (groupId === 'DEALER') continue;
     result.push({
       ...row,
-      yearlyPrice,
       label: getModuleLabel(row.moduleId),
       groupId,
     });
@@ -119,9 +99,15 @@ export function isExtraModulePurchasable(
   planModules: string[],
   moduleId: string,
   rows: SubmodulePricingRow[] | Map<string, SubmodulePricingRow>,
+  planKey?: string,
 ): boolean {
   const map = rows instanceof Map ? rows : pricingMap(rows);
   const row = map.get(moduleId);
-  if (!row?.isActive || !row.sellableExtra || effectiveSubmodulePrice(row) <= 0) return false;
-  return !expandPlanModuleSet(planModules).has(moduleId);
+  if (!row?.isActive || !row.sellableExtra || row.yearlyPrice <= 0) return false;
+  const included = planKey
+    ? expandPlanModuleSet(
+        DEFAULT_PLAN_MODULES[planKey]?.modules ?? planModules,
+      )
+    : expandPlanModuleSet(planModules);
+  return !included.has(moduleId);
 }

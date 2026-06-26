@@ -5,18 +5,17 @@ import Link from 'next/link';
 import { Check, Layers, ShoppingCart, Trash2 } from 'lucide-react';
 import { fmtMoney } from '@/lib/format';
 import { PLAN_META, PLAN_ORDER, planLabel } from '@/lib/plans';
-import { purchasableExtraModulesFromPricing } from '@/lib/submodule-pricing';
+import { purchasableExtraModulesFromPricing, type SubmodulePriceRow } from '@/lib/submodule-pricing';
+
+type PlanRow = {
+  plan: string;
+  modules?: string[];
+};
 
 type Props = {
   pricing: {
-    plans?: Array<{ plan: string; modules?: string[] }>;
-    submodulePricing?: Array<{
-      moduleId: string;
-      yearlyPrice: number;
-      label?: string;
-      sellableExtra?: boolean;
-      isActive?: boolean;
-    }>;
+    plans?: PlanRow[];
+    submodulePricing?: SubmodulePriceRow[];
   } | null;
   selectedPlan: string;
   onPlanChange?: (plan: string) => void;
@@ -82,7 +81,7 @@ export default function ExtraModulesCatalogSection({
           <Layers className="w-5 h-5 text-[#606BDF]" /> Ek Modüller
         </h2>
         <p className="text-sm text-gray-500">
-          {planLabel(selectedPlan)} paketine dahil olmayan modüller — tek tek sepete ekleyin.{' '}
+          Paketinize dahil olmayan modülleri tek tek seçin.{' '}
           {showProrataHint && remainingDays
             ? `Kalan ${remainingDays} gün için fiyatlar prorata hesaplanır.`
             : 'Yıllık fiyatlar admin tarafından belirlenir; kayıt veya panelden satın alınır.'}
