@@ -29,7 +29,7 @@ export class TenantsService {
     private planLimits: PlanLimitsService,
   ) {}
 
-  private async getScopeIds(user: AuthUser): Promise<string[] | 'ALL'> {
+  async getScopeIds(user: AuthUser): Promise<string[] | 'ALL'> {
     if (user.tenantType === 'SUPERADMIN') return 'ALL';
 
     if (user.tenantType === 'DEALER') {
@@ -57,7 +57,7 @@ export class TenantsService {
     return [user.tenantId];
   }
 
-  private assertInScope(user: AuthUser, tenantId: string, scope: string[] | 'ALL') {
+  assertInScope(user: AuthUser, tenantId: string, scope: string[] | 'ALL') {
     if (scope === 'ALL') return;
     if (!scope.includes(tenantId)) {
       throw new ForbiddenException('Bu kayda erişim yetkiniz yok');
