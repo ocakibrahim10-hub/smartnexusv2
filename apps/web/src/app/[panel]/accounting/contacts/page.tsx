@@ -18,6 +18,8 @@ import {
   ArrowDownRight,
   Users,
   ListFilter,
+  TrendingUp,
+  Banknote,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -30,6 +32,7 @@ interface Contact {
   taxNo?: string;
   phone?: string;
   email?: string;
+  address?: string;
   city?: string;
   balance: number;
   creditLimit?: number;
@@ -146,6 +149,102 @@ export default function ContactsPage() {
 
   // Global stat mock
   const [globalStats, setGlobalStats] = useState({ receivables: 0, payables: 0 });
+
+  // Quick actions
+  const [showQuickSale, setShowQuickSale] = useState(false);
+  const [showQuickCollection, setShowQuickCollection] = useState(false);
+  const [quickActionSaving, setQuickActionSaving] = useState(false);
+  
+  const [quickSaleForm, setQuickSaleForm] = useState({
+    amount: '',
+    description: '',
+    date: new Date().toISOString().split('T')[0]
+  });
+  
+  const [quickCollectionForm, setQuickCollectionForm] = useState({
+    amount: '',
+    description: '',
+    date: new Date().toISOString().split('T')[0],
+    accountId: '',
+  });
+
+  const [accounts, setAccounts] = useState<{id: string, name: string, type: 'cash'|'bank'}[]>([]);
+  
+  useEffect(() => {
+    Promise.all([
+      api.get('/api/cash/accounts'),
+      api.get('/api/cash/bank-accounts')
+    ]).then(([cashRes, bankRes]) => {
+      const mapped = [
+        ...(cashRes.data?.data || cashRes.data || []).map((a: any) => ({ ...a, type: 'cash' })),
+        ...(bankRes.data?.data || bankRes.data || []).map((a: any) => ({ ...a, type: 'bank' }))
+      ];
+      setAccounts(mapped);
+      if (mapped.length > 0) {
+        setQuickCollectionForm(prev => ({ ...prev, accountId: mapped[0].id }));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleQuickSale = async () => {
+    if (!quickSaleForm.amount || !quickSaleForm.description) return toast.error('Tutar ve açıklama zorunludur.');
+    setQuickActionSaving(true);
+    try {
+      await api.post('/api/invoices', {
+        type: 'SALES_INVOICE',
+        contactId: selected?.id,
+        date: new Date(quickSaleForm.date).toISOString(),
+        notes: quickSaleForm.description,
+        lines: [
+          {
+            description: quickSaleForm.description,
+            quantity: 1,
+            unitPrice: Number(quickSaleForm.amount),
+            vatRate: 0
+          }
+        ]
+      });
+      toast.success('Hızlı satış kaydedildi');
+      setShowQuickSale(false);
+      setQuickSaleForm({ amount: '', description: '', date: new Date().toISOString().split('T')[0] });
+      if (selected) selectContact(selected);
+      refreshAllContacts();
+    } catch (error) {
+      toast.error('Kayıt başarısız oldu');
+    } finally {
+      setQuickActionSaving(false);
+    }
+  };
+
+  const handleQuickCollection = async () => {
+    if (!quickCollectionForm.amount || !quickCollectionForm.accountId) return toast.error('Tutar ve hesap seçimi zorunludur.');
+    setQuickActionSaving(true);
+    try {
+      const account = accounts.find(a => a.id === quickCollectionForm.accountId);
+      const isBank = account?.type === 'bank';
+      const endpoint = isBank 
+        ? `/api/cash/bank-accounts/${quickCollectionForm.accountId}/transactions`
+        : `/api/cash/accounts/${quickCollectionForm.accountId}/transactions`;
+      
+      await api.post(endpoint, {
+        type: 'INCOME',
+        amount: Number(quickCollectionForm.amount),
+        date: new Date(quickCollectionForm.date).toISOString(),
+        description: quickCollectionForm.description || 'Cari Tahsilat',
+        contactId: selected?.id
+      });
+      
+      toast.success('Tahsilat kaydedildi');
+      setShowQuickCollection(false);
+      setQuickCollectionForm(prev => ({ ...prev, amount: '', description: '' }));
+      if (selected) selectContact(selected);
+      refreshAllContacts();
+    } catch (error) {
+      toast.error('Kayıt başarısız oldu');
+    } finally {
+      setQuickActionSaving(false);
+    }
+  };
 
   const refreshAllContacts = async () => {
     const r = await api.get('/contacts', { params: { limit: 500 } });
@@ -459,9 +558,17 @@ export default function ContactsPage() {
                   </div>
 
                   <div className="flex flex-col items-end gap-2 w-full lg:w-auto mt-3 lg:mt-0">
-                    <button className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5 text-gray-700 font-semibold bg-white border-gray-200 shadow-sm hover:bg-gray-50 rounded-lg">
-                      <Edit2 className="w-3 h-3 text-gray-400" /> Düzenle
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button onClick={() => setShowQuickSale(true)} className="btn-secondary text-[11px] px-3 py-1.5 flex items-center gap-1.5 text-brand-700 font-bold bg-brand-50 border-brand-100 shadow-sm hover:bg-brand-100 rounded-lg transition-colors">
+                        <TrendingUp className="w-3.5 h-3.5" /> Hızlı Satış
+                      </button>
+                      <button onClick={() => setShowQuickCollection(true)} className="btn-secondary text-[11px] px-3 py-1.5 flex items-center gap-1.5 text-emerald-700 font-bold bg-emerald-50 border-emerald-100 shadow-sm hover:bg-emerald-100 rounded-lg transition-colors">
+                        <Banknote className="w-3.5 h-3.5" /> Tahsilat Al
+                      </button>
+                      <button onClick={() => { setForm({ ...selected, contactPerson: selected.contactPerson || '', taxNo: selected.taxNo || '', phone: selected.phone || '', email: selected.email || '', address: selected.address || '', city: selected.city || '' } as any); setShowForm(true); }} className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5 text-gray-700 font-semibold bg-white border-gray-200 shadow-sm hover:bg-gray-50 rounded-lg">
+                        <Edit2 className="w-3 h-3 text-gray-400" /> Düzenle
+                      </button>
+                    </div>
                     <div className={`p-3 rounded-xl border min-w-[200px] text-right shadow-sm ${
                       selected.balance > 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-900' : selected.balance < 0 ? 'bg-red-50 border-red-100 text-red-900' : 'bg-gray-50 border-gray-200 text-gray-900'
                     }`}>

@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { Plus, Search, ShoppingCart, Loader2, ChevronRight, Check, XCircle, Truck } from 'lucide-react';
+import { ShoppingCart, Search, Filter, Eye, CheckCircle, XCircle, Clock, Package, Truck, Calendar, ChevronRight, Plus, Loader2, Check } from 'lucide-react';
+import { ModuleGuide } from '@/components/ui/ModuleGuide';
 import { FormField } from '@/components/FormField';
 
 export default function OrdersPage() {
@@ -11,6 +12,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOrders();
@@ -71,6 +73,17 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-6">
+      <ModuleGuide
+        moduleKey="b2b_orders"
+        title="B2B Sipariş Yönetimi"
+        description="Bayilerinizden veya müşterilerinizden gelen B2B (Toptan) siparişlerini buradan yönetebilirsiniz. Siparişleri onaylayabilir, sevkiyat durumlarını takip edebilirsiniz."
+        features={[
+          "Gelen yeni siparişleri inceleme ve onaylama",
+          "Sipariş durumlarını (Hazırlanıyor, Kargolandı vb.) güncelleme",
+          "Müşteriye özel tanımlanmış fiyat listeleri ile sipariş tutarlarını izleme",
+          "Geçmiş siparişleri filtreleme"
+        ]}
+      />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">B2B Siparişler</h1>
         {/* Placeholder for new order if needed later, usually B2B orders are created by customers */}
@@ -128,12 +141,16 @@ export default function OrdersPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="py-3 px-4 font-medium text-gray-900">{order.orderNumber}</td>
-                    <td className="py-3 px-4">{order.customer?.name}</td>
-                    <td className="py-3 px-4">{new Date(order.createdAt).toLocaleString()}</td>
+                  <React.Fragment key={order.id}>
+                  <tr className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setExpandedId(expandedId === order.id ? null : order.id)}>
+                    <td className="py-3 px-4 font-medium text-gray-900 flex items-center gap-2">
+                      <ChevronRight className={`w-4 h-4 transition-transform ${expandedId === order.id ? 'rotate-90' : ''}`} />
+                      {order.code || order.orderNumber || '-'}
+                    </td>
+                    <td className="py-3 px-4">{order.contact?.name || order.customer?.name}</td>
+                    <td className="py-3 px-4">{new Date(order.requestedAt || order.createdAt).toLocaleString()}</td>
                     <td className="py-3 px-4 text-right font-semibold">
-                      {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: order.currency || 'TRY' }).format(order.totalAmount)}
+                      {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: order.currency || 'TRY' }).format(order.total || order.totalAmount || 0)}
                     </td>
                     <td className="py-3 px-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
@@ -141,7 +158,7 @@ export default function OrdersPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                         {order.status === 'PENDING' && (
                           <>
                             <button onClick={() => updateStatus(order.id, 'approve')} className="p-1.5 text-green-600 hover:bg-green-50 rounded" title="Onayla">
@@ -170,6 +187,45 @@ export default function OrdersPage() {
                       </div>
                     </td>
                   </tr>
+                  {expandedId === order.id && (
+                    <tr className="bg-indigo-50/50">
+                      <td colSpan={6} className="p-4">
+                        <div className="bg-white rounded-lg border border-indigo-100 p-4">
+                          <h4 className="font-semibold text-sm mb-3">Sipariş İçeriği</h4>
+                          <table className="w-full text-sm">
+                            <thead className="text-gray-500 border-b border-gray-100">
+                              <tr>
+                                <th className="text-left pb-2 font-medium">Ürün</th>
+                                <th className="text-right pb-2 font-medium">Birim Fiyat</th>
+                                <th className="text-right pb-2 font-medium">Miktar</th>
+                                <th className="text-right pb-2 font-medium">Toplam</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                              {order.lines?.map((item: any, idx: number) => (
+                                <tr key={idx}>
+                                  <td className="py-2 text-gray-700">{item.product?.name || 'Bilinmeyen Ürün'}</td>
+                                  <td className="py-2 text-right text-gray-600">
+                                    {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: order.currency || 'TRY' }).format(item.unitPrice)}
+                                  </td>
+                                  <td className="py-2 text-right font-medium text-gray-900">{item.quantity} {item.product?.unit || 'ADET'}</td>
+                                  <td className="py-2 text-right font-medium text-gray-900">
+                                    {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: order.currency || 'TRY' }).format(item.total)}
+                                  </td>
+                                </tr>
+                              ))}
+                              {(!order.lines || order.lines.length === 0) && (
+                                <tr>
+                                  <td colSpan={4} className="py-3 text-center text-gray-500">Sipariş içeriği bulunamadı</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

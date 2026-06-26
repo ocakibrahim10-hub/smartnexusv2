@@ -262,7 +262,19 @@ export class B2bService {
 
   async createPriceList(tenantId: string, dto: CreatePriceListDto) {
     return this.prisma.priceList.create({
-      data: { tenantId, name: dto.name, currency: dto.currency ?? 'TRY' },
+      data: { 
+        tenantId, 
+        name: dto.name, 
+        currency: dto.currency ?? 'TRY',
+        description: dto.description,
+        items: dto.items?.length ? {
+          create: dto.items.map(item => ({
+            productId: item.productId,
+            price: item.price,
+            minQuantity: item.minQuantity || 1
+          }))
+        } : undefined
+      },
     });
   }
 

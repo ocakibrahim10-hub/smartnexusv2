@@ -16,7 +16,16 @@ import {
   Filter,
   TrendingDown,
   Check,
+  MoreVertical,
+  Box,
+  Archive,
+  LayoutGrid,
+  List as ListIcon,
+  Shield,
+  Activity,
+  Truck,
 } from 'lucide-react';
+import { ModuleGuide } from '@/components/ui/ModuleGuide';
 import { api, uploadProductImage } from '@/lib/api';
 import { ProductImage } from '@/components/ProductImage';
 import { FormField, FormSelect, FormTextarea, IconButton } from '@/components/FormField';
@@ -531,6 +540,17 @@ export default function ProductsPage() {
 
       {/* ── Sağ Panel: Detay ───────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto p-6">
+        <ModuleGuide
+          moduleKey="inventory_products"
+          title="Stok & Ürün Yönetimi"
+          description="Ürünlerinizi, hammaddelerinizi ve hizmetlerinizi bu sayfadan kolayca yönetebilirsiniz. Detaylı stok kontrolü ve kategorizasyon özellikleri ile depolarınızı düzenli tutun."
+          features={[
+            "Yeni ürün, hizmet veya hammadde kartı oluşturabilirsiniz.",
+            "Varyantlı ürünleri tek tuşla ekleyebilir ve takip edebilirsiniz.",
+            "Excel üzerinden toplu ürün yükleme yapabilirsiniz.",
+            "Eksik stoklu veya kritik seviyedeki ürünleri görebilirsiniz."
+          ]}
+        />
         {!selected ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-600">
             <Package className="w-16 h-16 mb-4" />

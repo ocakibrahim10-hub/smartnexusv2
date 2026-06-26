@@ -2,8 +2,9 @@
 
 import { toast } from '@/lib/toast';
 import { useState, useEffect } from 'react';
-import { Users, Plus, UserPlus, Phone, Briefcase, Calendar, ShieldCheck, Mail, Save } from 'lucide-react';
+import { Users, Plus, UserPlus, Phone, Briefcase, Calendar, ShieldCheck, Mail, Save, X } from 'lucide-react';
 import { api } from '@/lib/api';
+import { ModuleGuide } from '@/components/ui/ModuleGuide';
 
 export default function PersonnelPage() {
   const [personnel, setPersonnel] = useState<any[]>([]);
@@ -135,6 +136,17 @@ export default function PersonnelPage() {
 
   return (
     <div className="p-4 lg:p-8 max-w-[1600px] mx-auto space-y-6">
+      <ModuleGuide
+        moduleKey="hr_personnel"
+        title="Personel Yönetimi"
+        description="Şirketinizde çalışan tüm personellerin kayıtlarını, özlük dosyalarını, görev ve departman atamalarını buradan yönetebilirsiniz."
+        features={[
+          "Personel kartı oluşturma ve düzenleme",
+          "Departman ve görev atamaları yapabilme",
+          "Maaş, SGK ve izin bilgilerini kayıt altında tutma",
+          "Gelişmiş personel arama ve filtreleme"
+        ]}
+      />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-xl lg:text-2xl font-black tracking-tight text-gray-900 flex items-center gap-2">

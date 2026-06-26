@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Plus, Search, Layers, X, Loader2 } from 'lucide-react';
 import { FormField } from '@/components/FormField';
+import { ModuleGuide } from '@/components/ui/ModuleGuide';
 
 export default function BomsPage() {
   const [boms, setBoms] = useState<any[]>([]);
@@ -12,6 +13,7 @@ export default function BomsPage() {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Form State
   const [code, setCode] = useState('');
@@ -82,6 +84,17 @@ export default function BomsPage() {
 
   return (
     <div className="space-y-6">
+      <ModuleGuide
+        moduleKey="mrp_boms"
+        title="Üretim Reçeteleri (BOM)"
+        description="Ürettiğiniz ürünlerin hangi hammaddelerden ne kadar kullanılarak oluşturulduğunu belirlediğiniz sayfadır. Bir üretim emri vermeden önce mutlaka ilgili ürün için bir reçete oluşturmalısınız."
+        features={[
+          "Bir mamül için limitsiz sayıda hammadde/bileşen ekleyebilirsiniz.",
+          "Alt reçete kullanımlarını hesaplatabilirsiniz.",
+          "Fire oranlarını ve fire maliyetlerini yönetebilirsiniz.",
+          "Maliyetleri canlı olarak görebilirsiniz."
+        ]}
+      />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Reçeteler (BOM)</h1>
         <button
@@ -128,13 +141,50 @@ export default function BomsPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredBoms.map((bom) => (
-                  <tr key={bom.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="py-3 px-4 font-medium text-gray-900">{bom.code}</td>
+                  <React.Fragment key={bom.id}>
+                  <tr className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setExpandedId(expandedId === bom.id ? null : bom.id)}>
+                    <td className="py-3 px-4 font-medium text-gray-900 flex items-center gap-2">
+                      <svg className={`w-4 h-4 transition-transform ${expandedId === bom.id ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                      {bom.code}
+                    </td>
                     <td className="py-3 px-4">{bom.name}</td>
                     <td className="py-3 px-4 text-indigo-600">{bom.product?.name || 'Bilinmiyor'}</td>
                     <td className="py-3 px-4">{bom.quantity} {bom.product?.unit}</td>
                     <td className="py-3 px-4 text-right text-gray-500">{bom.items?.length || 0} kalem</td>
                   </tr>
+                  {expandedId === bom.id && (
+                    <tr className="bg-indigo-50/50">
+                      <td colSpan={5} className="p-4">
+                        <div className="bg-white rounded-lg border border-indigo-100 p-4">
+                          <h4 className="font-semibold text-sm mb-3">Reçete Bileşenleri (Malzeme Listesi)</h4>
+                          <table className="w-full text-sm">
+                            <thead className="text-gray-500 border-b border-gray-100">
+                              <tr>
+                                <th className="text-left pb-2 font-medium">Bileşen (Malzeme)</th>
+                                <th className="text-right pb-2 font-medium">Gereken Miktar</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                              {bom.items?.map((item: any, idx: number) => (
+                                <tr key={idx}>
+                                  <td className="py-2 text-gray-700">{item.product?.name || 'Bilinmeyen Malzeme'}</td>
+                                  <td className="py-2 text-right font-medium text-gray-900">{item.quantity} {item.unit}</td>
+                                </tr>
+                              ))}
+                              {(!bom.items || bom.items.length === 0) && (
+                                <tr>
+                                  <td colSpan={2} className="py-3 text-center text-gray-500">Malzeme listesi bulunamadı</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

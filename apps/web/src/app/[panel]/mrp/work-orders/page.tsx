@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { Plus, Search, Hammer, ChevronRight, X, Loader2, CheckCircle2 } from 'lucide-react';
-import { FormField } from '@/components/FormField';
+import { Plus, Search, Hammer, ChevronRight, X, Loader2, CheckCircle2, Calendar, Play, PauseCircle } from 'lucide-react';
+import { FormField, FormSelect, FormTextarea } from '@/components/FormField';
+import { ModuleGuide } from '@/components/ui/ModuleGuide';
 
 export default function WorkOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -22,6 +23,7 @@ export default function WorkOrdersPage() {
 
   // Helpers
   const [boms, setBoms] = useState<any[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOrders();
@@ -91,6 +93,17 @@ export default function WorkOrdersPage() {
 
   return (
     <div className="space-y-6">
+      <ModuleGuide
+        moduleKey="mrp_work_orders"
+        title="İş Emirleri Yönetimi"
+        description="Oluşturduğunuz reçeteler (BOM) üzerinden üretime başlama talimatlarını buradan verirsiniz. Üretimi başlattığınızda sistem otomatik olarak kullanılacak hammaddeleri hesaplar."
+        features={[
+          "Mevcut reçetelerden iş emri oluşturma",
+          "İş emri durum takibi (Bekliyor, Üretimde, Tamamlandı)",
+          "Planlanan tarih ve hedef miktar belirleme",
+          "Tahmini hammadde tüketimi önizleme"
+        ]}
+      />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">İş Emirleri</h1>
         <button
@@ -138,8 +151,12 @@ export default function WorkOrdersPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredOrders.map((wo) => (
-                  <tr key={wo.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="py-3 px-4 font-medium text-gray-900">{wo.code}</td>
+                  <React.Fragment key={wo.id}>
+                  <tr className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setExpandedId(expandedId === wo.id ? null : wo.id)}>
+                    <td className="py-3 px-4 font-medium text-gray-900 flex items-center gap-2">
+                      <ChevronRight className={`w-4 h-4 transition-transform ${expandedId === wo.id ? 'rotate-90' : ''}`} />
+                      {wo.code}
+                    </td>
                     <td className="py-3 px-4">{wo.bom?.name}</td>
                     <td className="py-3 px-4">{wo.quantity}</td>
                     <td className="py-3 px-4">{wo.plannedDate ? new Date(wo.plannedDate).toLocaleDateString() : '-'}</td>
@@ -154,7 +171,7 @@ export default function WorkOrdersPage() {
                     </td>
                     <td className="py-3 px-4 text-right">
                       {wo.status !== 'COMPLETED' && (
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                           {wo.status === 'PLANNED' && (
                             <button onClick={() => updateStatus(wo.id, 'IN_PROGRESS')} className="text-blue-600 hover:underline">
                               Başlat
@@ -169,6 +186,37 @@ export default function WorkOrdersPage() {
                       )}
                     </td>
                   </tr>
+                  {expandedId === wo.id && (
+                    <tr className="bg-indigo-50/50">
+                      <td colSpan={6} className="p-4">
+                        <div className="bg-white rounded-lg border border-indigo-100 p-4">
+                          <h4 className="font-semibold text-sm mb-3">Tüketilecek Malzemeler Listesi</h4>
+                          <table className="w-full text-sm">
+                            <thead className="text-gray-500 border-b border-gray-100">
+                              <tr>
+                                <th className="text-left pb-2 font-medium">Malzeme</th>
+                                <th className="text-right pb-2 font-medium">Gereken Miktar</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                              {wo.items?.filter((i: any) => i.type === 'MATERIAL').map((item: any, idx: number) => (
+                                <tr key={idx}>
+                                  <td className="py-2 text-gray-700">{item.product?.name || 'Bilinmeyen Malzeme'}</td>
+                                  <td className="py-2 text-right font-medium text-gray-900">{item.quantity} {item.product?.unit || 'ADET'}</td>
+                                </tr>
+                              ))}
+                              {(!wo.items || wo.items.length === 0) && (
+                                <tr>
+                                  <td colSpan={2} className="py-3 text-center text-gray-500">Malzeme listesi bulunamadı</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
@@ -206,6 +254,24 @@ export default function WorkOrdersPage() {
                 <FormField label="Miktar" type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" required />
                 <FormField label="Planlanan Tarih" type="date" value={plannedDate} onChange={(e) => setPlannedDate(e.target.value)} />
               </div>
+
+              {bomId && (
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  <h4 className="font-medium text-sm text-gray-700 mb-2">Tüketilecek Malzemeler</h4>
+                  <ul className="space-y-1">
+                    {boms.find(b => b.id === bomId)?.items?.map((item: any, idx: number) => {
+                      const qty = Number(quantity) || 1;
+                      const ratio = qty / (boms.find(b => b.id === bomId)?.quantity || 1);
+                      return (
+                        <li key={idx} className="text-sm flex justify-between text-gray-600">
+                          <span>{item.product?.name || 'Malzeme'}</span>
+                          <span className="font-medium text-gray-900">{(item.quantity * ratio).toFixed(2)} {item.product?.unit || 'ADET'}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
 
               <FormField label="Notlar" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </form>

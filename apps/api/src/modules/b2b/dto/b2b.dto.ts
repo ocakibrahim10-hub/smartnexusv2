@@ -29,7 +29,20 @@ export class UpdateB2BOrderDto {
   lines?: B2BOrderLineDto[];
 }
 
+export class PriceListItemDto {
+  @ApiProperty() @IsString() productId: string;
+  @ApiProperty() @IsNumber() price: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() minQuantity?: number;
+}
+
 export class CreatePriceListDto {
   @ApiProperty() @IsString() name: string;
   @ApiPropertyOptional() @IsOptional() @IsString() currency?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() description?: string;
+  @ApiPropertyOptional({ type: [PriceListItemDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PriceListItemDto)
+  items?: PriceListItemDto[];
 }
