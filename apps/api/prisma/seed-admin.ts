@@ -18,12 +18,12 @@ async function main() {
         tenantId: tenRootId,
         code: p.code,
         name: p.name,
-        category: p.category,
-        brand: p.brand,
+        categoryId: p.categoryId,
+        brandId: p.brandId,
         unit: p.unit,
         salePrice: p.salePrice,
         purchasePrice: p.purchasePrice,
-        taxRate: p.taxRate,
+        vatRate: p.vatRate,
         barcode: p.barcode,
         type: p.type,
       }
@@ -33,12 +33,12 @@ async function main() {
   const rootProducts = await prisma.product.findMany({ where: { tenantId: tenRootId } });
   
   // Seed BOMs
-  const boms = await prisma.mrpBom.findMany({ where: { tenantId: tenB1Id }, include: { items: true } });
+  const boms = await prisma.billOfMaterial.findMany({ where: { tenantId: tenB1Id }, include: { items: true } });
   for (const bom of boms) {
     const rootP = rootProducts.find(rp => rp.code === products.find(op => op.id === bom.productId)?.code);
     if (!rootP) continue;
     
-    await prisma.mrpBom.upsert({
+    await prisma.billOfMaterial.upsert({
       where: { tenantId_code: { tenantId: tenRootId, code: bom.code } },
       update: {},
       create: {

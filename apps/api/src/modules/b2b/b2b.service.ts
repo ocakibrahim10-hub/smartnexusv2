@@ -266,7 +266,6 @@ export class B2bService {
         tenantId, 
         name: dto.name, 
         currency: dto.currency ?? 'TRY',
-        description: dto.description,
         items: dto.items?.length ? {
           create: dto.items.map(item => ({
             productId: item.productId,
