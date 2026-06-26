@@ -37,6 +37,7 @@ import TopBar from '@/components/layout/TopBar';
 import { reportsApi } from '@/lib/api';
 import { getUser } from '@/lib/auth';
 import { fmtMoney, safeNum, fmtPercentChange } from '@/lib/format';
+import OnboardingGuide from '@/components/layout/OnboardingGuide';
 
 const COLORS = ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981'];
 
@@ -757,6 +758,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      <OnboardingGuide />
     </div>
   );
 }
