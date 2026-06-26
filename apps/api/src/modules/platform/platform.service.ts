@@ -50,6 +50,7 @@ import {
 } from '../../common/subscription-addons.util';
 import {
   buildDefaultSubmodulePricing,
+  effectiveSubmodulePrice,
   getPurchasableExtraModules,
   isExtraModulePurchasable,
   pricingMap,
@@ -211,6 +212,7 @@ export class PlatformService {
       billingPeriod: 'yearly',
       submodulePricing: submoduleRows.map((r) => ({
         ...r,
+        yearlyPrice: effectiveSubmodulePrice(r),
         label: getModuleLabel(r.moduleId),
       })),
       plans: plans.map((p) => {

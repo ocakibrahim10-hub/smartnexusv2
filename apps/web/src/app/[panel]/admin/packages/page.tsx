@@ -186,7 +186,7 @@ export default function PackagesPage() {
             pricing={
               publicPricing ?? {
                 plans: pricingPlans,
-                kontorModules,
+                kontorModules: kontorAdminDisplay,
                 submodulePricing,
               }
             }

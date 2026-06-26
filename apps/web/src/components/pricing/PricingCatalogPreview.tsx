@@ -1,6 +1,10 @@
+'use client';
+
 import PricingPlanCards, { type PricingPlan } from '@/components/PricingPlanCards';
 import KontorPackagesSection from '@/components/pricing/KontorPackagesSection';
 import ExtraModulesCatalogSection from '@/components/pricing/ExtraModulesCatalogSection';
+import { mergeKontorModulesForDisplay } from '@/lib/kontor-display';
+import { useMemo } from 'react';
 
 type KontorModule = {
   id: string;
@@ -55,7 +59,10 @@ export default function PricingCatalogPreview({
   prorataPrices,
 }: Props) {
   const plans = pricing?.plans ?? [];
-  const kontorModules = pricing?.kontorModules ?? [];
+  const kontorModules = useMemo(
+    () => mergeKontorModulesForDisplay(pricing?.kontorModules ?? []),
+    [pricing?.kontorModules],
+  );
 
   return (
     <>
@@ -64,6 +71,8 @@ export default function PricingCatalogPreview({
         showCta={showCta}
         ctaHref={ctaHref}
         compact={compact}
+        selectedPlan={selectedPlan}
+        onPlanSelect={onPlanChange}
       />
 
       {onToggleExtraCart && (

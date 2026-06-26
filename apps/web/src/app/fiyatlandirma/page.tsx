@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import PricingCatalogPreview from '@/components/pricing/PricingCatalogPreview';
 import { PLAN_ORDER } from '@/lib/plans';
+import { purchasableExtraModulesFromPricing } from '@/lib/submodule-pricing';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -20,10 +21,7 @@ export default function FiyatlandirmaPage() {
   }, []);
 
   useEffect(() => {
-    const allowed =
-      pricing?.plans
-        ?.find((p: any) => p.plan === selectedPlan)
-        ?.purchasableExtraModules?.map((m: any) => m.moduleId) ?? [];
+    const allowed = purchasableExtraModulesFromPricing(pricing, selectedPlan).map((m) => m.moduleId);
     if (allowed.length) {
       setExtraCart((prev) => prev.filter((id) => allowed.includes(id)));
     }

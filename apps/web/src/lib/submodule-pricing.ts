@@ -1,4 +1,5 @@
 import { MODULE_CATALOG, expandLegacyModules, getModuleLabel } from './modules';
+import { ADDON_CODE_TO_MODULES } from './addon-module-map';
 
 export type SubmodulePriceRow = {
   moduleId: string;
@@ -7,6 +8,42 @@ export type SubmodulePriceRow = {
   isActive?: boolean;
   label?: string;
 };
+
+const ADDON_BASE_PRICES: Partial<Record<string, number>> = {
+  POS_YAZARKASA: 299,
+  API_ACCESS: 499,
+  MARKETPLACE: 399,
+  HR_PAYROLL: 349,
+  ADVANCED_CRM: 299,
+  MOBILE_ACCESS: 199,
+  AI_FEATURES: 449,
+  B2C_ECOMMERCE: 399,
+  MANUFACTURING: 549,
+};
+
+let defaultPriceByModuleCache: Record<string, number> | null = null;
+
+export function getDefaultSubmodulePriceMap(): Record<string, number> {
+  if (defaultPriceByModuleCache) return defaultPriceByModuleCache;
+  const priceByModule: Record<string, number> = {};
+  for (const [code, moduleIds] of Object.entries(ADDON_CODE_TO_MODULES)) {
+    const base = ADDON_BASE_PRICES[code];
+    if (!base || !moduleIds.length) continue;
+    const each = Math.round((base / moduleIds.length) * 100) / 100;
+    for (const id of moduleIds) priceByModule[id] = each;
+  }
+  const defaultYearly = 199;
+  for (const moduleId of businessSubmoduleIds()) {
+    if (priceByModule[moduleId] == null) priceByModule[moduleId] = defaultYearly;
+  }
+  defaultPriceByModuleCache = priceByModule;
+  return priceByModule;
+}
+
+export function effectiveSubmodulePrice(row: Pick<SubmodulePriceRow, 'moduleId' | 'yearlyPrice'>): number {
+  if ((row.yearlyPrice ?? 0) > 0) return row.yearlyPrice;
+  return getDefaultSubmodulePriceMap()[row.moduleId] ?? 0;
+}
 
 export function businessSubmoduleIds(): string[] {
   return MODULE_CATALOG.filter((g) => g.id !== 'DEALER').flatMap((g) =>
@@ -38,27 +75,25 @@ export function purchasableExtraModulesFromPricing(
   selectedPlan: string,
 ): SubmodulePriceRow[] {
   const planRow = pricing?.plans?.find((p) => p.plan === selectedPlan);
-  if (planRow?.purchasableExtraModules?.length) {
-    return planRow.purchasableExtraModules.map((m) => ({
-      ...m,
-      label: m.label ?? getModuleLabel(m.moduleId),
-    }));
-  }
-
   const included = new Set(expandLegacyModules(planRow?.modules ?? []));
+
   return (pricing?.submodulePricing ?? [])
-    .filter(
-      (r) =>
-        r.isActive !== false &&
-        r.sellableExtra !== false &&
-        (r.yearlyPrice ?? 0) > 0 &&
-        !included.has(r.moduleId),
-    )
-    .map((r) => ({
-      ...r,
-      label: r.label ?? getModuleLabel(r.moduleId),
-      groupId: r.moduleId.split('.')[0],
-    }))
+    .filter((r) => {
+      if (r.isActive === false || r.sellableExtra === false) return false;
+      if (included.has(r.moduleId)) return false;
+      const groupId = r.moduleId.split('.')[0] ?? r.moduleId;
+      if (groupId === 'DEALER') return false;
+      return effectiveSubmodulePrice(r) > 0;
+    })
+    .map((r) => {
+      const yearlyPrice = effectiveSubmodulePrice(r);
+      return {
+        ...r,
+        yearlyPrice,
+        label: r.label ?? getModuleLabel(r.moduleId),
+        groupId: r.moduleId.split('.')[0],
+      };
+    })
     .sort((a, b) => (a.label ?? '').localeCompare(b.label ?? '', 'tr'));
 }
 

@@ -5,19 +5,18 @@ import Link from 'next/link';
 import { Check, Layers, ShoppingCart, Trash2 } from 'lucide-react';
 import { fmtMoney } from '@/lib/format';
 import { PLAN_META, PLAN_ORDER, planLabel } from '@/lib/plans';
-import { getModuleLabel } from '@/lib/modules';
-import type { SubmodulePriceRow } from '@/lib/submodule-pricing';
-
-type PlanRow = {
-  plan: string;
-  modules?: string[];
-  purchasableExtraModules?: SubmodulePriceRow[];
-};
+import { purchasableExtraModulesFromPricing } from '@/lib/submodule-pricing';
 
 type Props = {
   pricing: {
-    plans?: PlanRow[];
-    submodulePricing?: SubmodulePriceRow[];
+    plans?: Array<{ plan: string; modules?: string[] }>;
+    submodulePricing?: Array<{
+      moduleId: string;
+      yearlyPrice: number;
+      label?: string;
+      sellableExtra?: boolean;
+      isActive?: boolean;
+    }>;
   } | null;
   selectedPlan: string;
   onPlanChange?: (plan: string) => void;
@@ -44,25 +43,10 @@ export default function ExtraModulesCatalogSection({
   checkoutLabel = 'Sepetle devam et',
   loginHref,
 }: Props) {
-  const planRow = pricing?.plans?.find((p) => p.plan === selectedPlan);
-  const extras = useMemo(() => {
-    if (planRow?.purchasableExtraModules?.length) {
-      return planRow.purchasableExtraModules.map((m) => ({
-        ...m,
-        label: m.label ?? getModuleLabel(m.moduleId),
-      }));
-    }
-    const included = new Set(planRow?.modules ?? []);
-    return (pricing?.submodulePricing ?? [])
-      .filter(
-        (r) =>
-          r.sellableExtra !== false &&
-          r.isActive !== false &&
-          (r.yearlyPrice ?? 0) > 0 &&
-          !included.has(r.moduleId),
-      )
-      .map((r) => ({ ...r, label: r.label ?? getModuleLabel(r.moduleId) }));
-  }, [planRow, pricing?.submodulePricing]);
+  const extras = useMemo(
+    () => purchasableExtraModulesFromPricing(pricing, selectedPlan),
+    [pricing, selectedPlan],
+  );
 
   const cartTotal = useMemo(
     () =>
@@ -98,7 +82,7 @@ export default function ExtraModulesCatalogSection({
           <Layers className="w-5 h-5 text-[#606BDF]" /> Ek Modüller
         </h2>
         <p className="text-sm text-gray-500">
-          Paketinize dahil olmayan modülleri tek tek seçin.{' '}
+          {planLabel(selectedPlan)} paketine dahil olmayan modüller — tek tek sepete ekleyin.{' '}
           {showProrataHint && remainingDays
             ? `Kalan ${remainingDays} gün için fiyatlar prorata hesaplanır.`
             : 'Yıllık fiyatlar admin tarafından belirlenir; kayıt veya panelden satın alınır.'}

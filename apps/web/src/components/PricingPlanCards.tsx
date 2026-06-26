@@ -37,6 +37,8 @@ type Props = {
   showCta?: boolean;
   ctaHref?: string;
   compact?: boolean;
+  selectedPlan?: string;
+  onPlanSelect?: (plan: string) => void;
 };
 
 const INITIAL_FEATURES = 5;
@@ -94,6 +96,8 @@ export default function PricingPlanCards({
   showCta = false,
   ctaHref = '/',
   compact = false,
+  selectedPlan,
+  onPlanSelect,
 }: Props) {
   const ordered = PLAN_ORDER.map((key) => plans.find((p) => p.plan === key)).filter(Boolean) as PricingPlan[];
 
@@ -105,9 +109,28 @@ export default function PricingPlanCards({
           const labels = resolvePricingModuleLabels(p);
           const pricing = applyDiscount(p.listPrice ?? p.price, p.discountPercent ?? 0);
           const hasDiscount = pricing.discountPercent > 0;
+          const isSelected = selectedPlan === p.plan;
 
           return (
-            <div key={p.plan} className={`card pricing-plan-card ${meta.color}`}>
+            <div
+              key={p.plan}
+              role={onPlanSelect ? 'button' : undefined}
+              tabIndex={onPlanSelect ? 0 : undefined}
+              onClick={onPlanSelect ? () => onPlanSelect(p.plan) : undefined}
+              onKeyDown={
+                onPlanSelect
+                  ? (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onPlanSelect(p.plan);
+                      }
+                    }
+                  : undefined
+              }
+              className={`card pricing-plan-card ${meta.color} ${
+                isSelected ? 'ring-2 ring-[#606BDF] ring-offset-2' : ''
+              } ${onPlanSelect ? 'cursor-pointer' : ''}`}
+            >
               {meta.badge && (
                 <span className="absolute -top-3 right-4 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#606BDF] text-white flex items-center gap-1">
                   <Sparkles className="w-3 h-3" /> {meta.badge}
@@ -137,6 +160,7 @@ export default function PricingPlanCards({
               {showCta && (
                 <Link
                   href={ctaHref.includes('?') ? ctaHref : `${ctaHref}?plan=${p.plan}`}
+                  onClick={(e) => e.stopPropagation()}
                   className="mt-3 block text-center py-2 rounded-xl text-white text-sm font-medium bg-[#606BDF] hover:opacity-90 transition-opacity"
                 >
                   Planı Seç
