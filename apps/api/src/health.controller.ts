@@ -13,6 +13,12 @@ export class HealthController {
     return { status: 'ok', service: 'smartnexus-api', timestamp: new Date().toISOString() };
   }
 
+  @Get('debug-env')
+  @Public()
+  debugEnv() {
+    return { db: process.env.DATABASE_URL };
+  }
+
   @Get('seed')
   @Public()
   async seedAdmin() {
