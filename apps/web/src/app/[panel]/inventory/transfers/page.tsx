@@ -114,7 +114,7 @@ export default function TransfersPage() {
         .catch(() => {});
       api
         .get('/tenants/branches', { params: { limit: 200 } })
-        .then((r) => setBranches(r.data.data || []))
+        .then((r) => setBranches(Array.isArray(r.data) ? r.data : (r.data?.data || [])))
         .catch(() => {});
     }
   }, [isBranch, isBusiness]);
