@@ -113,8 +113,8 @@ export default function TransfersPage() {
         .then((r) => setProducts(r.data.data || []))
         .catch(() => {});
       api
-        .get('/tenants', { params: { limit: 200 } }) // Will list business's branches since they are children
-        .then((r) => setBranches((r.data.data || []).filter((t: any) => t.tenantType === 'BRANCH')))
+        .get('/tenants/branches', { params: { limit: 200 } })
+        .then((r) => setBranches(r.data.data || []))
         .catch(() => {});
     }
   }, [isBranch, isBusiness]);
