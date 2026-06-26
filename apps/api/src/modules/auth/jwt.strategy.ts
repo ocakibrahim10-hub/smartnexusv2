@@ -54,8 +54,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       },
     });
 
-    if (!user || !user.isActive || !user.tenant.isActive) {
+    if (!user || !user.isActive) {
       throw new UnauthorizedException('Oturum geçersiz');
+    }
+
+    if (!user.tenant.isActive) {
+      const onboardingPayment =
+        user.role === 'OWNER' &&
+        ['BUSINESS', 'BRANCH'].includes(user.tenant.type) &&
+        (!user.tenant.subscription || user.tenant.subscription.endDate <= new Date());
+      if (!onboardingPayment) {
+        throw new UnauthorizedException('Firma hesabı pasif');
+      }
     }
 
     return {
