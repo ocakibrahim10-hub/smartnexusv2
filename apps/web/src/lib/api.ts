@@ -199,6 +199,10 @@ export const platformApi = {
     buyer?: any;
     acceptedDocuments?: string[];
   }) => api.post('/platform/subscription/purchase', data).then((r) => r.data),
+  confirmPendingSubscription: (tenantId?: string) =>
+    api
+      .post('/platform/subscription/confirm', tenantId ? { tenantId } : {})
+      .then((r) => r.data),
   getLegalDocuments: (context?: string) =>
     api.get('/platform/legal/documents', { params: context ? { context } : {} }).then((r) => r.data),
   getLegalDocument: (id: string) => api.get(`/platform/legal/documents/${id}`).then((r) => r.data),

@@ -9,6 +9,7 @@ import { FormField, FormSelect } from '@/components/FormField';
 import SubscriptionCheckoutPanel from '@/components/SubscriptionCheckoutPanel';
 import { setSession } from '@/lib/auth';
 import { platformApi } from '@/lib/api';
+import { finalizeSubscriptionPayment } from '@/lib/finalize-subscription-payment';
 import { filterAddonsForPlan, planModulesFromPricing } from '@/lib/plan-addons';
 import { purchasableExtraModulesFromPricing } from '@/lib/submodule-pricing';
 import { PLAN_ORDER, planLabel } from '@/lib/plans';
@@ -158,14 +159,13 @@ export default function KayitForm() {
       });
 
       if (purchase.redirectUrl) {
+        sessionStorage.setItem('pendingPaymentTenantId', res.data.user.tenantId);
         window.location.href = purchase.redirectUrl;
         return;
       }
-      if (purchase.status === 'SUCCESS' || purchase.success) {
-        router.push('/isletme/dashboard?payment=ok');
-        return;
-      }
-      router.push(`/isletme/subscribe?plan=${form.plan}&payment=ok`);
+      await finalizeSubscriptionPayment(res.data.user.tenantId);
+      router.push('/isletme/dashboard?payment=ok');
+      return;
     } catch (err: unknown) {
       setError(parseApiError(err));
     } finally {

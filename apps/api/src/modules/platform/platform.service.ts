@@ -877,6 +877,11 @@ export class PlatformService {
           ? 'nexusadmin'
           : 'isletme';
 
+    const returnPath =
+      billingMode === 'new'
+        ? `/${panel}/dashboard?payment=ok`
+        : `/${panel}/subscribe?payment=ok&tenantId=${dto.tenantId}`;
+
     const result = await this.paymentService.charge({
       tenantId: dto.tenantId,
       amount: quote.totalAmount,
@@ -899,22 +904,90 @@ export class PlatformService {
           price: quote.totalAmount,
         },
       ],
-      callbackUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/${panel}/subscribe?payment=ok&tenantId=${dto.tenantId}`,
+      callbackUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}${returnPath}`,
     });
 
     return { purchaseId: purchase.id, quote, ...result };
+  }
+
+  async confirmPendingSubscriptionPurchase(
+    actor: { id: string; tenantId: string; tenantType: TenantType },
+    tenantId: string,
+  ) {
+    const target = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!target || !['BUSINESS', 'BRANCH'].includes(target.type)) {
+      throw new BadRequestException('Geçersiz işletme');
+    }
+
+    if (actor.tenantType === TenantType.DEALER) {
+      if (target.parentId !== actor.tenantId) {
+        throw new ForbiddenException('Sadece kendi işletmelerinize paket tanımlayabilirsiniz');
+      }
+    } else if (actor.tenantType !== TenantType.SUPERADMIN && actor.tenantId !== tenantId) {
+      throw new ForbiddenException('Bu işletme için ödeme yetkiniz yok');
+    }
+
+    const latest = await this.prisma.subscriptionPurchase.findFirst({
+      where: { tenantId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!latest) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        include: { subscription: true },
+      });
+      return {
+        activated: !!tenant?.isActive,
+        alreadyActive: !!tenant?.isActive,
+        remainingDays: tenant?.subscription
+          ? subscriptionRemainingDays(tenant.subscription.endDate)
+          : 0,
+      };
+    }
+
+    await this.paymentService.activatePendingSubscriptionPurchase(latest.id);
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      include: { subscription: true },
+    });
+
+    return {
+      activated: !!tenant?.isActive,
+      alreadyActive:
+        latest.status === 'SUCCESS' &&
+        !!tenant?.isActive &&
+        !!tenant.subscription &&
+        tenant.subscription.endDate > new Date(),
+      purchaseId: latest.id,
+      remainingDays: tenant?.subscription
+        ? subscriptionRemainingDays(tenant.subscription.endDate)
+        : 0,
+    };
   }
 
   async activateSubscriptionPurchase(purchaseId: string) {
     const purchase = await this.prisma.subscriptionPurchase.findUnique({
       where: { id: purchaseId },
     });
-    if (!purchase || purchase.status === 'SUCCESS') return;
+    if (!purchase) return;
 
     const target = await this.prisma.tenant.findUnique({
       where: { id: purchase.tenantId },
       include: { subscription: true },
     });
+
+    if (
+      purchase.status === 'SUCCESS' &&
+      target?.isActive &&
+      target.subscription &&
+      target.subscription.endDate > new Date()
+    ) {
+      return;
+    }
+
+    const alreadyCompleted = purchase.status === 'SUCCESS';
     const currentSub = target?.subscription;
 
     const planPricing = await this.resolvePlanPricing(purchase.plan);
@@ -944,10 +1017,14 @@ export class PlatformService {
     const newExtraBranches = (currentSub?.extraBranches || 0) + (purchase.extraBranchCount || 0);
 
     await this.prisma.$transaction([
-      this.prisma.subscriptionPurchase.update({
-        where: { id: purchase.id },
-        data: { status: 'SUCCESS', completedAt: new Date() },
-      }),
+      ...(alreadyCompleted
+        ? []
+        : [
+            this.prisma.subscriptionPurchase.update({
+              where: { id: purchase.id },
+              data: { status: 'SUCCESS', completedAt: new Date() },
+            }),
+          ]),
       this.prisma.subscription.upsert({
         where: { tenantId: purchase.tenantId },
         create: {
@@ -977,17 +1054,21 @@ export class PlatformService {
         where: { id: purchase.tenantId },
         data: { plan: purchase.plan, isActive: true },
       }),
-      this.prisma.subscriptionHistory.create({
-        data: {
-          tenantId: purchase.tenantId,
-          plan: purchase.plan,
-          modules,
-          price: purchase.totalAmount,
-          action: 'PURCHASE',
-          note: `PayTR — ${purchase.addonCodes.join(', ') || 'ek paket yok'}${purchase.extraModuleIds?.length ? ` + ${purchase.extraModuleIds.length} alt modül` : ''}`,
-          actorUserId: purchase.userId,
-        },
-      }),
+      ...(alreadyCompleted
+        ? []
+        : [
+            this.prisma.subscriptionHistory.create({
+              data: {
+                tenantId: purchase.tenantId,
+                plan: purchase.plan,
+                modules,
+                price: purchase.totalAmount,
+                action: 'PURCHASE',
+                note: `PayTR — ${purchase.addonCodes.join(', ') || 'ek paket yok'}${purchase.extraModuleIds?.length ? ` + ${purchase.extraModuleIds.length} alt modül` : ''}`,
+                actorUserId: purchase.userId,
+              },
+            }),
+          ]),
     ]);
 
     await this.createNotification({
@@ -1115,7 +1196,7 @@ export class PlatformService {
   async getPlatformBossScreen(period: Period = 'month') {
     const since = this.periodStart(period);
 
-    const [dealers, businesses, branches, subscriptions, kontorPurchases, webRegistrations] =
+    const [dealers, businesses, branches, subscriptions, kontorPurchases, webRegistrations, allTenants] =
       await Promise.all([
         this.prisma.tenant.count({ where: { type: 'DEALER', isActive: true } }),
         this.prisma.tenant.count({ where: { type: 'BUSINESS', isActive: true } }),
@@ -1129,6 +1210,21 @@ export class PlatformService {
         }),
         this.prisma.tenant.count({
           where: { type: 'BUSINESS', createdAt: { gte: since }, parentId: 'ten-root' },
+        }),
+        this.prisma.tenant.findMany({
+          where: { type: { in: ['DEALER', 'BUSINESS', 'BRANCH'] } },
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            type: true,
+            plan: true,
+            city: true,
+            isActive: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 500,
         }),
       ]);
 
@@ -1210,6 +1306,7 @@ export class PlatformService {
         orderBy: { createdAt: 'desc' },
         take: 15,
       }),
+      allTenants,
     };
   }
 

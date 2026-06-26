@@ -89,11 +89,58 @@ export class PaymentService {
     }
   }
 
-  private shouldAutoApprovePayment(): boolean {
-    return (
-      this.config.get('PAYMENT_AUTO_APPROVE') === 'true' ||
-      this.config.get('PAYTR_AUTO_APPROVE') === 'true'
+  isAutoApproveEnabled(): boolean {
+    const explicit = this.config.get('PAYMENT_AUTO_APPROVE');
+    if (explicit === 'false') return false;
+    if (explicit === 'true') return true;
+    if (this.config.get('PAYTR_AUTO_APPROVE') === 'true') return true;
+    const paytrConfigured = !!(
+      this.config.get('PAYTR_MERCHANT_ID') &&
+      this.config.get('PAYTR_MERCHANT_KEY') &&
+      this.config.get('PAYTR_MERCHANT_SALT')
     );
+    if (!paytrConfigured) return true;
+    if (this.config.get('PAYTR_TEST_MODE') !== 'false') return true;
+    return false;
+  }
+
+  private shouldAutoApprovePayment(): boolean {
+    return this.isAutoApproveEnabled();
+  }
+
+  /** Bekleyen abonelik ödemesini onayla (PayTR dönüşü veya demo mod) */
+  async activatePendingSubscriptionPurchase(purchaseId: string): Promise<boolean> {
+    const purchase = await this.prisma.subscriptionPurchase.findUnique({
+      where: { id: purchaseId },
+    });
+    if (!purchase) return false;
+
+    if (purchase.status === 'PENDING' && this.isAutoApproveEnabled()) {
+      await this.prisma.paymentTransaction.updateMany({
+        where: { sourceId: purchaseId, sourceType: 'SUBSCRIPTION' },
+        data: { status: 'SUCCESS' },
+      });
+    }
+
+    const tx = await this.prisma.paymentTransaction.findFirst({
+      where: { sourceId: purchaseId, sourceType: 'SUBSCRIPTION' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (
+      purchase.status === 'PENDING' &&
+      (this.isAutoApproveEnabled() || tx?.status === 'SUCCESS')
+    ) {
+      await this.platformService.activateSubscriptionPurchase(purchaseId);
+      return true;
+    }
+
+    if (purchase.status === 'SUCCESS') {
+      await this.platformService.activateSubscriptionPurchase(purchaseId);
+      return true;
+    }
+
+    return false;
   }
 
   private async completePaymentSource(req: PaymentRequest) {

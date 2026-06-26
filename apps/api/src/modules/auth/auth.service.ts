@@ -193,18 +193,6 @@ export class AuthService {
       },
     });
 
-    await this.prisma.subscription.create({
-      data: {
-        tenantId: tenant.id,
-        plan: plan as any,
-        startDate: new Date(),
-        endDate: new Date(),
-        autoRenew: false,
-        modules: [],
-        price: null,
-      },
-    });
-
     await this.prisma.legalAcceptance.createMany({
       data: accepted.map((documentId) => ({
         userId: user.id,

@@ -10,6 +10,7 @@ import CheckAlertBanner from '@/components/CheckAlertBanner';
 import { isAuthenticated, getUser, setSession } from '@/lib/auth';
 import { canAccessRoute } from '@/lib/modules';
 import { authApi } from '@/lib/api';
+import { finalizeSubscriptionPayment } from '@/lib/finalize-subscription-payment';
 import { isPanelType, panelLoginPath, stripPanelPrefix, inferPanelFromTenantType } from '@/lib/panel';
 import SubscriptionAlertBanner from '@/components/SubscriptionAlertBanner';
 
@@ -59,6 +60,16 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
         }
       })
       .catch(() => {});
+  }, [pathname]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') !== 'ok') return;
+    const tid = sessionStorage.getItem('pendingPaymentTenantId') || getUser()?.tenantId;
+    finalizeSubscriptionPayment(tid || undefined).finally(() => {
+      sessionStorage.removeItem('pendingPaymentTenantId');
+    });
   }, [pathname]);
 
   if (!isPanelType(panel)) return null;

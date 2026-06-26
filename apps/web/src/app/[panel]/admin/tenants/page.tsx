@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import TopBar from '@/components/layout/TopBar';
-import { api } from '@/lib/api';
+import { platformApi } from '@/lib/api';
 import { Building2, Store, GitBranch, Search, Filter } from 'lucide-react';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -30,16 +30,12 @@ export default function AdminTenantsPage() {
   const [filterType, setFilterType] = useState('ALL');
 
   useEffect(() => {
-    api.get('/platform/boss')
+    platformApi
+      .getBoss('month')
       .then((r) => {
-        // Extract all tenants from platform data
-        const allTenants = r.data?.allTenants || [];
-        setTenants(allTenants);
+        setTenants(r?.allTenants || []);
       })
-      .catch(() => {
-        // Fallback: try fetching from tenants list
-        api.get('/tenants').then(r => setTenants(r.data || [])).catch(() => setTenants([]));
-      })
+      .catch(() => setTenants([]))
       .finally(() => setLoading(false));
   }, []);
 

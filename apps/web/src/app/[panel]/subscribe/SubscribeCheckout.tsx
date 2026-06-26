@@ -6,6 +6,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import TopBar from '@/components/layout/TopBar';
 import SubscriptionCheckoutPanel from '@/components/SubscriptionCheckoutPanel';
 import { platformApi, tenantsApi } from '@/lib/api';
+import { finalizeSubscriptionPayment } from '@/lib/finalize-subscription-payment';
 import { planLabel } from '@/lib/plans';
 import { getUser } from '@/lib/auth';
 import type { LegalDocumentId } from '@/lib/legal-documents';
@@ -114,9 +115,17 @@ export default function SubscribeCheckout() {
   ]);
 
   useEffect(() => {
-    if (paymentOk && targetTenantId) {
-      tenantsApi.getSubscriptionStatus(targetTenantId).then(setStatus).catch(() => {});
-    }
+    if (!paymentOk || !targetTenantId) return;
+    let cancelled = false;
+    (async () => {
+      await finalizeSubscriptionPayment(targetTenantId);
+      if (!cancelled) {
+        tenantsApi.getSubscriptionStatus(targetTenantId).then(setStatus).catch(() => {});
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [paymentOk, targetTenantId]);
 
   const toggleAddon = (code: string) => {
@@ -151,15 +160,14 @@ export default function SubscribeCheckout() {
         acceptedDocuments,
       });
       if (res.redirectUrl) {
+        sessionStorage.setItem('pendingPaymentTenantId', targetTenantId);
         window.location.href = res.redirectUrl;
         return;
       }
-      if (res.status === 'SUCCESS' || res.success) {
-        toast.success('Ödeme onaylandı, lisansınız aktif');
-        router.push(`/${panel}/dashboard?payment=ok`);
-        return;
-      }
-      toast.info('Ödeme başlatıldı');
+      await finalizeSubscriptionPayment(targetTenantId);
+      toast.success('Ödeme onaylandı, lisansınız aktif');
+      router.push(`/${panel}/dashboard?payment=ok`);
+      return;
     } catch (e: any) {
       toast.info(
         e.response?.data?.message || 'Ödeme başlatılamadı — Sanal POS yapılandırmasını kontrol edin',

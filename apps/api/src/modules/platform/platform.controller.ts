@@ -180,6 +180,16 @@ export class PlatformController {
     });
   }
 
+  @Post('subscription/confirm')
+  @ApiOperation({ summary: 'Bekleyen abonelik ödemesini onayla ve lisansı aktifleştir' })
+  confirmSubscription(
+    @Request() req: any,
+    @Body() body: { tenantId?: string },
+  ) {
+    const tenantId = body.tenantId || req.user.tenantId;
+    return this.platform.confirmPendingSubscriptionPurchase(req.user, tenantId);
+  }
+
   @Post('subscription/purchase')
   purchaseSubscription(
     @Request() req: any,
