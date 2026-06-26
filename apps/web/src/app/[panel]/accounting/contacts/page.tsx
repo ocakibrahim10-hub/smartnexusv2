@@ -940,6 +940,131 @@ export default function ContactsPage() {
         </div>
       )}
 
+      {showQuickSale && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <div>
+                <h3 className="font-bold text-gray-900">Hızlı Satış (Borçlandır)</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{selected?.name}</p>
+              </div>
+              <button onClick={() => setShowQuickSale(false)} className="text-gray-400 hover:text-gray-600 transition-colors bg-white rounded-full p-1 shadow-sm">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">Tutar (₺)</label>
+                <input
+                  type="number"
+                  value={quickSaleForm.amount}
+                  onChange={(e) => setQuickSaleForm({ ...quickSaleForm, amount: e.target.value })}
+                  className="input w-full shadow-sm text-sm py-2 font-medium"
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">Açıklama</label>
+                <input
+                  type="text"
+                  value={quickSaleForm.description}
+                  onChange={(e) => setQuickSaleForm({ ...quickSaleForm, description: e.target.value })}
+                  className="input w-full shadow-sm text-sm py-2"
+                  placeholder="Örn: Hızlı perakende satışı"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">Tarih</label>
+                <input
+                  type="date"
+                  value={quickSaleForm.date}
+                  onChange={(e) => setQuickSaleForm({ ...quickSaleForm, date: e.target.value })}
+                  className="input w-full shadow-sm text-sm py-2"
+                />
+              </div>
+            </div>
+            <div className="p-5 border-t border-gray-100 bg-gray-50/80">
+              <button
+                onClick={handleQuickSale}
+                disabled={!quickSaleForm.amount || !quickSaleForm.description || quickActionSaving}
+                className="btn-primary w-full py-2.5 text-sm font-bold tracking-wide shadow-sm uppercase bg-emerald-600 hover:bg-emerald-700 ring-emerald-600/20"
+              >
+                {quickActionSaving ? 'KAYDEDİLİYOR...' : 'SATIŞI KAYDET'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showQuickCollection && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <div>
+                <h3 className="font-bold text-gray-900">Tahsilat Al</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{selected?.name}</p>
+              </div>
+              <button onClick={() => setShowQuickCollection(false)} className="text-gray-400 hover:text-gray-600 transition-colors bg-white rounded-full p-1 shadow-sm">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">Tutar (₺)</label>
+                <input
+                  type="number"
+                  value={quickCollectionForm.amount}
+                  onChange={(e) => setQuickCollectionForm({ ...quickCollectionForm, amount: e.target.value })}
+                  className="input w-full shadow-sm text-sm py-2 font-medium"
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">Hesap / Kasa</label>
+                <select
+                  value={quickCollectionForm.accountId}
+                  onChange={(e) => setQuickCollectionForm({ ...quickCollectionForm, accountId: e.target.value })}
+                  className="input w-full shadow-sm text-sm py-2 bg-white"
+                >
+                  <option value="">Seçiniz...</option>
+                  {accounts.map(a => (
+                    <option key={a.id} value={a.id}>{a.name} ({a.type === 'bank' ? 'Banka' : 'Kasa'})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">Açıklama</label>
+                <input
+                  type="text"
+                  value={quickCollectionForm.description}
+                  onChange={(e) => setQuickCollectionForm({ ...quickCollectionForm, description: e.target.value })}
+                  className="input w-full shadow-sm text-sm py-2"
+                  placeholder="Örn: Cari tahsilat"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">Tarih</label>
+                <input
+                  type="date"
+                  value={quickCollectionForm.date}
+                  onChange={(e) => setQuickCollectionForm({ ...quickCollectionForm, date: e.target.value })}
+                  className="input w-full shadow-sm text-sm py-2"
+                />
+              </div>
+            </div>
+            <div className="p-5 border-t border-gray-100 bg-gray-50/80">
+              <button
+                onClick={handleQuickCollection}
+                disabled={!quickCollectionForm.amount || !quickCollectionForm.accountId || quickActionSaving}
+                className="btn-primary w-full py-2.5 text-sm font-bold tracking-wide shadow-sm uppercase"
+              >
+                {quickActionSaving ? 'KAYDEDİLİYOR...' : 'TAHSİLATI KAYDET'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ConfirmDialog
         open={confirmDelete !== null}
         title="Cari Sil"
