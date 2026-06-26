@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import {
   GitBranch,
   Plus,
@@ -11,6 +13,7 @@ import {
   MapPin,
   Users,
   CreditCard,
+  ChevronRight,
 } from 'lucide-react';
 import { getUser } from '@/lib/auth';
 import { FormField, FormSelect, IconButton } from '@/components/FormField';
@@ -38,6 +41,8 @@ const PLAN_CFG: Record<string, { label: string; color: string }> = {
 };
 
 export default function BranchesPage() {
+  const params = useParams();
+  const panel = params?.panel || 'isletme';
   const user = getUser();
   const canCreate =
     user?.tenantType === 'SUPERADMIN' ||
@@ -283,7 +288,15 @@ export default function BranchesPage() {
         {selected && (
           <div className="w-80 space-y-3 overflow-y-auto">
             <div className="card">
-              <h3 className="text-gray-900 font-semibold mb-3">{selected.name}</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-gray-900 font-semibold">{selected.name}</h3>
+                <Link
+                  href={`/${panel}/branches/${selected.id}`}
+                  className="text-indigo-600 hover:text-indigo-700 text-xs font-medium flex items-center gap-1"
+                >
+                  İncele <ChevronRight size={14} />
+                </Link>
+              </div>
               <div className="space-y-2 text-sm">
                 {selected.code && (
                   <div className="flex justify-between">

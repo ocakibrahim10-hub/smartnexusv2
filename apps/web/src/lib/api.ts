@@ -217,6 +217,8 @@ export const platformApi = {
 };
 
 export const tenantsApi = {
+  getTenant: (id: string) => api.get(`/tenants/${id}`).then((r) => r.data),
+  updateTenant: (id: string, data: any) => api.patch(`/tenants/${id}`, data).then((r) => r.data),
   getSubscriptionStatus: (tenantId?: string) =>
     api
       .get('/tenants/subscriptions/status', { params: tenantId ? { tenantId } : {} })
