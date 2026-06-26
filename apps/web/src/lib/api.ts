@@ -221,6 +221,8 @@ export const tenantsApi = {
     api
       .get('/tenants/subscriptions/status', { params: tenantId ? { tenantId } : {} })
       .then((r) => r.data),
+  updateTenantStatus: (id: string, data: { isActive?: boolean; isArchived?: boolean }) =>
+    api.patch(`/tenants/${id}`, data).then((r) => r.data),
 };
 
 // Users

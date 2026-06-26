@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import TopBar from '@/components/layout/TopBar';
-import { platformApi } from '@/lib/api';
-import { Building2, Store, GitBranch, Search, Filter } from 'lucide-react';
+import { platformApi, tenantsApi } from '@/lib/api';
+import { Building2, Store, GitBranch, Search, Filter, MoreVertical, Archive, ArchiveRestore, Power, PowerOff } from 'lucide-react';
 
 const TYPE_LABELS: Record<string, string> = {
   SUPERADMIN: 'Platform',
@@ -28,8 +28,10 @@ export default function AdminTenantsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('ALL');
+  const [showArchived, setShowArchived] = useState(false);
 
-  useEffect(() => {
+  const fetchTenants = () => {
+    setLoading(true);
     platformApi
       .getBoss('month')
       .then((r) => {
@@ -37,10 +39,28 @@ export default function AdminTenantsPage() {
       })
       .catch(() => setTenants([]))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchTenants();
   }, []);
+
+  const handleToggleStatus = async (id: string, updates: { isActive?: boolean; isArchived?: boolean }) => {
+    try {
+      await tenantsApi.updateTenantStatus(id, updates);
+      setTenants((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
+      );
+    } catch (error) {
+      console.error('Durum güncellenirken hata oluştu:', error);
+      alert('İşlem başarısız oldu.');
+    }
+  };
 
   const filtered = tenants.filter((t: any) => {
     if (filterType !== 'ALL' && t.type !== filterType) return false;
+    if (!showArchived && t.isArchived) return false;
+    if (showArchived && !t.isArchived) return false;
     if (search && !t.name?.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
@@ -99,6 +119,16 @@ export default function AdminTenantsPage() {
                 {t === 'ALL' ? 'Tümü' : TYPE_LABELS[t]}
               </button>
             ))}
+            <button
+              onClick={() => setShowArchived(!showArchived)}
+              className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors border ${
+                showArchived
+                  ? 'bg-amber-100 border-amber-200 text-amber-700'
+                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {showArchived ? 'Arşivden Çık' : 'Arşivlenenler'}
+            </button>
           </div>
         </div>
 
@@ -119,6 +149,7 @@ export default function AdminTenantsPage() {
                     <th className="text-center py-3 px-4">Plan</th>
                     <th className="text-left py-3 px-4">Şehir</th>
                     <th className="text-center py-3 px-4">Durum</th>
+                    <th className="text-right py-3 px-4">İşlemler</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -138,7 +169,29 @@ export default function AdminTenantsPage() {
                       </td>
                       <td className="py-3 px-4 text-gray-500">{t.city || '—'}</td>
                       <td className="py-3 px-4 text-center">
-                        <span className={`w-2 h-2 rounded-full inline-block ${t.isActive !== false ? 'bg-emerald-500' : 'bg-red-400'}`} />
+                        <span className={`w-2 h-2 rounded-full inline-block ${t.isActive !== false ? 'bg-emerald-500' : 'bg-red-400'}`} title={t.isActive !== false ? 'Aktif' : 'Pasif'} />
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleToggleStatus(t.id, { isActive: !t.isActive })}
+                            title={t.isActive ? 'Pasife Al' : 'Aktife Al'}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              t.isActive ? 'text-red-500 hover:bg-red-50' : 'text-emerald-500 hover:bg-emerald-50'
+                            }`}
+                          >
+                            {t.isActive ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+                          </button>
+                          <button
+                            onClick={() => handleToggleStatus(t.id, { isArchived: !t.isArchived })}
+                            title={t.isArchived ? 'Arşivden Çıkar' : 'Arşive Gönder'}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              t.isArchived ? 'text-amber-500 hover:bg-amber-50' : 'text-gray-400 hover:bg-gray-100'
+                            }`}
+                          >
+                            {t.isArchived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

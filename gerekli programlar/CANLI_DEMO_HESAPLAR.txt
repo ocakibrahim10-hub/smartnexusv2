@@ -1,0 +1,96 @@
+================================================================================
+  SmartNexus — CANLI ORTAM DEMO HESAPLARI
+  Güncelleme: 25.06.2026
+================================================================================
+
+Canlı adresler
+--------------
+  Web  : https://smartnexusv2.vercel.app
+  API  : https://smartnexus-api.onrender.com/api
+
+Giriş panelleri
+---------------
+  Nexus Admin : https://smartnexusv2.vercel.app/nexusadmin
+  Bayi        : https://smartnexusv2.vercel.app/bayi
+  İşletme     : https://smartnexusv2.vercel.app/isletme
+
+ORTAK DEMO ŞİFRE
+----------------
+  Tüm demo kullanıcılar (seed veritabanı): 123456
+
+  Not: Veritabanı eski seed ile oluşturulduysa şifreler farklı olabilir
+  (ör. SmartNexus2026!, Bayi2026!, Isletme2026!). Bu durumda Render
+  terminalinden fix-passwords çalıştırın:
+    npx ts-node --project apps/api/tsconfig.json apps/api/prisma/fix-passwords.ts
+
+================================================================================
+  NEXUS ADMIN (panel: nexusadmin)
+================================================================================
+  E-posta : admin@smartnexus.com
+  Şifre   : 123456
+  Rol     : Platform Yöneticisi (OWNER)
+
+================================================================================
+  BAYİ PANELİ (panel: bayi) — e-posta ile giriş
+================================================================================
+  bayi@demo.com           | 123456 | Ali Kaya (Ana bayi — OWNER)
+  ali.asistan@demo.com    | 123456 | Elif Şahin (ADMIN)
+  ankara.bayi@demo.com    | 123456 | Mehmet Yılmaz (OWNER)
+  izmir.bayi@demo.com     | 123456 | Can Demir (OWNER)
+  bursa.bayi@demo.com     | 123456 | Hande Güler (OWNER)
+
+================================================================================
+  İŞLETME PANELİ (panel: isletme)
+================================================================================
+
+--- İşletme sahipleri (e-posta) ---
+  isletme@demo.com        | 123456 | Zeynep Arslan (OWNER — ana demo işletme)
+  ofis@demo.com           | 123456 | Fatma Doğan (OWNER)
+  guneshotel@demo.com     | 123456 | Okan Güneş (OWNER)
+  anadolugida@demo.com    | 123456 | Nurcan Aslan (OWNER)
+  proteknik@demo.com      | 123456 | Tarık Erdoğan (OWNER)
+  baskentinsaat@demo.com  | 123456 | Serdar Koç (OWNER)
+  ankaratekstil@demo.com  | 123456 | Leyla Aktaş (OWNER)
+  egemimari@demo.com      | 123456 | Volkan Özer (OWNER)
+
+--- Şube yöneticileri (e-posta) ---
+  sube@demo.com           | 123456 | Emre Kurt (OWNER)
+  besiktas@demo.com       | 123456 | Selin Aktaş (OWNER)
+  bagcilar@demo.com       | 123456 | Yusuf Çetin (OWNER)
+
+--- Personel (telefon ile giriş — başında 0 yok) ---
+  Telefon      | Şifre  | Rol        | Ad
+  -------------|--------|------------|------------------
+  5321234567   | 123456 | Kasiyer    | Deniz Koç (kasiyer@demo.com)
+  5321234568   | 123456 | Depo       | Hasan Yıldız (depo@demo.com)
+  5321234569   | 123456 | Şoför      | Murat Aydın (sofor@demo.com)
+  5321234570   | 123456 | Personel   | Selin Kara (personel1@demo.com)
+  5321234571   | 123456 | Muhasebe   | Ayşe Çelik (muhasebe@demo.com)
+  5321234572   | 123456 | Şoför      | Kemal Öztürk (sofor2@demo.com)
+  5321234573   | 123456 | Personel   | Burak Tekin (personel2@demo.com)
+
+  Personel e-posta ile de giriş yapabilir (aynı şifre: 123456).
+
+================================================================================
+  B2B MÜŞTERİ PORTALI
+================================================================================
+  E-posta : abc@abc.com
+  Şifre   : 123456
+  Adres   : https://smartnexusv2.vercel.app/portal/login
+
+================================================================================
+  MOBİL APK (SmartNexus Player v2)
+================================================================================
+  APK dosyası : gerekli programlar\SmartNexus_Player_v2.apk
+  Bağlantı    : Canlı web + API (yukarıdaki adresler)
+  Giriş       : İşletme paneli ile aynı (telefon veya e-posta + 123456)
+
+================================================================================
+  HIZLI REFERANS (en çok kullanılanlar)
+================================================================================
+  SuperAdmin : admin@smartnexus.com     / 123456  → /nexusadmin
+  Bayi       : bayi@demo.com            / 123456  → /bayi
+  İşletme    : isletme@demo.com         / 123456  → /isletme
+  Kasiyer    : 5321234567               / 123456  → /isletme (telefon)
+
+================================================================================

@@ -480,7 +480,8 @@ export class TenantsService {
       data: {
         name: dto.name,
         plan: dto.plan,
-        isActive: dto.isActive,
+        isActive: dto.isActive !== undefined ? dto.isActive : undefined,
+        isArchived: dto.isArchived !== undefined ? dto.isArchived : undefined,
         phone: dto.phone,
         email: dto.email,
         address: dto.address,

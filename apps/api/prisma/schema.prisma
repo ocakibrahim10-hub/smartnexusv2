@@ -170,6 +170,7 @@ model Tenant {
   children  Tenant[]   @relation("TenantHierarchy")
   plan      PlanType   @default(BASIC)
   isActive  Boolean    @default(true)
+  isArchived Boolean   @default(false)
   expiresAt DateTime?
   phone     String?
   email     String?
