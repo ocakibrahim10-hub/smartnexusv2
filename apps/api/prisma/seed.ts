@@ -2761,10 +2761,198 @@ async function main() {
     },
   });
 
+  // ─── HR DEPARTMENTS & POSITIONS ─────────────────────────────────────
+  const departments = [
+    { id: 'dept-01', name: 'Bilgi Teknolojileri' },
+    { id: 'dept-02', name: 'Satış & Pazarlama' },
+    { id: 'dept-03', name: 'Muhasebe & Finans' },
+    { id: 'dept-04', name: 'İnsan Kaynakları' },
+    { id: 'dept-05', name: 'Lojistik & Depo' },
+    { id: 'dept-06', name: 'Üretim' },
+  ];
+  for (const d of departments) {
+    await prisma.hrDepartment.upsert({
+      where: { id: d.id },
+      update: { name: d.name },
+      create: { id: d.id, tenantId: 'ten-b1', name: d.name },
+    });
+  }
+  cliLog(`✓ ${departments.length} departman`);
+
+  const positions = [
+    { id: 'pos-01', name: 'Yazılım Geliştirici' },
+    { id: 'pos-02', name: 'Satış Müdürü' },
+    { id: 'pos-03', name: 'Muhasebe Uzmanı' },
+    { id: 'pos-04', name: 'İK Uzmanı' },
+    { id: 'pos-05', name: 'Depo Sorumlusu' },
+    { id: 'pos-06', name: 'Üretim Operatörü' },
+    { id: 'pos-07', name: 'Teknik Destek Uzmanı' },
+    { id: 'pos-08', name: 'Satış Temsilcisi' },
+    { id: 'pos-09', name: 'Genel Müdür' },
+    { id: 'pos-10', name: 'Şoför' },
+  ];
+  for (const p of positions) {
+    await prisma.hrPosition.upsert({
+      where: { id: p.id },
+      update: { name: p.name },
+      create: { id: p.id, tenantId: 'ten-b1', name: p.name },
+    });
+  }
+  cliLog(`✓ ${positions.length} pozisyon`);
+
+  // ─── PERSONNEL (Contact + PersonnelProfile) ───────────────────────
+  const personnelData = [
+    { id: 'pers-01', name: 'Zeynep Arslan', phone: '5321110001', dept: 'dept-01', pos: 'pos-09', salary: 45000, hire: 60 },
+    { id: 'pers-02', name: 'Ayşe Çelik', phone: '5321110002', dept: 'dept-03', pos: 'pos-03', salary: 28000, hire: 180 },
+    { id: 'pers-03', name: 'Deniz Koç', phone: '5321110003', dept: 'dept-02', pos: 'pos-08', salary: 22000, hire: 120 },
+    { id: 'pers-04', name: 'Hasan Yıldız', phone: '5321110004', dept: 'dept-05', pos: 'pos-05', salary: 25000, hire: 200 },
+    { id: 'pers-05', name: 'Murat Aydın', phone: '5321110005', dept: 'dept-05', pos: 'pos-10', salary: 20000, hire: 150 },
+    { id: 'pers-06', name: 'Kemal Öztürk', phone: '5321110006', dept: 'dept-05', pos: 'pos-10', salary: 20000, hire: 90 },
+    { id: 'pers-07', name: 'Selin Kara', phone: '5321110007', dept: 'dept-02', pos: 'pos-08', salary: 21000, hire: 100 },
+    { id: 'pers-08', name: 'Burak Tekin', phone: '5321110008', dept: 'dept-01', pos: 'pos-07', salary: 26000, hire: 75 },
+    { id: 'pers-09', name: 'Elif Demir', phone: '5321110009', dept: 'dept-04', pos: 'pos-04', salary: 27000, hire: 130 },
+    { id: 'pers-10', name: 'Can Yılmaz', phone: '5321110010', dept: 'dept-06', pos: 'pos-06', salary: 23000, hire: 160 },
+  ];
+  for (const p of personnelData) {
+    const contact = await prisma.contact.upsert({
+      where: { id: p.id },
+      update: { isPersonnel: true, name: p.name, phone: p.phone },
+      create: {
+        id: p.id,
+        tenantId: 'ten-b1',
+        type: 'CUSTOMER',
+        name: p.name,
+        phone: p.phone,
+        isPersonnel: true,
+        isActive: true,
+      },
+    });
+    await prisma.personnelProfile.upsert({
+      where: { contactId: contact.id },
+      update: { baseSalary: p.salary, departmentId: p.dept, positionId: p.pos },
+      create: {
+        contactId: contact.id,
+        departmentId: p.dept,
+        positionId: p.pos,
+        hireDate: daysAgo(p.hire),
+        baseSalary: p.salary,
+        leaveDaysTotal: 14,
+        leaveDaysUsed: Math.floor(Math.random() * 8),
+      },
+    });
+  }
+  cliLog(`✓ ${personnelData.length} personel`);
+
+  // ─── BILL OF MATERIALS (BOM/Reçete) ───────────────────────────────
+  const bomData = [
+    {
+      id: 'bom-01', code: 'BOM-PC-01', name: 'Masaüstü Bilgisayar Seti', productId: 'prod-01', qty: 1,
+      items: [
+        { productId: 'prod-06', quantity: 1, unit: 'ADET' },   // SSD
+        { productId: 'prod-07', quantity: 2, unit: 'ADET' },   // RAM x2
+        { productId: 'prod-03', quantity: 1, unit: 'ADET' },   // Klavye
+        { productId: 'prod-04', quantity: 1, unit: 'ADET' },   // Mouse
+        { productId: 'prod-02', quantity: 1, unit: 'ADET' },   // Monitor
+      ],
+    },
+    {
+      id: 'bom-02', code: 'BOM-NET-01', name: 'Ağ Altyapı Paketi', productId: 'prod-08', qty: 1,
+      items: [
+        { productId: 'prod-09', quantity: 1, unit: 'ADET' },   // Router
+        { productId: 'prod-10', quantity: 3, unit: 'ADET' },   // AP x3
+      ],
+    },
+    {
+      id: 'bom-03', code: 'BOM-OFIS-01', name: 'Ofis Başlangıç Kiti', productId: 'prod-11', qty: 1,
+      items: [
+        { productId: 'prod-12', quantity: 5, unit: 'PAKET' },  // Kalem x5
+        { productId: 'prod-13', quantity: 1, unit: 'ADET' },   // Office365
+        { productId: 'prod-14', quantity: 1, unit: 'ADET' },   // Antivirüs
+      ],
+    },
+    {
+      id: 'bom-04', code: 'BOM-UPS-01', name: 'Kesintisiz Güç Seti', productId: 'prod-05', qty: 1,
+      items: [
+        { productId: 'prod-06', quantity: 1, unit: 'ADET' },   // SSD yedek
+        { productId: 'prod-07', quantity: 1, unit: 'ADET' },   // RAM yedek
+      ],
+    },
+    {
+      id: 'bom-05', code: 'BOM-PC-02', name: 'Notebook İş Paketi', productId: 'prod-01', qty: 1,
+      items: [
+        { productId: 'prod-03', quantity: 1, unit: 'ADET' },   // Klavye
+        { productId: 'prod-04', quantity: 1, unit: 'ADET' },   // Mouse
+        { productId: 'prod-13', quantity: 1, unit: 'ADET' },   // Office 365
+        { productId: 'prod-14', quantity: 1, unit: 'ADET' },   // Antivirüs
+        { productId: 'prod-15', quantity: 2, unit: 'SAAT' },   // Teknik destek
+      ],
+    },
+  ];
+  for (const bom of bomData) {
+    await prisma.billOfMaterial.upsert({
+      where: { id: bom.id },
+      update: { name: bom.name },
+      create: {
+        id: bom.id,
+        tenantId: 'ten-b1',
+        code: bom.code,
+        name: bom.name,
+        productId: bom.productId,
+        quantity: bom.qty,
+        isActive: true,
+        items: {
+          create: bom.items.map((item, idx) => ({
+            id: `${bom.id}-i${idx + 1}`,
+            productId: item.productId,
+            quantity: item.quantity,
+            unit: item.unit,
+          })),
+        },
+      },
+    });
+  }
+  cliLog(`✓ ${bomData.length} reçete (BOM)`);
+
+  // ─── WORK ORDERS (İş Emirleri) ────────────────────────────────────
+  const workOrders = [
+    { id: 'wo-01', code: 'WO-2026-001', bomId: 'bom-01', status: 'COMPLETED', qty: 5, planned: 30, start: 28, end: 20, notes: '5 adet masaüstü bilgisayar montajı tamamlandı' },
+    { id: 'wo-02', code: 'WO-2026-002', bomId: 'bom-02', status: 'IN_PROGRESS', qty: 3, planned: 15, start: 10, end: null, notes: '3 lokasyon için ağ altyapısı kurulumu devam ediyor' },
+    { id: 'wo-03', code: 'WO-2026-003', bomId: 'bom-05', status: 'PLANNED', qty: 10, planned: 5, start: null, end: null, notes: '10 adet notebook iş paketi hazırlanacak' },
+  ];
+  for (const wo of workOrders) {
+    const bom = bomData.find(b => b.id === wo.bomId)!;
+    await prisma.workOrder.upsert({
+      where: { id: wo.id },
+      update: { status: wo.status },
+      create: {
+        id: wo.id,
+        tenantId: 'ten-b1',
+        code: wo.code,
+        bomId: wo.bomId,
+        status: wo.status,
+        quantity: wo.qty,
+        plannedDate: daysAgo(wo.planned),
+        startDate: wo.start ? daysAgo(wo.start) : undefined,
+        endDate: wo.end ? daysAgo(wo.end) : undefined,
+        notes: wo.notes,
+        items: {
+          create: bom.items.map((item, idx) => ({
+            id: `${wo.id}-i${idx + 1}`,
+            productId: item.productId,
+            quantity: item.quantity * wo.qty,
+            type: 'MATERIAL',
+          })),
+        },
+      },
+    });
+  }
+  cliLog(`✓ ${workOrders.length} iş emri`);
+
   cliLog('\n✅ Seed tamamlandı!\n');
   cliLog('  4 bayi | 8 işletme | 3 şube | 23 kullanıcı');
-  cliLog('  15 ürün | 13 cari | 15 fatura | 4 araç | 8 sevkiyat');
-  cliLog('  7 B2B sipariş | 10 transfer | 8 destek talebi');
+  cliLog('  16 ürün | 13+10 cari/personel | 15 fatura | 4 araç | 8 sevkiyat');
+  cliLog('  5 reçete | 3 iş emri | 7 B2B sipariş | 10 transfer');
+  cliLog('  6 departman | 10 pozisyon | 8 destek talebi');
   cliLog('  3 fiyat listesi | 12 stok hareketi | 3 paket şablonu');
 }
 

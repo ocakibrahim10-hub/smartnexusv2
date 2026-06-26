@@ -37,7 +37,9 @@ export class HealthController {
             "Tenant", "User", "Product", "ProductCategory", "Warehouse", 
             "Contact", "Vehicle", "PlanTemplate", "CashAccount", "BankAccount", 
             "LedgerAccount", "PlanModuleItem", "AddonModule", "KontorPackage", 
-            "PlatformSetting", "HrDepartment", "HrPosition"
+            "PlatformSetting", "HrDepartment", "HrPosition",
+            "bill_of_materials", "bom_items", "work_orders", "work_order_items",
+            "personnel_profiles", "leave_requests", "payroll_slips"
           CASCADE;
         `);
       } catch (err) {
