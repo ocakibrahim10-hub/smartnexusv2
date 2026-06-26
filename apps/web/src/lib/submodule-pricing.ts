@@ -1,5 +1,4 @@
 import { MODULE_CATALOG, expandLegacyModules, getModuleLabel } from './modules';
-import { canonicalPlanModules } from './plan-modules';
 
 export type SubmodulePriceRow = {
   moduleId: string;
@@ -39,9 +38,8 @@ export function purchasableExtraModulesFromPricing(
   selectedPlan: string,
 ): SubmodulePriceRow[] {
   const planRow = pricing?.plans?.find((p) => p.plan === selectedPlan);
-  const included = new Set(
-    expandLegacyModules(canonicalPlanModules(selectedPlan, planRow?.modules)),
-  );
+  // Admin'in pakete işaretlediği modüller dışındakiler ek modül olarak listelenir
+  const included = new Set(expandLegacyModules(planRow?.modules ?? []));
 
   return (pricing?.submodulePricing ?? [])
     .filter(

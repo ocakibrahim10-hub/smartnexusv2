@@ -1,5 +1,4 @@
 import { ADDON_CODE_TO_MODULES } from './addon-module-map';
-import { DEFAULT_PLAN_MODULES } from './plan-modules';
 import {
   MODULE_CATALOG,
   expandLegacyModules,
@@ -99,15 +98,9 @@ export function isExtraModulePurchasable(
   planModules: string[],
   moduleId: string,
   rows: SubmodulePricingRow[] | Map<string, SubmodulePricingRow>,
-  planKey?: string,
 ): boolean {
   const map = rows instanceof Map ? rows : pricingMap(rows);
   const row = map.get(moduleId);
   if (!row?.isActive || !row.sellableExtra || row.yearlyPrice <= 0) return false;
-  const included = planKey
-    ? expandPlanModuleSet(
-        DEFAULT_PLAN_MODULES[planKey]?.modules ?? planModules,
-      )
-    : expandPlanModuleSet(planModules);
-  return !included.has(moduleId);
+  return !expandPlanModuleSet(planModules).has(moduleId);
 }

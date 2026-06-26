@@ -215,13 +215,8 @@ export class PlatformService {
       })),
       plans: plans.map((p) => {
         const pricing = applyDiscount(p.price, p.discountPercent);
-        const includedModules =
-          DEFAULT_PLAN_MODULES[p.plan]?.modules ?? p.modules;
-        const purchasableAddons = filterAddonsForPlan(includedModules, addonRows);
-        const purchasableExtraModules = getPurchasableExtraModules(
-          includedModules,
-          submoduleRows,
-        );
+        const purchasableAddons = filterAddonsForPlan(p.modules, addonRows);
+        const purchasableExtraModules = getPurchasableExtraModules(p.modules, submoduleRows);
         const computedModuleTotal = sumSubmodulePrices(p.modules, priceMap);
         return {
           ...p,
@@ -674,7 +669,7 @@ export class PlatformService {
     const subPriceMap = pricingMap(submoduleRows);
 
     for (const id of extraModuleIds) {
-      if (!isExtraModulePurchasable(planPricing.modules, id, subPriceMap, plan)) {
+      if (!isExtraModulePurchasable(planPricing.modules, id, subPriceMap)) {
         throw new BadRequestException(`Ek modül bu plan için satın alınamaz: ${id}`);
       }
     }
@@ -810,7 +805,7 @@ export class PlatformService {
     const submoduleRows = await this.ensureSubmodulePricing();
     const subPriceMap = pricingMap(submoduleRows);
     for (const id of extraModuleIds) {
-      if (!isExtraModulePurchasable(planPricing.modules, id, subPriceMap, dto.plan)) {
+      if (!isExtraModulePurchasable(planPricing.modules, id, subPriceMap)) {
         throw new BadRequestException(`Ek modül bu plan için uygun değil: ${id}`);
       }
     }
