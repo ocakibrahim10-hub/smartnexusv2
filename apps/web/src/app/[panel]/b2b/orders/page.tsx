@@ -40,9 +40,21 @@ export default function OrdersPage() {
     }
   };
 
+  const createInvoice = async (id: string) => {
+    try {
+      await api.post(`/b2b/orders/${id}/invoice`);
+      toast.success('Sipariş faturaya dönüştürüldü ve stok düşüldü');
+      fetchOrders();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Fatura oluşturulurken hata');
+    }
+  };
+
   const filteredOrders = Array.isArray(orders) ? orders.filter(o => 
     o.orderNumber?.toLowerCase().includes(search.toLowerCase()) || 
-    o.customer?.name?.toLowerCase().includes(search.toLowerCase())
+    o.customer?.name?.toLowerCase().includes(search.toLowerCase()) ||
+    o.code?.toLowerCase().includes(search.toLowerCase()) ||
+    o.contact?.name?.toLowerCase().includes(search.toLowerCase())
   ) : [];
 
   const getStatusColor = (status: string) => {
@@ -80,6 +92,7 @@ export default function OrdersPage() {
         features={[
           "Gelen yeni siparişleri inceleme ve onaylama",
           "Sipariş durumlarını (Hazırlanıyor, Kargolandı vb.) güncelleme",
+          "Siparişleri tek tıkla Faturaya dönüştürüp stoktan düşme",
           "Müşteriye özel tanımlanmış fiyat listeleri ile sipariş tutarlarını izleme",
           "Geçmiş siparişleri filtreleme"
         ]}
@@ -168,6 +181,11 @@ export default function OrdersPage() {
                               <XCircle className="w-4 h-4" />
                             </button>
                           </>
+                        )}
+                        {['APPROVED', 'PROCESSING', 'SHIPPED', 'DELIVERED'].includes(order.status) && (
+                          <button onClick={() => createInvoice(order.id)} className="text-xs font-medium text-emerald-600 hover:underline flex items-center gap-1 border border-emerald-200 bg-emerald-50 px-2 py-1 rounded">
+                            Faturaya Dönüştür
+                          </button>
                         )}
                         {order.status === 'APPROVED' && (
                           <button onClick={() => updateStatus(order.id, 'process')} className="text-xs font-medium text-indigo-600 hover:underline">

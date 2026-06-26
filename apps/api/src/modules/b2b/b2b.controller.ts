@@ -88,6 +88,12 @@ export class B2bController {
     return this.b2bService.cancelOrder(req.user.tenantId, id);
   }
 
+  @Post('orders/:id/invoice')
+  @ApiOperation({ summary: 'Siparişi Faturaya Dönüştür' })
+  createInvoiceFromOrder(@Request() req: any, @Param('id') id: string) {
+    return this.b2bService.createInvoiceFromOrder(req.user.tenantId, id, req.user.id);
+  }
+
   // ─── Customers ───────────────────────────────────────────────────────────────
   @Get('customers')
   @ApiOperation({ summary: 'B2B müşteri listesi' })

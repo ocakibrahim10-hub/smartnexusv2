@@ -21,6 +21,12 @@ export class CrmController {
     return this.crmService.createLead(req.user.tenantId, data);
   }
 
+  @Patch('leads/:id/status')
+  @RequireModule('CRM.LEADS')
+  updateLeadStatus(@Request() req, @Param('id') id: string, @Body() body: { status: string }) {
+    return this.crmService.updateLeadStatus(req.user.tenantId, id, body.status);
+  }
+
   @Get('deals')
   @RequireModule('CRM.PIPELINE')
   getDeals(@Request() req) {

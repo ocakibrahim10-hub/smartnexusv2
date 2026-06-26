@@ -36,6 +36,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { MrpModule } from './modules/mrp/mrp.module';
 import { HealthController } from './health.controller';
+import { DemoGuard } from './common/guards/demo.guard';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { HealthController } from './health.controller';
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: DemoGuard },
   ],
 })
 export class AppModule {}

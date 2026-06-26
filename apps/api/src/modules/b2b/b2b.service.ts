@@ -210,9 +210,78 @@ export class B2bService {
 
   async cancelOrder(tenantId: string, id: string) {
     const o = await this.findOrderOrThrow(tenantId, id);
-    if (['DELIVERED', 'CANCELLED'].includes(o.status))
-      throw new BadRequestException('Bu sipariş iptal edilemez');
+    if (['SHIPPED', 'DELIVERED'].includes(o.status)) {
+      throw new BadRequestException('Kargoya verilmiş sipariş iptal edilemez');
+    }
     return this.prisma.b2BOrder.update({ where: { id }, data: { status: 'CANCELLED' } });
+  }
+
+  async createInvoiceFromOrder(tenantId: string, id: string, userId: string) {
+    const o = await this.findOrderOrThrow(tenantId, id);
+    if (!['APPROVED', 'PROCESSING', 'SHIPPED', 'DELIVERED'].includes(o.status)) {
+      throw new BadRequestException('Sadece onaylanmış veya sonraki aşamalardaki siparişler faturalandırılabilir');
+    }
+
+    // Fatura numarası üret
+    const count = await this.prisma.invoice.count({
+      where: { tenantId, type: 'SALES' },
+    });
+    
+    // Faturayı ve stok hareketlerini (Tüketim) oluştur
+    const invoice = await this.prisma.invoice.create({
+      data: {
+        tenantId,
+        contactId: o.contactId,
+        type: 'SALES',
+        status: 'APPROVED',
+        series: 'B2B',
+        number: count + 1,
+        subtotal: o.subtotal,
+        vatTotal: o.vatTotal,
+        total: o.total,
+        notes: `${o.code} nolu B2B siparişine istinaden oluşturulmuştur.`,
+        lines: {
+          create: o.lines.map((l) => ({
+            productId: l.productId,
+            description: 'B2B Sipariş Kalemi',
+            quantity: l.quantity,
+            unitPrice: l.unitPrice,
+            vatRate: l.vatRate,
+            vatAmount: l.vatAmount,
+            total: l.total,
+          })),
+        },
+      },
+    });
+
+    // Varsayılan depoyu bul
+    const warehouse = await this.prisma.warehouse.findFirst({
+      where: { tenantId },
+      orderBy: { isDefault: 'desc' },
+    });
+
+    if (warehouse) {
+      for (const line of o.lines) {
+        if (line.productId) {
+          await this.prisma.stockMovement.create({
+            data: {
+              tenantId,
+              productId: line.productId,
+              warehouseId: warehouse.id,
+              type: 'OUT',
+              quantity: line.quantity,
+              unitCost: line.unitPrice,
+              description: `${invoice.series}-${invoice.number} fatura ile B2B satışı`,
+              userId,
+            }
+          });
+        }
+      }
+    }
+
+    // Siparişin durumunu faturalandırıldı olarak güncellemek isterseniz: (şimdilik statü değişimi opsiyonel)
+    
+    return invoice;
   }
 
   // ─── B2B Customers ──────────────────────────────────────────────────────────

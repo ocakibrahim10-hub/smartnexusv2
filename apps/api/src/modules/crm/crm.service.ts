@@ -26,6 +26,38 @@ export class CrmService {
     });
   }
 
+  async updateLeadStatus(tenantId: string, leadId: string, status: string) {
+    const lead = await this.prisma.lead.findFirst({ where: { id: leadId, tenantId } });
+    if (!lead) throw new NotFoundException('Lead bulunamadı');
+
+    const updated = await this.prisma.lead.update({
+      where: { id: leadId },
+      data: { status },
+    });
+
+    if (status === 'WON') {
+      const existingContact = await this.prisma.contact.findFirst({
+        where: { tenantId, email: lead.email || 'no-email-match' }
+      });
+
+      if (!existingContact) {
+        await this.prisma.contact.create({
+          data: {
+            tenantId,
+            type: 'CUSTOMER',
+            name: lead.company || lead.name || 'Bilinmiyor',
+            contactPerson: lead.name,
+            email: lead.email,
+            phone: lead.phone,
+            code: `C-LEAD-${Math.floor(Math.random() * 10000)}`,
+          }
+        });
+      }
+    }
+
+    return updated;
+  }
+
   async getDeals(tenantId: string) {
     return this.prisma.deal.findMany({
       where: { tenantId },
