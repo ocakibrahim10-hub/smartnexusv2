@@ -12,11 +12,17 @@ import {
 } from '@nestjs/common';
 import { TenantsService } from './tenants.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UsersService } from '../users/users.service';
+import { InventoryService } from '../inventory/inventory.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('tenants')
 export class TenantsController {
-  constructor(private readonly tenantsService: TenantsService) {}
+  constructor(
+    private readonly tenantsService: TenantsService,
+    private readonly usersService: UsersService,
+    private readonly inventoryService: InventoryService,
+  ) {}
 
   @Get('dashboard')
   getDashboard(@Request() req) {
@@ -95,5 +101,19 @@ export class TenantsController {
   @Delete(':id')
   deactivateTenant(@Request() req, @Param('id') id: string) {
     return this.tenantsService.deactivateTenant(req.user, id);
+  }
+
+  @Post(':id/users')
+  async createTenantUser(@Request() req, @Param('id') id: string, @Body() dto: any) {
+    const scopeIds = await this.tenantsService.getScopeIds(req.user);
+    this.tenantsService.assertInScope(req.user, id, scopeIds);
+    return this.usersService.create(id, req.user.role, dto);
+  }
+
+  @Get(':id/inventory-dashboard')
+  async getTenantInventoryDashboard(@Request() req, @Param('id') id: string) {
+    const scopeIds = await this.tenantsService.getScopeIds(req.user);
+    this.tenantsService.assertInScope(req.user, id, scopeIds);
+    return this.inventoryService.getDashboardMetrics(id);
   }
 }

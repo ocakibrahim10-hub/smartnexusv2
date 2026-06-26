@@ -219,6 +219,8 @@ export const platformApi = {
 export const tenantsApi = {
   getTenant: (id: string) => api.get(`/tenants/${id}`).then((r) => r.data),
   updateTenant: (id: string, data: any) => api.patch(`/tenants/${id}`, data).then((r) => r.data),
+  createTenantUser: (id: string, data: any) => api.post(`/tenants/${id}/users`, data).then((r) => r.data),
+  getTenantInventory: (id: string) => api.get(`/tenants/${id}/inventory-dashboard`).then((r) => r.data),
   getSubscriptionStatus: (tenantId?: string) =>
     api
       .get('/tenants/subscriptions/status', { params: tenantId ? { tenantId } : {} })
@@ -230,6 +232,12 @@ export const tenantsApi = {
 // Users
 export const usersApi = {
   getUsers: () => api.get('/users').then((r) => r.data),
+};
+
+// Inventory
+export const inventoryApi = {
+  getDashboard: () => api.get('/inventory/dashboard').then((r) => r.data),
+  createTransfer: (data: any) => api.post('/inventory/transfers', data).then((r) => r.data),
 };
 
 // HR
