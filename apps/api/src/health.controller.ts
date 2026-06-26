@@ -17,16 +17,26 @@ export class HealthController {
   @Public()
   async seedAdmin() {
     try {
+      const { execSync } = require('child_process');
+      try {
+        execSync('npx prisma db push --schema=apps/api/prisma/schema.prisma --accept-data-loss', { stdio: 'inherit' });
+      } catch (err) {
+        console.error('Prisma db push failed:', err);
+      }
+
       // 1. Wipe the database programmatically with high efficiency and CASCADE
-      // This is extremely fast and uses zero extra memory, preventing OOM on Render
-      await this.prisma.$executeRawUnsafe(`
-        TRUNCATE TABLE 
-          "Tenant", "User", "Product", "ProductCategory", "Warehouse", 
-          "Contact", "Vehicle", "PlanTemplate", "CashAccount", "BankAccount", 
-          "LedgerAccount", "PlanModuleItem", "AddonModule", "KontorPackage", 
-          "PlatformSetting", "HrDepartment", "HrPosition"
-        CASCADE;
-      `);
+      try {
+        await this.prisma.$executeRawUnsafe(`
+          TRUNCATE TABLE 
+            "Tenant", "User", "Product", "ProductCategory", "Warehouse", 
+            "Contact", "Vehicle", "PlanTemplate", "CashAccount", "BankAccount", 
+            "LedgerAccount", "PlanModuleItem", "AddonModule", "KontorPackage", 
+            "PlatformSetting", "HrDepartment", "HrPosition"
+          CASCADE;
+        `);
+      } catch (err) {
+        console.log('Truncate failed, maybe first time?', err);
+      }
 
       // 2. Run the seed function directly in-process
       await runSeed();
