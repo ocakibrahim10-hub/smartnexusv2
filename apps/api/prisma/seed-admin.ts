@@ -19,7 +19,6 @@ async function main() {
         code: p.code,
         name: p.name,
         categoryId: p.categoryId,
-        brandId: p.brandId,
         unit: p.unit,
         salePrice: p.salePrice,
         purchasePrice: p.purchasePrice,
