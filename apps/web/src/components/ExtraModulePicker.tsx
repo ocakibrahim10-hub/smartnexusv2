@@ -8,6 +8,7 @@ export type ExtraModule = {
   label: string;
   groupId?: string;
   yearlyPrice: number;
+  prorataPrice?: number;
 };
 
 type Props = {
@@ -48,6 +49,8 @@ export default function ExtraModulePicker({
           <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {items.map((m) => {
               const active = selected.includes(m.moduleId);
+              const displayPrice = m.prorataPrice ?? m.yearlyPrice;
+              const isProrata = m.prorataPrice != null && m.prorataPrice !== m.yearlyPrice;
               return (
                 <button
                   key={m.moduleId}
@@ -68,11 +71,16 @@ export default function ExtraModulePicker({
                   <div className="mt-3 flex items-end justify-between gap-2">
                     <div>
                       <div className="text-base font-bold text-[#606BDF]">
-                        {fmtMoney(m.yearlyPrice)}
+                        {fmtMoney(displayPrice)}
                       </div>
                       <div className="text-[10px] uppercase tracking-wide text-[#777680]">
-                        / yıl + KDV
+                        {isProrata ? 'prorata + KDV' : '/ yıl + KDV'}
                       </div>
+                      {isProrata && (
+                        <div className="text-[10px] text-gray-400 line-through">
+                          {fmtMoney(m.yearlyPrice)} / yıl
+                        </div>
+                      )}
                     </div>
                     <span
                       className={`text-xs font-semibold px-2 py-0.5 rounded-full ${

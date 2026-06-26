@@ -62,6 +62,11 @@ export function purchasableExtraModulesFromPricing(
     .sort((a, b) => (a.label ?? '').localeCompare(b.label ?? '', 'tr'));
 }
 
+export function prorataModulePrice(yearlyPrice: number, remainingDays: number): number {
+  if (remainingDays <= 0 || yearlyPrice <= 0) return yearlyPrice;
+  return Math.round((yearlyPrice / 365) * remainingDays * 100) / 100;
+}
+
 export function submodulePriceMap(
   rows: SubmodulePriceRow[],
 ): Record<string, SubmodulePriceRow> {

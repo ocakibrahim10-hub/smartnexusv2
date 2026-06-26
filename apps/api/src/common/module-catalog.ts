@@ -93,7 +93,7 @@ export const MODULE_CATALOG: ModuleGroupDef[] = [
     id: 'POS',
     label: 'Hızlı Satış',
     roles: ['BUSINESS', 'BRANCH', 'SUPERADMIN'],
-    children: [{ id: 'POS.MAIN', label: 'POS Ekranı', route: '/pos' }],
+    children: [{ id: 'POS.MAIN', label: 'Hızlı Satış ve POS Ekranı', route: '/pos' }],
   },
   {
     id: 'TMS',

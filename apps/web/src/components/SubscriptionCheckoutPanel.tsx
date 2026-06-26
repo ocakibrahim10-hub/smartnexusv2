@@ -11,7 +11,7 @@ import { LEGAL_PROVIDER } from '@/lib/legal-provider';
 import { fmtMoney } from '@/lib/format';
 import { PLAN_META, PLAN_ORDER, planLabel } from '@/lib/plans';
 import { filterAddonsForPlan, planModulesFromPricing } from '@/lib/plan-addons';
-import { purchasableExtraModulesFromPricing } from '@/lib/submodule-pricing';
+import { purchasableExtraModulesFromPricing, prorataModulePrice } from '@/lib/submodule-pricing';
 import { getModuleLabel } from '@/lib/modules';
 import { vatBreakdown, VAT_RATE } from '@/lib/vat';
 import { extensionOptionsForMode, formatShortDate, type BillingMode } from '@/lib/subscription-billing';
@@ -118,6 +118,24 @@ export default function SubscriptionCheckoutPanel({
   const showExtraBranch =
     (planRow?.maxBranches ?? 0) < 9999 && extraBranchUnitPrice > 0;
 
+  const remainingDaysForProrata = status?.remainingDays ?? quote?.remainingDays ?? 0;
+  const useProrataModulePrices =
+    remainingDaysForProrata > 0 && (billingMode === 'upgrade' || billingMode === 'renewal');
+
+  const extraModulesForPicker = useMemo(
+    () =>
+      purchasableExtraModules.map((m) => ({
+        moduleId: m.moduleId,
+        label: m.label ?? getModuleLabel(m.moduleId),
+        groupId: m.moduleId.split('.')[0],
+        yearlyPrice: m.yearlyPrice,
+        prorataPrice: useProrataModulePrices
+          ? prorataModulePrice(m.yearlyPrice, remainingDaysForProrata)
+          : undefined,
+      })),
+    [purchasableExtraModules, useProrataModulePrices, remainingDaysForProrata],
+  );
+
   const extensionOptions = useMemo(() => extensionOptionsForMode(billingMode), [billingMode]);
   const vat = useMemo(() => vatBreakdown(quote?.totalAmount ?? 0), [quote?.totalAmount]);
   const isUpgrade = billingMode === 'upgrade' && (status?.remainingDays ?? 0) > 0;
@@ -215,12 +233,7 @@ export default function SubscriptionCheckoutPanel({
           </div>
           {purchasableExtraModules.length > 0 ? (
             <ExtraModulePicker
-              modules={purchasableExtraModules.map((m) => ({
-                moduleId: m.moduleId,
-                label: m.label ?? getModuleLabel(m.moduleId),
-                groupId: m.moduleId.split('.')[0],
-                yearlyPrice: m.yearlyPrice,
-              }))}
+              modules={extraModulesForPicker}
               selected={selectedExtraModules}
               onToggle={(id) => onToggleExtraModule?.(id)}
             />

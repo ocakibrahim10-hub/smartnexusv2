@@ -27,19 +27,20 @@ export function detectBillingMode(
 export function extensionOptionsForMode(mode: BillingMode): ExtensionOption[] {
   if (mode === 'upgrade') {
     return [
-      { months: 0, label: 'Sadece yükseltme', includeAnnualRenewal: false },
-      { months: 1, label: '1 ay ek', includeAnnualRenewal: false },
-      { months: 3, label: '3 ay ek', includeAnnualRenewal: false },
-      { months: 6, label: '6 ay ek', includeAnnualRenewal: false },
-      { months: 12, label: '12 ay ek', includeAnnualRenewal: false },
+      { months: 0, label: 'Sadece yükseltme (prorata)', includeAnnualRenewal: false },
+      { months: 1, label: '1 ay ek süre', includeAnnualRenewal: false },
+      { months: 3, label: '3 ay ek süre', includeAnnualRenewal: false },
+      { months: 6, label: '6 ay ek süre', includeAnnualRenewal: false },
+      { months: 12, label: '12 ay ek süre', includeAnnualRenewal: false },
     ];
   }
   return [
     { months: 0, label: '1 yıllık lisans', includeAnnualRenewal: true },
-    { months: 1, label: '1 ay ek', includeAnnualRenewal: true },
-    { months: 3, label: '3 ay ek', includeAnnualRenewal: true },
-    { months: 6, label: '6 ay ek', includeAnnualRenewal: true },
-    { months: 12, label: '12 ay ek', includeAnnualRenewal: true },
+    { months: 0, label: 'Sadece ek modül (prorata)', includeAnnualRenewal: false },
+    { months: 1, label: '1 yıl + 1 ay ek', includeAnnualRenewal: true },
+    { months: 3, label: '1 yıl + 3 ay ek', includeAnnualRenewal: true },
+    { months: 6, label: '1 yıl + 6 ay ek', includeAnnualRenewal: true },
+    { months: 12, label: '1 yıl + 12 ay ek', includeAnnualRenewal: true },
   ];
 }
 

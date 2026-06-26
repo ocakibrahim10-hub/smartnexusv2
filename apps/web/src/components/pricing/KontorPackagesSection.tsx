@@ -38,9 +38,9 @@ export default function KontorPackagesSection({
         <Coins className="w-5 h-5 text-amber-500" /> Kontör Paketleri
       </h2>
       <p className="text-sm text-gray-500 mb-6">
-        E-Fatura, E-Arşiv ve SMS — ihtiyacınız kadar kontör yükleyin
+        E-Fatura / E-Arşiv ortak kontör paketi ve SMS — ihtiyacınız kadar kontör yükleyin
       </p>
-      <div className="grid md:grid-cols-3 gap-5">
+      <div className={`grid gap-5 ${modules.length === 1 ? 'md:grid-cols-1 max-w-md' : 'md:grid-cols-2'}`}>
         {modules.map((mod) => {
           const code = mod.code ?? mod.id;
           const title = kontorLabel(code, mod.name);

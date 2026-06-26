@@ -35,6 +35,10 @@ export default function KayitForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const prePlan = searchParams.get('plan') || 'BASIC';
+  const preExtras = (searchParams.get('extras') || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   const validPlan = (PLAN_ORDER as readonly string[]).includes(prePlan) ? prePlan : 'BASIC';
 
   const [step, setStep] = useState<1 | 2>(1);
@@ -50,7 +54,7 @@ export default function KayitForm() {
   });
   const [pricing, setPricing] = useState<any>(null);
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
-  const [selectedExtraModules, setSelectedExtraModules] = useState<string[]>([]);
+  const [selectedExtraModules, setSelectedExtraModules] = useState<string[]>(preExtras);
   const [extraBranchCount, setExtraBranchCount] = useState(0);
   const [extensionIndex, setExtensionIndex] = useState(0);
   const [quote, setQuote] = useState<any>(null);

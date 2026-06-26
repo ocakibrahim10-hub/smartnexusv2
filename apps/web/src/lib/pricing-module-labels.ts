@@ -15,7 +15,7 @@ export const PRICING_MODULE_LABELS: Record<string, string> = {
   'INVENTORY.MOVEMENTS': 'Stok Hareketleri',
   'INVENTORY.TRANSFERS': 'Transfer Emirleri',
   'INVENTORY.AI_FORECAST': 'AI Talep Tahmini',
-  'POS.MAIN': 'POS Ekranı',
+  'POS.MAIN': 'Hızlı Satış ve POS Ekranı',
   'TMS.SHIPMENTS': 'Sevkiyatlar',
   'TMS.VEHICLES': 'Araçlar',
   'B2B.ORDERS': 'Siparişler',

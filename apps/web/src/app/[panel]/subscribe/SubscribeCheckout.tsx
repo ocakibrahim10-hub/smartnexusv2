@@ -78,7 +78,14 @@ export default function SubscribeCheckout() {
 
   useEffect(() => {
     setExtensionIndex(0);
-  }, [billingMode, selectedPlan]);
+    if (
+      billingMode === 'renewal' &&
+      status?.plan === selectedPlan &&
+      (status?.remainingDays ?? 0) > 0
+    ) {
+      setExtensionIndex(1);
+    }
+  }, [billingMode, selectedPlan, status?.plan, status?.remainingDays]);
 
   useEffect(() => {
     if (!selectedPlan) return;

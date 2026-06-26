@@ -1,19 +1,38 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import PricingCatalogPreview from '@/components/pricing/PricingCatalogPreview';
+import { PLAN_ORDER } from '@/lib/plans';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 export default function FiyatlandirmaPage() {
   const [pricing, setPricing] = useState<any>(null);
+  const [selectedPlan, setSelectedPlan] = useState('BASIC');
+  const [extraCart, setExtraCart] = useState<string[]>([]);
 
   useEffect(() => {
     fetch(`${API}/platform/pricing/public`)
       .then((r) => r.json())
       .then(setPricing)
       .catch(() => setPricing(null));
+  }, []);
+
+  useEffect(() => {
+    const allowed =
+      pricing?.plans
+        ?.find((p: any) => p.plan === selectedPlan)
+        ?.purchasableExtraModules?.map((m: any) => m.moduleId) ?? [];
+    if (allowed.length) {
+      setExtraCart((prev) => prev.filter((id) => allowed.includes(id)));
+    }
+  }, [selectedPlan, pricing]);
+
+  const toggleCart = useCallback((moduleId: string) => {
+    setExtraCart((prev) =>
+      prev.includes(moduleId) ? prev.filter((id) => id !== moduleId) : [...prev, moduleId],
+    );
   }, []);
 
   return (
@@ -41,19 +60,23 @@ export default function FiyatlandirmaPage() {
         <div className="text-center mb-10">
           <h1 className="text-3xl font-bold text-gray-900">Fiyatlandırma</h1>
           <p className="text-gray-500 mt-2 max-w-xl mx-auto">
-            İşletmenize uygun yıllık abonelik planını seçin. POS, API ve pazaryeri ek paketleri yıllık
-            abonelikle; e-Fatura ve SMS kontör ile kullanılır.
+            İşletmenize uygun yıllık abonelik planını seçin; pakete dahil olmayan modülleri sepete
+            ekleyin. E-Fatura / E-Arşiv ortak kontör; SMS ayrı paketlerle satılır.
           </p>
         </div>
 
         {pricing ? (
           <PricingCatalogPreview
-            plans={pricing.plans}
-            addons={pricing.addons}
-            kontorModules={pricing.kontorModules}
+            pricing={pricing}
+            selectedPlan={selectedPlan}
+            onPlanChange={setSelectedPlan}
+            extraCart={extraCart}
+            onToggleExtraCart={toggleCart}
             showCta
             ctaHref="/kayit"
-            kontorLoginHref="/"
+            kontorLoginHref="/isletme"
+            extraCheckoutHref={`/kayit?plan=${selectedPlan}${extraCart.length ? `&extras=${extraCart.join(',')}` : ''}`}
+            extraCheckoutLabel="Kayıt ol ve satın al"
           />
         ) : (
           <p className="text-center text-gray-500">Fiyat listesi yükleniyor…</p>

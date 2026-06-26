@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Check, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import { fmtMoney } from '@/lib/format';
-import { PLAN_META, PLAN_ORDER, planLabel, addonLabel, addonDescription } from '@/lib/plans';
+import { PLAN_META, PLAN_ORDER, planLabel } from '@/lib/plans';
 import { applyDiscount } from '@/lib/pricing';
 import { resolvePricingModuleLabels } from '@/lib/pricing-module-labels';
 
@@ -34,7 +34,6 @@ export type PricingAddon = {
 
 type Props = {
   plans: PricingPlan[];
-  addons?: PricingAddon[];
   showCta?: boolean;
   ctaHref?: string;
   compact?: boolean;
@@ -92,7 +91,6 @@ function PlanFeatureList({ labels }: { labels: string[] }) {
 
 export default function PricingPlanCards({
   plans,
-  addons = [],
   showCta = false,
   ctaHref = '/',
   compact = false,
@@ -148,49 +146,6 @@ export default function PricingPlanCards({
           );
         })}
       </div>
-
-      {addons.length > 0 && (
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 mb-1">Ek Paketler</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Yazarkasa POS, sistem API ve e-pazaryeri — yıllık abonelik (kontör değil)
-          </p>
-          <div className="grid md:grid-cols-3 gap-4 items-start">
-            {addons.map((a) => {
-              const pricing = applyDiscount(a.listPrice ?? a.basePrice ?? 0, a.discountPercent ?? 0);
-              const hasDiscount = pricing.discountPercent > 0;
-              const name = addonLabel(a.code, a.name);
-              const desc = addonDescription(a.code, a.description);
-              return (
-                <div key={a.id} className="card pricing-plan-card">
-                  <h3 className="text-base font-bold text-[#1B1B1F]">{name}</h3>
-                  {desc && <p className="text-xs text-[#777680] mt-1 mb-2">{desc}</p>}
-                  {hasDiscount && (
-                    <div className="text-xs text-gray-400 line-through">{fmtMoney(pricing.listPrice)}</div>
-                  )}
-                  <div className="text-lg font-bold text-[#606BDF]">
-                    {fmtMoney(pricing.finalPrice)}
-                    <span className="text-xs font-normal text-[#777680]"> / yıl</span>
-                  </div>
-                  {hasDiscount && (
-                    <div className="text-[11px] text-emerald-600 font-medium mt-1">
-                      %{pricing.discountPercent} indirim
-                    </div>
-                  )}
-                  {showCta && (
-                    <Link
-                      href={ctaHref}
-                      className="mt-3 inline-block text-sm font-medium text-[#606BDF] hover:underline"
-                    >
-                      Satın al
-                    </Link>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

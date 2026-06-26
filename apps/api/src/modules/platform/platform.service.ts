@@ -56,6 +56,10 @@ import {
   sumSubmodulePrices,
   type SubmodulePricingRow,
 } from '../../common/submodule-pricing.util';
+import {
+  edocumentKontorCodes,
+  mergeKontorModulesForDisplay,
+} from '../../common/kontor-display.util';
 
 const KONTOR_LOW_THRESHOLD = 50;
 const KONTOR_MODULE_CODES: AddonModuleCode[] = ['EINVOICE', 'EARCHIVE', 'SMS'];
@@ -161,11 +165,12 @@ export class PlatformService {
   }
 
   async listKontorModules() {
-    return this.prisma.addonModule.findMany({
+    const rows = await this.prisma.addonModule.findMany({
       where: { code: { in: KONTOR_MODULE_CODES }, isActive: true },
       orderBy: { sortOrder: 'asc' },
       include: { kontorPackages: { where: { isActive: true }, orderBy: { quantity: 'asc' } } },
     });
+    return mergeKontorModulesForDisplay(rows as any);
   }
 
   async getPublicPricing() {
@@ -463,17 +468,36 @@ export class PlatformService {
         where: { id: purchase.id },
         data: { status: 'SUCCESS', completedAt: new Date() },
       }),
-      this.prisma.tenantKontorBalance.upsert({
-        where: {
-          tenantId_moduleCode: { tenantId: purchase.tenantId, moduleCode: purchase.moduleCode },
-        },
-        create: {
-          tenantId: purchase.tenantId,
-          moduleCode: purchase.moduleCode,
-          balance: purchase.quantity,
-        },
-        update: { balance: { increment: purchase.quantity } },
-      }),
+      ...edocumentKontorCodes().includes(purchase.moduleCode)
+        ? edocumentKontorCodes().map((moduleCode) =>
+            this.prisma.tenantKontorBalance.upsert({
+              where: {
+                tenantId_moduleCode: { tenantId: purchase.tenantId, moduleCode },
+              },
+              create: {
+                tenantId: purchase.tenantId,
+                moduleCode,
+                balance: purchase.quantity,
+              },
+              update: { balance: { increment: purchase.quantity } },
+            }),
+          )
+        : [
+            this.prisma.tenantKontorBalance.upsert({
+              where: {
+                tenantId_moduleCode: {
+                  tenantId: purchase.tenantId,
+                  moduleCode: purchase.moduleCode,
+                },
+              },
+              create: {
+                tenantId: purchase.tenantId,
+                moduleCode: purchase.moduleCode,
+                balance: purchase.quantity,
+              },
+              update: { balance: { increment: purchase.quantity } },
+            }),
+          ],
     ]);
 
     await this.createNotification({

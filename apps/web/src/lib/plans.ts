@@ -88,12 +88,12 @@ export function addonDescription(code: string, fallback?: string | null): string
 /** Kontör modülü Türkçe görünen adlar */
 export const KONTOR_META: Record<string, { name: string; description: string }> = {
   EINVOICE: {
-    name: 'E-Fatura',
-    description: 'GİB uyumlu e-fatura kontör paketleri',
+    name: 'E-Fatura / E-Arşiv',
+    description: 'GİB uyumlu e-Fatura ve e-Arşiv — ortak kontör paketi',
   },
   EARCHIVE: {
-    name: 'E-Arşiv',
-    description: 'E-arşiv fatura gönderim kontörleri',
+    name: 'E-Fatura / E-Arşiv',
+    description: 'GİB uyumlu e-Fatura ve e-Arşiv — ortak kontör paketi',
   },
   SMS: {
     name: 'SMS Bildirim',

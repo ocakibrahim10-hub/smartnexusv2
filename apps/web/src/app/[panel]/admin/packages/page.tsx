@@ -25,6 +25,7 @@ export default function PackagesPage() {
   const [kontorModules, setKontorModules] = useState<any[]>([]);
   const [planTemplates, setPlanTemplates] = useState<any[]>([]);
   const [submodulePricing, setSubmodulePricing] = useState<any[]>([]);
+  const [publicPricing, setPublicPricing] = useState<any>(null);
   const [subPriceDraft, setSubPriceDraft] = useState<Record<string, string>>({});
   const [editingPlan, setEditingPlan] = useState<string | null>(null);
   const [editModules, setEditModules] = useState<string[]>([]);
@@ -46,6 +47,7 @@ export default function PackagesPage() {
       setAddons(yearly.filter((m: any) => m.code !== 'EXTRA_BRANCH'));
       setKontorModules(all.filter((m: any) => ['EINVOICE', 'EARCHIVE', 'SMS'].includes(m.code)));
     }).catch(() => {});
+    platformApi.getPublicPricing().then(setPublicPricing).catch(() => {});
     platformApi.getSubmodulePricing().then((rows) => {
       setSubmodulePricing(Array.isArray(rows) ? rows : []);
       const draft: Record<string, string> = {};
@@ -59,6 +61,24 @@ export default function PackagesPage() {
   };
 
   useEffect(() => { load(); }, []);
+
+  const kontorAdminDisplay = useMemo(() => {
+    const einvoice = kontorModules.find((m) => m.code === 'EINVOICE');
+    const earchive = kontorModules.find((m) => m.code === 'EARCHIVE');
+    const sms = kontorModules.filter((m) => m.code === 'SMS');
+    const merged = [];
+    const edoc = einvoice ?? earchive;
+    if (edoc) {
+      merged.push({
+        ...edoc,
+        name: 'E-Fatura / E-Arşiv',
+        kontorPackages: edoc.kontorPackages?.length
+          ? edoc.kontorPackages
+          : earchive?.kontorPackages ?? [],
+      });
+    }
+    return [...merged, ...sms];
+  }, [kontorModules]);
 
   const pricingPlans = useMemo(
     () => buildPlansFromTemplates(planTemplates),
@@ -163,9 +183,15 @@ export default function PackagesPage() {
             </p>
           </div>
           <PricingCatalogPreview
-            plans={pricingPlans}
-            addons={pricingAddons}
-            kontorModules={kontorModules}
+            pricing={
+              publicPricing ?? {
+                plans: pricingPlans,
+                kontorModules,
+                submodulePricing,
+              }
+            }
+            selectedPlan={PLAN_ORDER[0]}
+            compact
           />
           <div className="mt-4 flex flex-wrap gap-2">
             {PLAN_ORDER.map((p) => (
@@ -281,10 +307,15 @@ export default function PackagesPage() {
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {group.children.map((child) => (
                     <div key={child.id} className="flex items-center gap-2 text-sm">
-                      <span className="flex-1 text-gray-700 truncate" title={child.label}>
+                      <label
+                        htmlFor={`sub-price-${child.id}`}
+                        className="flex-1 text-gray-700 truncate"
+                        title={child.label}
+                      >
                         {child.label}
-                      </span>
+                      </label>
                       <input
+                        id={`sub-price-${child.id}`}
                         type="number"
                         min="0"
                         className="w-24 px-2 py-1.5 border rounded-lg text-right"
@@ -376,9 +407,11 @@ export default function PackagesPage() {
           <h2 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
             <Coins className="w-5 h-5 text-amber-500" /> Kontör Paket Yönetimi
           </h2>
-          <p className="text-sm text-gray-500 mb-4">E-Fatura, E-Arşiv ve SMS — adet bazlı kontör satışı</p>
-          <div className="grid lg:grid-cols-3 gap-4">
-            {kontorModules.map((m) => (
+          <p className="text-sm text-gray-500 mb-4">
+            E-Fatura / E-Arşiv ortak kontör paketi ve SMS — adet bazlı satış
+          </p>
+          <div className="grid lg:grid-cols-2 gap-4">
+            {kontorAdminDisplay.map((m) => (
               <div key={m.id} className="card p-5">
                 <div className="font-bold text-gray-900">{kontorLabel(m.code, m.name)}</div>
                 <p className="text-sm text-gray-600 mb-3">{kontorDescription(m.code, m.description)}</p>
@@ -408,7 +441,7 @@ export default function PackagesPage() {
               onChange={(e) => setPkgForm({ ...pkgForm, addonModuleId: e.target.value })}
             >
               <option value="">Modül seç</option>
-              {kontorModules.map((m) => (
+              {kontorAdminDisplay.map((m) => (
                 <option key={m.id} value={m.id}>{kontorLabel(m.code, m.name)}</option>
               ))}
             </FormSelect>
