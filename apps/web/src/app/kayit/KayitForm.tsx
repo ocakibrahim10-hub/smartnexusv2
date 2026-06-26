@@ -16,7 +16,7 @@ import { filterAddonsForPlan, planModulesFromPricing } from '@/lib/plan-addons';
 import { purchasableExtraModulesFromPricing } from '@/lib/submodule-pricing';
 import { PLAN_ORDER, planLabel } from '@/lib/plans';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+import { getApiBaseUrl } from '@/lib/api-url';
 
 const STEPS = [
   { id: 1, label: 'İşletme Bilgileri', icon: Building2 },
@@ -135,7 +135,7 @@ export default function KayitForm() {
     setLoading(true);
     setError('');
     try {
-      const res = await axios.post(`${API}/auth/register-business`, {
+      const res = await axios.post(`${getApiBaseUrl()}/auth/register-business`, {
         name: form.name.trim(),
         email: form.email.trim().toLowerCase(),
         phone: form.phone,

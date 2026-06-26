@@ -6,7 +6,7 @@ import PricingCatalogPreview from '@/components/pricing/PricingCatalogPreview';
 import { PLAN_ORDER } from '@/lib/plans';
 import { purchasableExtraModulesFromPricing } from '@/lib/submodule-pricing';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+import { getApiBaseUrl } from '@/lib/api-url';
 
 export default function FiyatlandirmaPage() {
   const [pricing, setPricing] = useState<any>(null);
@@ -14,7 +14,7 @@ export default function FiyatlandirmaPage() {
   const [extraCart, setExtraCart] = useState<string[]>([]);
 
   useEffect(() => {
-    fetch(`${API}/platform/pricing/public`)
+    fetch(`${getApiBaseUrl()}/platform/pricing/public`)
       .then((r) => r.json())
       .then(setPricing)
       .catch(() => setPricing(null));

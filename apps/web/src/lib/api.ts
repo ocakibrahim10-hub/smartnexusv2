@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { PanelType } from './panel';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+import { getApiBaseUrl } from './api-url';
 
 function redirectToLogin() {
   const panel = localStorage.getItem('panel');
@@ -10,12 +9,13 @@ function redirectToLogin() {
 }
 
 export const api = axios.create({
-  baseURL: API_URL,
+  baseURL: getApiBaseUrl(),
   headers: { 'Content-Type': 'application/json' },
 });
 
 // Token interceptor
 api.interceptors.request.use((config) => {
+  config.baseURL = getApiBaseUrl();
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('accessToken');
     if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -31,7 +31,7 @@ api.interceptors.response.use(
       const refreshToken = localStorage.getItem('refreshToken');
       if (refreshToken) {
         try {
-          const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
+          const res = await axios.post(`${getApiBaseUrl()}/auth/refresh`, { refreshToken });
           localStorage.setItem('accessToken', res.data.accessToken);
           localStorage.setItem('refreshToken', res.data.refreshToken);
           error.config.headers.Authorization = `Bearer ${res.data.accessToken}`;
@@ -59,17 +59,17 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
     if (token) headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  const res = await fetch(`${getApiBaseUrl()}${path}`, { ...options, headers });
 
   if (res.status === 401 && typeof window !== 'undefined') {
     const refreshToken = localStorage.getItem('refreshToken');
     if (refreshToken) {
       try {
-        const refreshRes = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
+        const refreshRes = await axios.post(`${getApiBaseUrl()}/auth/refresh`, { refreshToken });
         localStorage.setItem('accessToken', refreshRes.data.accessToken);
         localStorage.setItem('refreshToken', refreshRes.data.refreshToken);
         headers.set('Authorization', `Bearer ${refreshRes.data.accessToken}`);
-        const retry = await fetch(`${API_URL}${path}`, { ...options, headers });
+        const retry = await fetch(`${getApiBaseUrl()}${path}`, { ...options, headers });
         if (!retry.ok) throw new Error(retry.statusText);
         return retry.json();
       } catch {

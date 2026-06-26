@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ForbiddenException, ConflictException, BadRequestException, HttpException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as argon2 from 'argon2';
@@ -56,8 +56,10 @@ export class AuthService {
         },
         ...tokens,
       };
-    } catch (error: any) {
-      throw new BadRequestException('LOGIN_ERROR: ' + error.message + ' | STACK: ' + error.stack);
+    } catch (error: unknown) {
+      if (error instanceof HttpException) throw error;
+      const message = error instanceof Error ? error.message : 'Giriş başarısız';
+      throw new BadRequestException(message);
     }
   }
 

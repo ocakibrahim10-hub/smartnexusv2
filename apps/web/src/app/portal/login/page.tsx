@@ -6,7 +6,7 @@ import axios from 'axios';
 import { ShoppingBag } from 'lucide-react';
 import { FormField } from '@/components/FormField';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+import { getApiBaseUrl } from '@/lib/api-url';
 
 export default function PortalLoginPage() {
   const router = useRouter();
@@ -20,7 +20,7 @@ export default function PortalLoginPage() {
     setError('');
     setLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/portal/login`, { email, password });
+      const res = await axios.post(`${getApiBaseUrl()}/portal/login`, { email, password });
       localStorage.setItem('portalToken', res.data.accessToken);
       localStorage.setItem('portalContact', JSON.stringify(res.data.contact));
       router.push('/portal/orders');

@@ -5,5 +5,10 @@
   "outputDirectory": "apps/web/.next",
   "framework": "nextjs",
   "installCommand": "npm install",
-  "regions": ["fra1"]
+  "regions": ["fra1"],
+  "build": {
+    "env": {
+      "NEXT_PUBLIC_API_URL": "https://smartnexus-api.onrender.com/api"
+    }
+  }
 }
