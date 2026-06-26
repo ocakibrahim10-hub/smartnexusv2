@@ -8,7 +8,7 @@ services:
     runtime: node
     region: frankfurt
     plan: free
-    buildCommand: npm install --include=dev && npx prisma generate --schema=apps/api/prisma/schema.prisma && npx prisma db push --schema=apps/api/prisma/schema.prisma --skip-generate && npm run build --workspace=apps/api
+    buildCommand: npm install --include=dev && npx prisma generate --schema=apps/api/prisma/schema.prisma && npm run build --workspace=apps/api
     startCommand: node apps/api/dist/src/main.js
     healthCheckPath: /api/health
     envVars:
