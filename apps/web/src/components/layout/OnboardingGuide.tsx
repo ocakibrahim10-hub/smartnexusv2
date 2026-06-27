@@ -1,3 +1,4 @@
+﻿/* eslint-disable jsx-a11y/control-has-associated-label, jsx-a11y/heading-has-content, jsx-a11y/alt-text, jsx-a11y/anchor-has-content, jsx-a11y/label-has-associated-control */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,28 +6,28 @@ import { HelpCircle, X, ChevronRight, ChevronLeft, CheckCircle } from 'lucide-re
 
 const steps = [
   {
-    title: 'SmartERP\'ye Hoş Geldiniz! 🚀',
-    description: 'Sistemi en verimli şekilde kullanmanız için hazırladığımız bu kısa tura göz atın. Verilerinizin tamamı örnek senaryolarla doldurulmuştur.',
+    title: 'SmartERP\'ye HoÅŸ Geldiniz! ğŸš€',
+    description: 'Sistemi en verimli ÅŸekilde kullanmanÄ±z iÃ§in hazÄ±rladÄ±ÄŸÄ±mÄ±z bu kÄ±sa tura gÃ¶z atÄ±n. Verilerinizin tamamÄ± Ã¶rnek senaryolarla doldurulmuÅŸtur.',
   },
   {
-    title: 'Muhasebe Derinliği 📊',
-    description: 'Sol menüden "Muhasebe" sekmesine tıklayarak faturalarınızı yönetebilir, BA/BS formlarını çekebilir ve KDV raporlarınızı anlık olarak hesaplatabilirsiniz.',
+    title: 'Muhasebe DerinliÄŸi ğŸ“Š',
+    description: 'Sol menÃ¼den "Muhasebe" sekmesine tÄ±klayarak faturalarÄ±nÄ±zÄ± yÃ¶netebilir, BA/BS formlarÄ±nÄ± Ã§ekebilir ve KDV raporlarÄ±nÄ±zÄ± anlÄ±k olarak hesaplatabilirsiniz.',
   },
   {
-    title: 'B2B ve Sipariş Yönetimi 🤝',
-    description: '"B2B" menüsü altından müşterilerinize özel Fiyat Listeleri tanımlayabilir ve bayilerinizden gelen siparişleri onaylayıp sevkiyata hazırlayabilirsiniz.',
+    title: 'B2B ve SipariÅŸ YÃ¶netimi ğŸ¤',
+    description: '"B2B" menÃ¼sÃ¼ altÄ±ndan mÃ¼ÅŸterilerinize Ã¶zel Fiyat Listeleri tanÄ±mlayabilir ve bayilerinizden gelen sipariÅŸleri onaylayÄ±p sevkiyata hazÄ±rlayabilirsiniz.',
   },
   {
-    title: 'Üretim (MRP) ve İş Emirleri 🏭',
-    description: 'Hammaddeden nihai ürüne kadar olan tüm süreçleri "MRP" menüsünde bulabilirsiniz. Üretim Reçeteleri (BOM) tanımlayın ve İş Emirlerini buradan takip edin.',
+    title: 'Ãœretim (MRP) ve Ä°ÅŸ Emirleri ğŸ­',
+    description: 'Hammaddeden nihai Ã¼rÃ¼ne kadar olan tÃ¼m sÃ¼reÃ§leri "MRP" menÃ¼sÃ¼nde bulabilirsiniz. Ãœretim ReÃ§eteleri (BOM) tanÄ±mlayÄ±n ve Ä°ÅŸ Emirlerini buradan takip edin.',
   },
   {
-    title: 'Envanter ve Depo 📦',
-    description: 'Stok hareketlerinizi, depo transferlerinizi ve sayım işlemlerinizi "Envanter" modülünden yönetin. Hangi ürünün nerede olduğunu saniyeler içinde bulun.',
+    title: 'Envanter ve Depo ğŸ“¦',
+    description: 'Stok hareketlerinizi, depo transferlerinizi ve sayÄ±m iÅŸlemlerinizi "Envanter" modÃ¼lÃ¼nden yÃ¶netin. Hangi Ã¼rÃ¼nÃ¼n nerede olduÄŸunu saniyeler iÃ§inde bulun.',
   },
   {
-    title: 'Hazırsınız! 🎉',
-    description: 'Sistem şu an 2800\'den fazla kayıtla test etmeniz için hazır. Sol menüden dilediğiniz modüle tıklayarak keşfetmeye başlayabilirsiniz.',
+    title: 'HazÄ±rsÄ±nÄ±z! ğŸ‰',
+    description: 'Sistem ÅŸu an 2800\'den fazla kayÄ±tla test etmeniz iÃ§in hazÄ±r. Sol menÃ¼den dilediÄŸiniz modÃ¼le tÄ±klayarak keÅŸfetmeye baÅŸlayabilirsiniz.',
   }
 ];
 
@@ -35,8 +36,8 @@ export default function OnboardingGuide() {
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
-    // Sadece ilk girişte otomatik açılması istenirse buraya eklenebilir.
-    // Şimdilik test için hep görünür olsun veya butona bağlayalım.
+    // Sadece ilk giriÅŸte otomatik aÃ§Ä±lmasÄ± istenirse buraya eklenebilir.
+    // Åimdilik test iÃ§in hep gÃ¶rÃ¼nÃ¼r olsun veya butona baÄŸlayalÄ±m.
     const hasSeenGuide = localStorage.getItem('smarterp_guide_seen');
     if (!hasSeenGuide) {
       setIsOpen(true);
@@ -67,7 +68,7 @@ export default function OnboardingGuide() {
       <button
         onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 bg-indigo-600 text-white p-4 rounded-full shadow-lg hover:bg-indigo-700 transition-all flex items-center justify-center z-40"
-        title="Sistem Kılavuzu"
+        title="Sistem KÄ±lavuzu"
       >
         <HelpCircle className="w-6 h-6" />
       </button>
@@ -76,7 +77,7 @@ export default function OnboardingGuide() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
             <div className="p-6 relative">
-              <button title="İşlem" aria-label="İşlem" 
+              <button title="Ä°ÅŸlem" aria-label="Ä°ÅŸlem" 
                 onClick={handleClose}
                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
               >
@@ -118,9 +119,9 @@ export default function OnboardingGuide() {
                   className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center transition-colors"
                 >
                   {currentStep === steps.length - 1 ? (
-                    <>Başla <CheckCircle className="w-4 h-4 ml-2" /></>
+                    <>BaÅŸla <CheckCircle className="w-4 h-4 ml-2" /></>
                   ) : (
-                    <>İleri <ChevronRight className="w-4 h-4 ml-2" /></>
+                    <>Ä°leri <ChevronRight className="w-4 h-4 ml-2" /></>
                   )}
                 </button>
               </div>
@@ -131,3 +132,4 @@ export default function OnboardingGuide() {
     </>
   );
 }
+

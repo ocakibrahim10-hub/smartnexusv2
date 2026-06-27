@@ -17,6 +17,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   private async seedTechTenant() {
     try {
+      // 1. Tech Firması (Standart giriş için)
       const tenant = await this.tenant.upsert({
         where: { code: 'tech' },
         update: {},
@@ -48,8 +49,40 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         });
         this.logger.log('Tech tenant and POS user created.');
       }
+
+      // 2. Demo Firması (İşletme paneli girişi için)
+      const demoTenant = await this.tenant.upsert({
+        where: { code: 'demo' },
+        update: {},
+        create: {
+          code: 'demo',
+          name: 'Demo İşletme',
+          type: 'BUSINESS',
+          plan: 'ENTERPRISE',
+          isActive: true,
+        },
+      });
+
+      const existingDemoUser = await this.user.findFirst({
+        where: { tenantId: demoTenant.id, email: 'isletme@demo.com' },
+      });
+
+      if (!existingDemoUser) {
+        const demoPassword = await argon2.hash('123456');
+        await this.user.create({
+          data: {
+            tenantId: demoTenant.id,
+            email: 'isletme@demo.com',
+            password: demoPassword,
+            name: 'Demo Yönetici',
+            role: 'ADMIN',
+            isActive: true,
+          },
+        });
+        this.logger.log('Demo tenant and isletme user created.');
+      }
     } catch (e) {
-      this.logger.error('Failed to seed tech tenant', e);
+      this.logger.error('Failed to seed tenants', e);
     }
   }
 }

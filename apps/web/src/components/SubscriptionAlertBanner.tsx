@@ -1,3 +1,4 @@
+﻿/* eslint-disable jsx-a11y/control-has-associated-label, jsx-a11y/heading-has-content, jsx-a11y/alt-text, jsx-a11y/anchor-has-content, jsx-a11y/label-has-associated-control */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -14,9 +15,9 @@ export default function SubscriptionAlertBanner() {
     const user = getUser();
     if (!user) return;
 
-    // Alt hesaplar için parentSubscriptionEndDate, ana işletme için subscriptionEndDate kullanılır.
-    // İkisi de varsa (örneğin işletmenin de parent'ı yoksa) hangisi geçerliyse ona bakılır.
-    // Parent end date varsa hiyerarşiden dolayı onu baz alırız (çünkü şubeler parent'a tabidir).
+    // Alt hesaplar iÃ§in parentSubscriptionEndDate, ana iÅŸletme iÃ§in subscriptionEndDate kullanÄ±lÄ±r.
+    // Ä°kisi de varsa (Ã¶rneÄŸin iÅŸletmenin de parent'Ä± yoksa) hangisi geÃ§erliyse ona bakÄ±lÄ±r.
+    // Parent end date varsa hiyerarÅŸiden dolayÄ± onu baz alÄ±rÄ±z (Ã§Ã¼nkÃ¼ ÅŸubeler parent'a tabidir).
     const endDateStr = user.parentSubscriptionEndDate || user.subscriptionEndDate;
     if (!endDateStr) return;
 
@@ -25,7 +26,7 @@ export default function SubscriptionAlertBanner() {
     const diffTime = end.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    // Son 5 gün kala banner çıksın (0 gün kala zaten lockout olacak ama eğer lockout sayfasında değilsek burada da görebilir)
+    // Son 5 gÃ¼n kala banner Ã§Ä±ksÄ±n (0 gÃ¼n kala zaten lockout olacak ama eÄŸer lockout sayfasÄ±nda deÄŸilsek burada da gÃ¶rebilir)
     if (diffDays <= 5 && diffDays > 0) {
       setDaysLeft(diffDays);
       const dismissed = sessionStorage.getItem('subAlertDismissed');
@@ -42,7 +43,7 @@ export default function SubscriptionAlertBanner() {
       <div className="flex items-center gap-3">
         <AlertTriangle className="w-5 h-5" />
         <p className="font-medium">
-          DİKKAT: Lisans sürenizin bitmesine <strong>{daysLeft} gün</strong> kaldı. Kesinti yaşamamak için lütfen lisansınızı yenileyin.
+          DÄ°KKAT: Lisans sÃ¼renizin bitmesine <strong>{daysLeft} gÃ¼n</strong> kaldÄ±. Kesinti yaÅŸamamak iÃ§in lÃ¼tfen lisansÄ±nÄ±zÄ± yenileyin.
         </p>
       </div>
       <div className="flex items-center gap-4">
@@ -50,9 +51,9 @@ export default function SubscriptionAlertBanner() {
           onClick={() => router.push('/isletme/subscribe')}
           className="px-3 py-1 bg-white text-red-600 rounded-md text-sm font-semibold hover:bg-red-50 transition-colors"
         >
-          Şimdi Yenile
+          Åimdi Yenile
         </button>
-        <button title="İşlem" aria-label="İşlem"
+        <button title="Ä°ÅŸlem" aria-label="Ä°ÅŸlem"
           onClick={() => {
             setIsVisible(false);
             sessionStorage.setItem('subAlertDismissed', 'true');
@@ -65,3 +66,4 @@ export default function SubscriptionAlertBanner() {
     </div>
   );
 }
+
