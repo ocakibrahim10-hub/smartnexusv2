@@ -58,7 +58,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           code: 'demo',
           name: 'Demo İşletme',
           type: 'BUSINESS',
-          plan: 'ENTERPRISE',
+          plan: 'PLATINUM',
           isActive: true,
         },
       });
