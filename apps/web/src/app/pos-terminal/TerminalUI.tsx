@@ -147,6 +147,8 @@ export function TerminalUI({ onLogout }: TerminalUIProps) {
               <label className="text-xs text-gray-600 whitespace-nowrap">Açıklama</label>
               <input 
                 type="text" 
+                title="Açıklama"
+                placeholder="Açıklama"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="border border-gray-300 px-2 py-1 text-xs w-48 focus:border-blue-500 outline-none rounded-sm" 
@@ -155,17 +157,17 @@ export function TerminalUI({ onLogout }: TerminalUIProps) {
             
             <div className="flex items-center gap-2 mt-1">
               <label className="text-xs text-gray-600 w-12">Cari</label>
-              <select className="flex-1 border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 outline-none rounded-sm">
+              <select title="Cari" className="flex-1 border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 outline-none rounded-sm">
                 <option>PERAKENDE SATIŞLAR</option>
               </select>
-              <button className="bg-gray-100 border border-gray-300 px-2 py-1 rounded-sm">
+              <button title="Cari Detay" aria-label="Cari Detay" className="bg-gray-100 border border-gray-300 px-2 py-1 rounded-sm">
                 <MoreHorizontal className="w-3 h-3" />
               </button>
-              <button className="bg-gray-100 border border-gray-300 px-2 py-1 rounded-sm">
+              <button title="Yardım" aria-label="Yardım" className="bg-gray-100 border border-gray-300 px-2 py-1 rounded-sm">
                 <HelpCircle className="w-3 h-3" />
               </button>
               <label className="text-xs text-gray-600 ml-2">Ödeme</label>
-              <select className="w-24 border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 outline-none rounded-sm">
+              <select title="Ödeme Tipi" className="w-24 border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 outline-none rounded-sm">
                 <option>PEŞİN</option>
                 <option>K. KARTI</option>
               </select>
@@ -175,6 +177,8 @@ export function TerminalUI({ onLogout }: TerminalUIProps) {
               <label className="text-xs text-gray-600 w-12">Miktar</label>
               <input 
                 type="number" 
+                title="Miktar"
+                placeholder="Miktar"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 className="w-16 border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 outline-none rounded-sm" 
@@ -183,12 +187,14 @@ export function TerminalUI({ onLogout }: TerminalUIProps) {
               <div className="flex-1 flex">
                 <input 
                   type="text" 
+                  title="Barkod"
+                  placeholder="Barkod"
                   value={barcode}
                   onChange={(e) => setBarcode(e.target.value)}
                   className="w-full border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 outline-none rounded-l-sm" 
                   autoFocus
                 />
-                <button type="button" className="bg-gray-100 border border-l-0 border-gray-300 px-2 py-1 rounded-r-sm">
+                <button type="button" title="Barkod Arama" aria-label="Barkod Arama" className="bg-gray-100 border border-l-0 border-gray-300 px-2 py-1 rounded-r-sm">
                   <MoreHorizontal className="w-3 h-3" />
                 </button>
               </div>
@@ -204,7 +210,7 @@ export function TerminalUI({ onLogout }: TerminalUIProps) {
               <div className="w-24 border border-gray-300 px-2 py-1 text-xs bg-gray-50 text-right rounded-sm">
                 {cart.length > 0 ? cart[0].stock : ''}
               </div>
-              <button className="bg-gray-100 border border-gray-300 px-2 py-1 rounded-sm">
+              <button title="Malzeme Detay" aria-label="Malzeme Detay" className="bg-gray-100 border border-gray-300 px-2 py-1 rounded-sm">
                 <MoreHorizontal className="w-3 h-3" />
               </button>
             </div>
@@ -228,7 +234,7 @@ export function TerminalUI({ onLogout }: TerminalUIProps) {
                   {cart.map((item, idx) => (
                     <tr key={item.cartId} className="border-b border-gray-200 bg-white hover:bg-blue-50 group">
                       <td className="px-2 py-1 border-r border-gray-300">
-                        <button onClick={() => removeRow(item.cartId)} className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100"><X className="w-3 h-3"/></button>
+                        <button title="Satır Sil" aria-label="Satır Sil" onClick={() => removeRow(item.cartId)} className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100"><X className="w-3 h-3"/></button>
                       </td>
                       <td className="px-2 py-1 border-r border-gray-300">{item.code}</td>
                       <td className="px-2 py-1 border-r border-gray-300 truncate max-w-[200px]">{item.name}</td>
@@ -253,15 +259,15 @@ export function TerminalUI({ onLogout }: TerminalUIProps) {
               <div className="flex-1 flex flex-col gap-1">
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-gray-600 w-16">İndirim %</label>
-                  <input type="number" defaultValue="0" className="w-16 border border-gray-300 px-2 py-1 text-xs text-right rounded-sm" />
+                  <input type="number" title="İndirim Yüzde" placeholder="%" defaultValue="0" className="w-16 border border-gray-300 px-2 py-1 text-xs text-right rounded-sm" />
                   <label className="text-xs text-gray-600 ml-2">Satış Elemanı</label>
-                  <select className="flex-1 border border-gray-300 px-2 py-1 text-xs rounded-sm">
+                  <select title="Satış Elemanı" className="flex-1 border border-gray-300 px-2 py-1 text-xs rounded-sm">
                     <option>Term1</option>
                   </select>
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-gray-600 w-16">İndirim TL</label>
-                  <input type="number" defaultValue="0" className="w-16 border border-gray-300 px-2 py-1 text-xs text-right rounded-sm" />
+                  <input type="number" title="İndirim TL" placeholder="TL" defaultValue="0" className="w-16 border border-gray-300 px-2 py-1 text-xs text-right rounded-sm" />
                 </div>
                 
                 {/* Action Buttons */}
@@ -315,9 +321,8 @@ export function TerminalUI({ onLogout }: TerminalUIProps) {
                   {cat}
                 </button>
               ))}
-              {/* Fill empty spots */}
               {Array.from({ length: 12 - categories.length }).map((_, i) => (
-                <button key={`empty-c-${i}`} className="border border-gray-200 bg-gray-50/50 rounded-sm" disabled></button>
+                <button key={`empty-c-${i}`} title="Boş Kategori" aria-label="Boş" className="border border-gray-200 bg-gray-50/50 rounded-sm" disabled></button>
               ))}
             </div>
 
@@ -334,9 +339,8 @@ export function TerminalUI({ onLogout }: TerminalUIProps) {
                   <span className="break-words line-clamp-3">{item.name}</span>
                 </button>
               ))}
-              {/* Fill empty spots */}
               {Array.from({ length: 24 - quickItems.length }).map((_, i) => (
-                <button key={`empty-i-${i}`} className="border border-gray-200 bg-gray-50/50 rounded-sm" disabled></button>
+                <button key={`empty-i-${i}`} title="Boş Ürün" aria-label="Boş" className="border border-gray-200 bg-gray-50/50 rounded-sm" disabled></button>
               ))}
             </div>
 
