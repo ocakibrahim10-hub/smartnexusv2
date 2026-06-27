@@ -2921,10 +2921,11 @@ async function main() {
   ];
   for (const wo of workOrders) {
     const bom = bomData.find(b => b.id === wo.bomId)!;
-    await prisma.workOrder.upsert({
-      where: { id: wo.id },
-      update: { status: wo.status },
-      create: {
+    await prisma.workOrder.deleteMany({
+      where: { tenantId: 'ten-b1', code: wo.code },
+    });
+    await prisma.workOrder.create({
+      data: {
         id: wo.id,
         tenantId: 'ten-b1',
         code: wo.code,
@@ -2953,11 +2954,11 @@ async function main() {
     { id: 'lead-1', name: 'Ali Yılmaz', company: 'Yılmaz Teknoloji', email: 'ali@yilmaz.tech', phone: '05551112233', status: 'NEW' },
     { id: 'lead-2', name: 'Veli Can', company: 'Can Lojistik', email: 'veli@canloj.com', phone: '05332221100', status: 'CONTACTED' },
     { id: 'lead-3', name: 'Ayşe Kaya', company: 'Kaya Gıda', email: 'ayse@kayagida.com', phone: '05443332211', status: 'QUALIFIED' },
-    { id: 'lead-4', name: 'Fatma Şahin', company: 'Şahin Tekstil', email: 'fatma@sahin.com', phone: '05054443322', status: 'PROPOSAL' },
+    { id: 'lead-4', name: 'Fatma Şahin', company: 'Şahin Tekstil', email: 'fatma@sahin.com', phone: '05054443322', status: 'QUALIFIED' },
     { id: 'lead-5', name: 'Mehmet Öz', company: 'Öz Yapı', email: 'mehmet@ozyapi.com', phone: '05559998877', status: 'NEW' },
     { id: 'lead-6', name: 'Zeynep Çelik', company: 'Çelik Otomotiv', email: 'zeynep@celik.com', phone: '05327776655', status: 'CONTACTED' },
     { id: 'lead-7', name: 'Ahmet Demir', company: 'Demir Döküm', email: 'ahmet@demir.com', phone: '05416665544', status: 'QUALIFIED' },
-    { id: 'lead-8', name: 'Elif Yurt', company: 'Yurt Eğitim', email: 'elif@yurt.edu.tr', phone: '05065554433', status: 'PROPOSAL' },
+    { id: 'lead-8', name: 'Elif Yurt', company: 'Yurt Eğitim', email: 'elif@yurt.edu.tr', phone: '05065554433', status: 'QUALIFIED' },
     { id: 'lead-9', name: 'Burak Koç', company: 'Koç Holding', email: 'burak@koc.com', phone: '05544443322', status: 'NEW' },
     { id: 'lead-10', name: 'Caner Ak', company: 'Ak Bilişim', email: 'caner@akbilisim.com', phone: '05303332211', status: 'CONTACTED' },
   ];
@@ -2979,16 +2980,16 @@ async function main() {
   }
   
   const crmDeals = [
-    { id: 'deal-1', title: 'ERP Yenileme Projesi', value: 150000, stage: 'PROSPECTING', contactId: 'cnt-1' },
-    { id: 'deal-2', title: 'Sunucu Altyapı', value: 75000, stage: 'QUALIFICATION', contactId: 'cnt-2' },
-    { id: 'deal-3', title: 'E-Ticaret Yazılımı', value: 250000, stage: 'PROPOSAL', contactId: 'cnt-3' },
-    { id: 'deal-4', title: 'Yıllık Bakım Anlaşması', value: 45000, stage: 'NEGOTIATION', contactId: 'cnt-4' },
-    { id: 'deal-5', title: 'Siber Güvenlik Denetimi', value: 85000, stage: 'CLOSED_WON', contactId: 'cnt-5' },
-    { id: 'deal-6', title: 'CRM Entegrasyonu', value: 120000, stage: 'PROSPECTING', contactId: 'cnt-6' },
-    { id: 'deal-7', title: 'Bulut Yedekleme', value: 35000, stage: 'QUALIFICATION', contactId: 'cnt-7' },
-    { id: 'deal-8', title: 'Mobil Uygulama Geliştirme', value: 300000, stage: 'PROPOSAL', contactId: 'cnt-8' },
-    { id: 'deal-9', title: 'Donanım Tedariği', value: 95000, stage: 'NEGOTIATION', contactId: 'cnt-1' },
-    { id: 'deal-10', title: 'Network Kurulumu', value: 65000, stage: 'CLOSED_WON', contactId: 'cnt-2' },
+    { id: 'deal-1', title: 'ERP Yenileme Projesi', value: 150000, stage: 'PROSPECTING', contactId: 'cnt-01' },
+    { id: 'deal-2', title: 'Sunucu Altyapı', value: 75000, stage: 'NEGOTIATION', contactId: 'cnt-02' },
+    { id: 'deal-3', title: 'E-Ticaret Yazılımı', value: 250000, stage: 'PROPOSAL', contactId: 'cnt-03' },
+    { id: 'deal-4', title: 'Yıllık Bakım Anlaşması', value: 45000, stage: 'NEGOTIATION', contactId: 'cnt-04' },
+    { id: 'deal-5', title: 'Siber Güvenlik Denetimi', value: 85000, stage: 'WON', contactId: 'cnt-05' },
+    { id: 'deal-6', title: 'CRM Entegrasyonu', value: 120000, stage: 'PROSPECTING', contactId: 'cnt-06' },
+    { id: 'deal-7', title: 'Bulut Yedekleme', value: 35000, stage: 'NEGOTIATION', contactId: 'cnt-07' },
+    { id: 'deal-8', title: 'Mobil Uygulama Geliştirme', value: 300000, stage: 'PROPOSAL', contactId: 'cnt-08' },
+    { id: 'deal-9', title: 'Donanım Tedariği', value: 95000, stage: 'NEGOTIATION', contactId: 'cnt-01' },
+    { id: 'deal-10', title: 'Network Kurulumu', value: 65000, stage: 'WON', contactId: 'cnt-02' },
   ];
 
   for (const deal of crmDeals) {
