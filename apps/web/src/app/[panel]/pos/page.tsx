@@ -302,9 +302,9 @@ export default function POSPage() {
   };
 
   return (
-    <div className="pos-shell flex h-screen overflow-hidden bg-gray-100">
+    <div className="pos-shell flex flex-col lg:flex-row h-screen overflow-hidden bg-gray-100">
       {/* ── Sol: Ürünler ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col w-[58%] border-r border-gray-200 bg-white">
+      <div className="flex flex-col flex-1 lg:w-[58%] border-b lg:border-b-0 lg:border-r border-gray-200 bg-white min-h-[50vh] lg:min-h-0">
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white">
           <div className="flex-1 relative">
@@ -417,7 +417,7 @@ export default function POSPage() {
       </div>
 
       {/* ── Sağ: Sepet + Ödeme ───────────────────────────────────────────── */}
-      <div className="flex flex-col w-[42%] bg-white">
+      <div className="flex flex-col w-full lg:w-[42%] bg-white min-h-[50vh] lg:min-h-0 flex-shrink-0">
         {/* Müşteri */}
         <div className="px-4 py-3 border-b border-gray-100">
           <div className="flex items-center gap-2">

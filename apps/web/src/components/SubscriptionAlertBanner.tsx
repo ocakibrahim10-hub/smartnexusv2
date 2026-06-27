@@ -52,7 +52,7 @@ export default function SubscriptionAlertBanner() {
         >
           Şimdi Yenile
         </button>
-        <button
+        <button title="İşlem" aria-label="İşlem"
           onClick={() => {
             setIsVisible(false);
             sessionStorage.setItem('subAlertDismissed', 'true');

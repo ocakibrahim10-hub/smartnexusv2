@@ -188,7 +188,7 @@ export default function PriceListsPage() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
               <h3 className="font-semibold text-lg">Yeni Fiyat Listesi</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+              <button title="İşlem" aria-label="İşlem" onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -198,7 +198,7 @@ export default function PriceListsPage() {
               <FormField label="Açıklama" value={description} onChange={(e) => setDescription(e.target.value)} />
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Para Birimi</label>
-                <select 
+                <select title="Seçim" aria-label="Seçim" 
                   className="w-full border border-gray-200 rounded-lg px-3 py-2"
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
@@ -224,7 +224,7 @@ export default function PriceListsPage() {
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                   {items.map((item, idx) => (
                     <div key={idx} className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-100">
-                      <select
+                      <select title="Seçim" aria-label="Seçim"
                         className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm"
                         value={item.productId}
                         onChange={(e) => {
@@ -261,7 +261,7 @@ export default function PriceListsPage() {
                         min="1" required
                         placeholder="Min. Miktar"
                       />
-                      <button
+                      <button title="İşlem" aria-label="İşlem"
                         type="button"
                         onClick={() => setItems(items.filter((_, i) => i !== idx))}
                         className="p-1.5 text-red-500 hover:bg-red-50 rounded"

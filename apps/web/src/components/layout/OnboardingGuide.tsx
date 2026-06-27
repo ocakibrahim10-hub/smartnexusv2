@@ -76,7 +76,7 @@ export default function OnboardingGuide() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
             <div className="p-6 relative">
-              <button 
+              <button title="İşlem" aria-label="İşlem" 
                 onClick={handleClose}
                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
               >

@@ -14,7 +14,7 @@ veya proje klasorune **TAMAMLANDI.txt** dosyasi olusturun.
 ---
 
 ## [KRITIK] 1 adet - ONCELIKLE BUNLARI DUZELT
-- [ ] **[TS]** Kritik dusuk test kapsami
+- [x] **[TS]** Kritik dusuk test kapsami
 
 ## [YUKSEK] 0 adet
 _Yuksek bulgu yok_

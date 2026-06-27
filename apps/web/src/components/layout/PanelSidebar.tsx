@@ -372,7 +372,7 @@ function searchNavItems(items: NavItem[], query: string): NavItem[] {
 
 // Yol bulucuya artık gerek yok, yolları (path) renderItem içinde birleştirerek çözüyoruz
 
-export default function PanelSidebar({ panel }: { panel: PanelType }) {
+export default function PanelSidebar({ panel, collapsed = false }: { panel: PanelType, collapsed?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const user = getUser();
@@ -384,7 +384,6 @@ export default function PanelSidebar({ panel }: { panel: PanelType }) {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [openGroups, setOpenGroups] = useState<string[]>([]);
-  const [collapsed, setCollapsed] = useState(false);
 
   // Sayfa yüklendiğinde veya değiştiğinde aktif olan grubu bul
   useEffect(() => {

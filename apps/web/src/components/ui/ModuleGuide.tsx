@@ -31,7 +31,7 @@ export function ModuleGuide({ moduleKey, title, description, features }: ModuleG
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 text-white relative">
-          <button 
+          <button title="İşlem" aria-label="İşlem" 
             onClick={dismiss}
             className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors bg-white/10 hover:bg-white/20 p-1 rounded-full"
           >

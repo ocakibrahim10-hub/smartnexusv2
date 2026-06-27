@@ -95,7 +95,7 @@ export function ManualJournalModal({ onClose, onSaved }: { onClose: () => void; 
               {lines.map((l) => (
                 <tr key={l.id} className="border-b border-gray-50">
                   <td className="p-2">
-                    <select
+                    <select title="Seçim" aria-label="Seçim"
                       className="input w-full"
                       value={l.accountId}
                       onChange={(e) => updateLine(l.id, 'accountId', e.target.value)}
@@ -110,7 +110,7 @@ export function ManualJournalModal({ onClose, onSaved }: { onClose: () => void; 
                     </select>
                   </td>
                   <td className="p-2">
-                    <input
+                    <input title="Veri Girişi" aria-label="Veri Girişi" placeholder="Değer"
                       type="number"
                       step="0.01"
                       className="input w-full text-right"
@@ -119,7 +119,7 @@ export function ManualJournalModal({ onClose, onSaved }: { onClose: () => void; 
                     />
                   </td>
                   <td className="p-2">
-                    <input
+                    <input title="Veri Girişi" aria-label="Veri Girişi" placeholder="Değer"
                       type="number"
                       step="0.01"
                       className="input w-full text-right"
@@ -128,7 +128,7 @@ export function ManualJournalModal({ onClose, onSaved }: { onClose: () => void; 
                     />
                   </td>
                   <td className="p-2 text-center">
-                    <button type="button" onClick={() => removeLine(l.id)} className="text-gray-400 hover:text-red-500">
+                    <button title="İşlem" aria-label="İşlem" type="button" onClick={() => removeLine(l.id)} className="text-gray-400 hover:text-red-500">
                       <Trash className="w-4 h-4" />
                     </button>
                   </td>

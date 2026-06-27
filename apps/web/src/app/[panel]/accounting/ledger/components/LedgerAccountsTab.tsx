@@ -93,7 +93,7 @@ export function LedgerAccountsTab() {
                 <td className="p-3">{acc.name}</td>
                 <td className="p-3">{acc.type}</td>
                 <td className="p-3 text-right">
-                  <button
+                  <button title="İşlem" aria-label="İşlem"
                     onClick={() => {
                       setFormData({ code: acc.code, name: acc.name, type: acc.type });
                       setEditingId(acc.id);
@@ -103,7 +103,7 @@ export function LedgerAccountsTab() {
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
-                  <button
+                  <button title="İşlem" aria-label="İşlem"
                     onClick={() => handleDelete(acc.id)}
                     className="text-gray-400 hover:text-red-600 p-1 ml-2"
                   >
@@ -139,7 +139,7 @@ export function LedgerAccountsTab() {
               />
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Hesap Tipi</label>
-                <select
+                <select title="Seçim" aria-label="Seçim"
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                   className="input"

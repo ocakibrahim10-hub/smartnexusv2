@@ -97,7 +97,7 @@ export default function WmsLocationsPage() {
       </div>
 
       {/* Depo Seçimi */}
-      <select
+      <select title="Seçim" aria-label="Seçim"
         value={selectedWarehouse}
         onChange={e => setSelectedWarehouse(e.target.value)}
         className="w-full sm:w-64 text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500 font-bold"
@@ -151,7 +151,7 @@ export default function WmsLocationsPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Tür</label>
-                  <select value={form.type} onChange={e => setForm({...form, type: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 font-bold">
+                  <select title="Seçim" aria-label="Seçim" value={form.type} onChange={e => setForm({...form, type: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 font-bold">
                     <option value="SHELF">Raf</option>
                     <option value="BIN">Kutu/Bölme</option>
                     <option value="FLOOR">Zemin</option>
@@ -196,15 +196,15 @@ export default function WmsLocationsPage() {
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Koridor Sayısı (A, B, C...)</label>
-                <input type="number" min={1} max={26} value={bulkForm.aisles} onChange={e => setBulkForm({...bulkForm, aisles: Number(e.target.value)})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50" />
+                <input title="Veri Girişi" aria-label="Veri Girişi" placeholder="Değer" type="number" min={1} max={26} value={bulkForm.aisles} onChange={e => setBulkForm({...bulkForm, aisles: Number(e.target.value)})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Her Koridordaki Raf Sayısı</label>
-                <input type="number" min={1} max={50} value={bulkForm.racks} onChange={e => setBulkForm({...bulkForm, racks: Number(e.target.value)})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50" />
+                <input title="Veri Girişi" aria-label="Veri Girişi" placeholder="Değer" type="number" min={1} max={50} value={bulkForm.racks} onChange={e => setBulkForm({...bulkForm, racks: Number(e.target.value)})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Her Raftaki Bölme/Kat</label>
-                <input type="number" min={1} max={10} value={bulkForm.levels} onChange={e => setBulkForm({...bulkForm, levels: Number(e.target.value)})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50" />
+                <input title="Veri Girişi" aria-label="Veri Girişi" placeholder="Değer" type="number" min={1} max={10} value={bulkForm.levels} onChange={e => setBulkForm({...bulkForm, levels: Number(e.target.value)})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50" />
               </div>
               <div className="bg-brand-50 rounded-xl p-3 text-center">
                 <p className="text-xs font-bold text-brand-700">Toplam {bulkForm.aisles * bulkForm.racks * bulkForm.levels} lokasyon oluşturulacak</p>

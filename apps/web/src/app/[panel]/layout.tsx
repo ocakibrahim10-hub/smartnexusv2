@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname, useParams } from 'next/navigation';
 import ThemeProvider from '@/components/ThemeProvider';
 import PwaRegister from '@/components/PwaRegister';
 import PanelSidebar from '@/components/layout/PanelSidebar';
+import TopBar from '@/components/layout/TopBar';
 import KontorAlertBanner from '@/components/KontorAlertBanner';
 import CheckAlertBanner from '@/components/CheckAlertBanner';
 import { isAuthenticated, getUser, setSession } from '@/lib/auth';
@@ -20,6 +21,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const params = useParams();
   const panel = params.panel as string;
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     if (!isPanelType(panel)) {
@@ -130,12 +132,19 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
       <PwaRegister />
       {panel !== 'nexusadmin' && <CampaignPopup />}
       <div className="dashboard-shell flex h-screen overflow-hidden">
-        <PanelSidebar panel={panel} />
-        <main className="dashboard-main flex-1 overflow-y-auto">
-          <SubscriptionAlertBanner />
-          <KontorAlertBanner />
-          <CheckAlertBanner />
-          <div className="dashboard-content">{children}</div>
+        <PanelSidebar panel={panel} collapsed={collapsed} />
+        <main className="dashboard-main flex-1 flex flex-col h-screen overflow-hidden">
+          <TopBar 
+            title={panelLabel(panel)} 
+            collapsed={collapsed} 
+            onToggleSidebar={() => setCollapsed(!collapsed)} 
+          />
+          <div className="flex-1 overflow-y-auto relative bg-gray-50/30">
+            <SubscriptionAlertBanner />
+            <KontorAlertBanner />
+            <CheckAlertBanner />
+            <div className="dashboard-content">{children}</div>
+          </div>
         </main>
       </div>
     </ThemeProvider>

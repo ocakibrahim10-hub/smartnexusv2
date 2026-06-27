@@ -140,7 +140,7 @@ export default function WmsScannerPage() {
       </div>
 
       {/* Depo Seçimi */}
-      <select
+      <select title="Seçim" aria-label="Seçim"
         value={selectedWarehouse}
         onChange={e => setSelectedWarehouse(e.target.value)}
         className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500 font-bold"
@@ -165,11 +165,11 @@ export default function WmsScannerPage() {
         />
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
           {barcode && (
-            <button onClick={() => { setBarcode(''); setScanResult(null); }} className="p-2 text-gray-400 hover:text-gray-600">
+            <button title="İşlem" aria-label="İşlem" onClick={() => { setBarcode(''); setScanResult(null); }} className="p-2 text-gray-400 hover:text-gray-600">
               <X className="w-5 h-5" />
             </button>
           )}
-          <button
+          <button title="İşlem" aria-label="İşlem"
             onClick={handleScan}
             className="p-2 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition-colors"
           >
@@ -213,17 +213,17 @@ export default function WmsScannerPage() {
           {/* Miktar ve İşlem */}
           <div className="p-4 flex items-center gap-3">
             <div className="flex items-center gap-2 bg-gray-50 rounded-xl border border-gray-200 px-2">
-              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-2 text-gray-500 hover:text-gray-900">
+              <button title="İşlem" aria-label="İşlem" onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-2 text-gray-500 hover:text-gray-900">
                 <Minus className="w-4 h-4" />
               </button>
-              <input
+              <input title="Veri Girişi" aria-label="Veri Girişi" placeholder="Değer"
                 type="number"
                 value={quantity}
                 onChange={e => setQuantity(Math.max(1, Number(e.target.value)))}
                 className="w-16 text-center text-lg font-black bg-transparent border-0 focus:ring-0 p-0"
                 min={1}
               />
-              <button onClick={() => setQuantity(quantity + 1)} className="p-2 text-gray-500 hover:text-gray-900">
+              <button title="İşlem" aria-label="İşlem" onClick={() => setQuantity(quantity + 1)} className="p-2 text-gray-500 hover:text-gray-900">
                 <Plus className="w-4 h-4" />
               </button>
             </div>

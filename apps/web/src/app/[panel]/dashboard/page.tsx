@@ -33,7 +33,6 @@ import {
   FileText,
   Truck,
 } from 'lucide-react';
-import TopBar from '@/components/layout/TopBar';
 import { reportsApi } from '@/lib/api';
 import { getUser } from '@/lib/auth';
 import { fmtMoney, safeNum, fmtPercentChange } from '@/lib/format';
@@ -214,10 +213,14 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <TopBar
-        title={activeTab === 'shortcuts' ? 'Masaüstü' : 'Boss Screen'}
-        subtitle={`Hoş geldiniz, ${user?.name} · ${new Date().toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`}
-      />
+      <div className="bg-white px-6 py-4 border-b border-gray-200">
+        <h1 className="text-xl font-bold text-gray-900">
+          {activeTab === 'shortcuts' ? 'Masaüstü' : 'Boss Screen'}
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Hoş geldiniz, {user?.name} · {new Date().toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        </p>
+      </div>
 
       <div className="border-b border-gray-200 bg-white px-6 py-2">
         <div className="flex gap-4">

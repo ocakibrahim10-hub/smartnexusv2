@@ -81,7 +81,7 @@ export default function LeavesPage() {
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Personel *</label>
-              <select required value={formData.contactId} onChange={e => setFormData({...formData, contactId: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500 font-bold">
+              <select title="Seçim" aria-label="Seçim" required value={formData.contactId} onChange={e => setFormData({...formData, contactId: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500 font-bold">
                 <option value="">Seçiniz...</option>
                 {personnel.map(p => (
                   <option key={p.id} value={p.id}>{p.name} ({p.personnelProfile?.department || ''})</option>
@@ -90,7 +90,7 @@ export default function LeavesPage() {
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">İzin Türü *</label>
-              <select required value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500 font-bold">
+              <select title="Seçim" aria-label="Seçim" required value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500 font-bold">
                 <option value="ANNUAL">Yıllık İzin (Ücretli)</option>
                 <option value="SICK">Hastalık / Sağlık Raporu</option>
                 <option value="UNPAID">Mazeret İzni (Ücretsiz)</option>
@@ -103,11 +103,11 @@ export default function LeavesPage() {
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Başlangıç Tarihi *</label>
-              <input type="date" required value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500" />
+              <input title="Veri Girişi" aria-label="Veri Girişi" placeholder="Değer" type="date" required value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500" />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Bitiş Tarihi *</label>
-              <input type="date" required value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500" />
+              <input title="Veri Girişi" aria-label="Veri Girişi" placeholder="Değer" type="date" required value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500" />
             </div>
             
             <div className="col-span-2 flex justify-end gap-3 pt-2">

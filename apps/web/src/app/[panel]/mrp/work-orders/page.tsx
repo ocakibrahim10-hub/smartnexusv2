@@ -229,7 +229,7 @@ export default function WorkOrdersPage() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
               <h3 className="font-semibold text-lg">Yeni İş Emri</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+              <button title="İşlem" aria-label="İşlem" onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -239,7 +239,7 @@ export default function WorkOrdersPage() {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Reçete (BOM) *</label>
-                <select 
+                <select title="Seçim" aria-label="Seçim" 
                   className="w-full border border-gray-200 rounded-lg px-3 py-2"
                   value={bomId}
                   onChange={(e) => setBomId(e.target.value)}

@@ -1,22 +1,36 @@
 'use client';
 
-import { Bell, Search, HelpCircle, Monitor } from 'lucide-react';
+import { Bell, Search, HelpCircle, Monitor, Menu } from 'lucide-react';
 import { getUser } from '@/lib/auth';
 import { KontorStatsStrip, SubscriptionDaysStrip } from '@/components/KontorAlertBanner';
 
 interface TopBarProps {
   title?: string;
   subtitle?: string;
+  collapsed?: boolean;
+  onToggleSidebar?: () => void;
 }
 
-export default function TopBar({ title, subtitle }: TopBarProps) {
+export default function TopBar({ title, subtitle, collapsed, onToggleSidebar }: TopBarProps) {
   const user = getUser();
 
   return (
     <header className="topbar">
-      <div className="flex-1 min-w-0">
-        {title && <h1 className="text-lg font-semibold text-gray-900 truncate">{title}</h1>}
-        {subtitle && <p className="text-xs text-gray-500 mt-0.5 truncate">{subtitle}</p>}
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        {onToggleSidebar && (
+          <button 
+            onClick={onToggleSidebar}
+            className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"
+            title="Menüyü Aç/Kapat"
+            aria-label="Menüyü Aç/Kapat"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
+        <div className="min-w-0">
+          {title && <h1 className="text-lg font-semibold text-gray-900 truncate">{title}</h1>}
+          {subtitle && <p className="text-xs text-gray-500 mt-0.5 truncate">{subtitle}</p>}
+        </div>
       </div>
 
       <div className="topbar-search">

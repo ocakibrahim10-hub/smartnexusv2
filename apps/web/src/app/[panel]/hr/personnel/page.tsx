@@ -170,15 +170,15 @@ export default function PersonnelPage() {
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Ad Soyad *</label>
-              <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500" />
+              <input title="Veri Girişi" aria-label="Veri Girişi" placeholder="Değer" type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500" />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">T.C. Kimlik</label>
-              <input type="text" value={formData.nationalId} onChange={e => setFormData({...formData, nationalId: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500" />
+              <input title="Veri Girişi" aria-label="Veri Girişi" placeholder="Değer" type="text" value={formData.nationalId} onChange={e => setFormData({...formData, nationalId: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500" />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Telefon</label>
-              <input type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500" />
+              <input title="Veri Girişi" aria-label="Veri Girişi" placeholder="Değer" type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500" />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider flex items-center justify-between">
@@ -187,7 +187,7 @@ export default function PersonnelPage() {
                   <Plus className="w-4 h-4" />
                 </button>
               </label>
-              <select value={formData.departmentId} onChange={e => setFormData({...formData, departmentId: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500">
+              <select title="Seçim" aria-label="Seçim" value={formData.departmentId} onChange={e => setFormData({...formData, departmentId: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500">
                 <option value="">Seçiniz...</option>
                 {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
@@ -199,18 +199,18 @@ export default function PersonnelPage() {
                   <Plus className="w-4 h-4" />
                 </button>
               </label>
-              <select value={formData.positionId} onChange={e => setFormData({...formData, positionId: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500">
+              <select title="Seçim" aria-label="Seçim" value={formData.positionId} onChange={e => setFormData({...formData, positionId: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500">
                 <option value="">Seçiniz...</option>
                 {positions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">İşe Giriş Tarihi</label>
-              <input type="date" value={formData.hireDate} onChange={e => setFormData({...formData, hireDate: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500" />
+              <input title="Veri Girişi" aria-label="Veri Girişi" placeholder="Değer" type="date" value={formData.hireDate} onChange={e => setFormData({...formData, hireDate: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500" />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Temel Net Maaş (₺)</label>
-              <input type="number" step="0.01" value={formData.baseSalary} onChange={e => setFormData({...formData, baseSalary: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500" />
+              <input title="Veri Girişi" aria-label="Veri Girişi" placeholder="Değer" type="number" step="0.01" value={formData.baseSalary} onChange={e => setFormData({...formData, baseSalary: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500" />
             </div>
 
             <div className="col-span-1 md:col-span-2 lg:col-span-4 mt-4 pt-4 border-t border-gray-100">
@@ -233,11 +233,11 @@ export default function PersonnelPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Şifre *</label>
-                  <input type="password" required={formData.createLogin} value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500" />
+                  <input title="Veri Girişi" aria-label="Veri Girişi" placeholder="Değer" type="password" required={formData.createLogin} value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Yetki Rolü *</label>
-                  <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500 font-bold">
+                  <select title="Seçim" aria-label="Seçim" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full text-sm border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:ring-brand-500 font-bold">
                     <option value="STAFF">Standart Personel (STAFF)</option>
                     <option value="MANAGER">Yönetici (MANAGER)</option>
                     <option value="ADMIN">Sistem Yöneticisi (ADMIN)</option>
@@ -343,7 +343,7 @@ export default function PersonnelPage() {
             <form onSubmit={handleEditLoginSubmit} className="p-5 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase">E-Posta (Giriş ID)</label>
-                <input required type="email" value={editModal.data.email} onChange={e => setEditModal({...editModal, data: {...editModal.data, email: e.target.value}})} className="w-full text-sm border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 p-2.5 bg-gray-50" />
+                <input title="Veri Girişi" aria-label="Veri Girişi" placeholder="Değer" required type="email" value={editModal.data.email} onChange={e => setEditModal({...editModal, data: {...editModal.data, email: e.target.value}})} className="w-full text-sm border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 p-2.5 bg-gray-50" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase">Şifre (Değiştirmek için yazın)</label>
@@ -351,7 +351,7 @@ export default function PersonnelPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase">Yetki Rolü</label>
-                <select value={editModal.data.role} onChange={e => setEditModal({...editModal, data: {...editModal.data, role: e.target.value}})} className="w-full text-sm border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 p-2.5 bg-gray-50 font-bold">
+                <select title="Seçim" aria-label="Seçim" value={editModal.data.role} onChange={e => setEditModal({...editModal, data: {...editModal.data, role: e.target.value}})} className="w-full text-sm border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 p-2.5 bg-gray-50 font-bold">
                   <option value="STAFF">Standart Personel (STAFF)</option>
                   <option value="MANAGER">Yönetici (MANAGER)</option>
                   <option value="ADMIN">Sistem Yöneticisi (ADMIN)</option>

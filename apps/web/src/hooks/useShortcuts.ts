@@ -34,17 +34,38 @@ export function useShortcuts() {
 
   useEffect(() => {
     if (globalShortcutGroups === null) {
-      const user = getUser();
-      const prefs = user?.preferences?.shortcuts;
-      if (prefs && Array.isArray(prefs)) {
-        if (prefs.length > 0 && !('items' in prefs[0])) {
-          // Migration from old flat array
-          globalShortcutGroups = [{ id: 'group-legacy', title: 'Masaüstü', items: prefs }];
-        } else {
-          globalShortcutGroups = prefs;
+      // 1. Önce LocalStorage'a bak (Öncelikli Kalıcı Hafıza)
+      try {
+        const localData = localStorage.getItem('smartnexus_shortcuts');
+        if (localData) {
+          const parsed = JSON.parse(localData);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            globalShortcutGroups = parsed;
+          }
         }
-      } else {
-        globalShortcutGroups = defaultGroups;
+      } catch (e) {
+        console.error('Failed to parse local shortcuts', e);
+      }
+
+      // 2. Eğer LocalStorage'da yoksa User Preferences'e bak
+      if (!globalShortcutGroups) {
+        const user = getUser();
+        const prefs = user?.preferences?.shortcuts;
+        if (prefs && Array.isArray(prefs)) {
+          if (prefs.length > 0 && !('items' in prefs[0])) {
+            // Migration from old flat array
+            globalShortcutGroups = [{ id: 'group-legacy', title: 'Masaüstü', items: prefs }];
+          } else {
+            globalShortcutGroups = prefs;
+          }
+        } else {
+          globalShortcutGroups = defaultGroups;
+        }
+        
+        // İlk veriyi LocalStorage'a sabitle
+        try {
+          localStorage.setItem('smartnexus_shortcuts', JSON.stringify(globalShortcutGroups));
+        } catch (e) {}
       }
       setGroups(globalShortcutGroups);
     }
@@ -59,6 +80,11 @@ export function useShortcuts() {
   const saveGroups = async (newGroups: ShortcutGroup[]) => {
     globalShortcutGroups = newGroups;
     emitChange();
+    
+    // Tarayıcı hafızasına kesin kayıt yap
+    try {
+      localStorage.setItem('smartnexus_shortcuts', JSON.stringify(newGroups));
+    } catch (e) {}
     
     // Update local user object
     const user = getUser();

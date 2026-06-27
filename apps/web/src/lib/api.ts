@@ -28,6 +28,11 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
+      // Login ve refresh isteklerinde 401 alınırsa yönlendirme yapma, sadece hatayı fırlat
+      if (error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/auth/refresh')) {
+        return Promise.reject(error);
+      }
+
       const refreshToken = localStorage.getItem('refreshToken');
       if (refreshToken) {
         try {

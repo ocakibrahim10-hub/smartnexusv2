@@ -198,7 +198,7 @@ export default function BomsPage() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
               <h3 className="font-semibold text-lg">Yeni Reçete (BOM)</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+              <button title="İşlem" aria-label="İşlem" onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -212,7 +212,7 @@ export default function BomsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Üretilecek Mamul *</label>
-                  <select 
+                  <select title="Seçim" aria-label="Seçim" 
                     className="w-full border border-gray-200 rounded-lg px-3 py-2"
                     value={productId}
                     onChange={(e) => setProductId(e.target.value)}
@@ -240,7 +240,7 @@ export default function BomsPage() {
                 <div className="space-y-2">
                   {items.map((item, idx) => (
                     <div key={idx} className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-100">
-                      <select
+                      <select title="Seçim" aria-label="Seçim"
                         className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm"
                         value={item.productId}
                         onChange={(e) => {
@@ -268,13 +268,13 @@ export default function BomsPage() {
                         min="0.01" step="0.01" required
                         placeholder="Miktar"
                       />
-                      <input
+                      <input title="Veri Girişi" aria-label="Veri Girişi" placeholder="Değer"
                         type="text"
                         className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-gray-100 text-gray-500"
                         value={item.unit}
                         readOnly
                       />
-                      <button
+                      <button title="İşlem" aria-label="İşlem"
                         type="button"
                         onClick={() => setItems(items.filter((_, i) => i !== idx))}
                         className="p-1.5 text-red-500 hover:bg-red-50 rounded"
