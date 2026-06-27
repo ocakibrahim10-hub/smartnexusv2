@@ -158,6 +158,17 @@ enum MessageTargetType {
   SPECIFIC
 }
 
+enum CampaignType {
+  DISCOUNT
+  INCREASE
+}
+
+enum CampaignTarget {
+  MODULE
+  PLAN
+  ALL
+}
+
 // --- Core --------------------------------------------------------------------
 
 model Tenant {
@@ -1681,4 +1692,33 @@ model PayrollSlip {
   updatedAt   DateTime @updatedAt
   
   @@map("payroll_slips")
+}
+
+// --- Platform Campaigns ------------------------------------------------------
+
+model PriceCampaign {
+  id              String         @id @default(cuid())
+  name            String         
+  type            CampaignType   
+  target          CampaignTarget 
+  targetIds       String[]       @default([]) 
+  percent         Float          
+  validFrom       DateTime       
+  validTo         DateTime?      
+  isActive        Boolean        @default(true)
+  autoMessageSent Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+
+  @@map("price_campaigns")
+}
+
+model TenantPopupAck {
+  id              String        @id @default(cuid())
+  tenantId        String
+  campaignId      String
+  ackType         String        
+  createdAt       DateTime      @default(now())
+
+  @@unique([tenantId, campaignId])
+  @@map("tenant_popup_acks")
 }

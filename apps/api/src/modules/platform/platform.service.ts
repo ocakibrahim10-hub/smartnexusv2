@@ -176,48 +176,88 @@ export class PlatformService {
   async getPublicPricing() {
     const submoduleRows = await this.ensureSubmodulePricing();
     const priceMap = pricingMap(submoduleRows);
+    
+    const activeCampaigns = await this.getActivePriceCampaigns();
+
+    const applyCampaign = (price: number, targetId: string, isPlan: boolean) => {
+      let newPrice = price;
+      let maxDiscount = 0;
+      for (const camp of activeCampaigns) {
+        const isMatch = camp.target === 'ALL' || 
+                       (camp.target === 'PLAN' && isPlan && (camp.targetIds.length === 0 || camp.targetIds.includes(targetId))) || 
+                       (camp.target === 'MODULE' && !isPlan && (camp.targetIds.length === 0 || camp.targetIds.includes(targetId)));
+        
+        if (isMatch) {
+          if (camp.type === 'DISCOUNT') {
+            maxDiscount = Math.max(maxDiscount, camp.percent);
+          } else if (camp.type === 'INCREASE') {
+            newPrice = newPrice * (1 + camp.percent / 100);
+          }
+        }
+      }
+      return { adjustedPrice: newPrice, extraDiscount: maxDiscount };
+    };
 
     const templates = await this.prisma.planTemplate.findMany({ orderBy: { plan: 'asc' } });
     const plans =
       templates.length > 0
-        ? templates.map((t) => ({
-            plan: t.plan,
-            price: t.price ?? DEFAULT_PLAN_MODULES[t.plan]?.price ?? 0,
-            discountPercent: t.discountPercent ?? 0,
-            description: t.description ?? DEFAULT_PLAN_MODULES[t.plan]?.description ?? '',
-            modules: t.modules,
-            maxBranches: t.maxBranches ?? DEFAULT_PLAN_MODULES[t.plan]?.maxBranches ?? 0,
-            extraBranchPrice:
-              t.extraBranchPrice ?? DEFAULT_PLAN_MODULES[t.plan]?.extraBranchPrice ?? 0,
-          }))
-        : Object.entries(DEFAULT_PLAN_MODULES).map(([plan, cfg]) => ({
-            plan,
-            price: cfg.price,
-            discountPercent: cfg.discountPercent ?? 0,
-            description: cfg.description,
-            modules: cfg.modules,
-            maxBranches: cfg.maxBranches ?? 0,
-            extraBranchPrice: cfg.extraBranchPrice ?? 0,
-          }));
+        ? templates.map((t) => {
+            const { adjustedPrice, extraDiscount } = applyCampaign(t.price ?? DEFAULT_PLAN_MODULES[t.plan]?.price ?? 0, t.plan, true);
+            return {
+              plan: t.plan,
+              price: adjustedPrice,
+              discountPercent: Math.min(100, (t.discountPercent ?? 0) + extraDiscount),
+              description: t.description ?? DEFAULT_PLAN_MODULES[t.plan]?.description ?? '',
+              modules: t.modules,
+              maxBranches: t.maxBranches ?? DEFAULT_PLAN_MODULES[t.plan]?.maxBranches ?? 0,
+              extraBranchPrice: t.extraBranchPrice ?? DEFAULT_PLAN_MODULES[t.plan]?.extraBranchPrice ?? 0,
+            };
+          })
+        : Object.entries(DEFAULT_PLAN_MODULES).map(([plan, cfg]) => {
+            const { adjustedPrice, extraDiscount } = applyCampaign(cfg.price, plan, true);
+            return {
+              plan,
+              price: adjustedPrice,
+              discountPercent: Math.min(100, (cfg.discountPercent ?? 0) + extraDiscount),
+              description: cfg.description,
+              modules: cfg.modules,
+              maxBranches: cfg.maxBranches ?? 0,
+              extraBranchPrice: cfg.extraBranchPrice ?? 0,
+            };
+          });
 
     const addons = await this.listSubscriptionAddons();
     const kontorModules = await this.listKontorModules();
     const addonRows = addons.map((a) => {
-      const pricing = applyDiscount(a.basePrice ?? 0, a.discountPercent ?? 0);
+      const { adjustedPrice, extraDiscount } = applyCampaign(a.basePrice ?? 0, a.code, false);
+      const totalDiscount = Math.min(100, (a.discountPercent ?? 0) + extraDiscount);
+      const pricing = applyDiscount(adjustedPrice, totalDiscount);
       return { ...a, ...pricing, billingPeriod: 'yearly' };
     });
 
     return {
       billingPeriod: 'yearly',
-      submodulePricing: submoduleRows.map((r) => ({
-        ...r,
-        label: getModuleLabel(r.moduleId),
-      })),
+      submodulePricing: submoduleRows.map((r) => {
+        const { adjustedPrice } = applyCampaign(r.yearlyPrice, r.moduleId, false);
+        return {
+          ...r,
+          yearlyPrice: adjustedPrice,
+          label: getModuleLabel(r.moduleId),
+        };
+      }),
       plans: plans.map((p) => {
         const pricing = applyDiscount(p.price, p.discountPercent);
         const purchasableAddons = filterAddonsForPlan(p.modules, addonRows);
+        
+        // Sum module prices using the adjusted priceMap
+        let computedModuleTotal = 0;
+        for (const modId of p.modules) {
+           const pPrice = priceMap[modId] ?? 0;
+           const { adjustedPrice } = applyCampaign(pPrice, modId, false);
+           computedModuleTotal += adjustedPrice;
+        }
+
         const purchasableExtraModules = getPurchasableExtraModules(p.modules, submoduleRows);
-        const computedModuleTotal = sumSubmodulePrices(p.modules, priceMap);
         return {
           ...p,
           ...pricing,
@@ -1692,5 +1732,123 @@ export class PlatformService {
       version: LEGAL_DOCUMENT_VERSION,
       content: doc.content,
     };
+  }
+
+  // --- Price Campaigns --------------------------------------------------------
+
+  async createPriceCampaign(data: {
+    name: string;
+    type: 'DISCOUNT' | 'INCREASE';
+    target: 'MODULE' | 'PLAN' | 'ALL';
+    targetIds: string[];
+    percent: number;
+    validFrom: string;
+    validTo?: string;
+  }) {
+    const campaign = await this.prisma.priceCampaign.create({
+      data: {
+        name: data.name,
+        type: data.type,
+        target: data.target,
+        targetIds: data.targetIds || [],
+        percent: data.percent,
+        validFrom: new Date(data.validFrom),
+        validTo: data.validTo ? new Date(data.validTo) : null,
+      },
+    });
+
+    // Create a message for tenants
+    const actionText = data.type === 'DISCOUNT' ? 'indirim fırsatı' : 'fiyat güncellemesi';
+    const targetText = data.target === 'ALL' ? 'Tüm modül ve planlarımızda' :
+                       data.target === 'PLAN' ? 'Seçili planlarımızda' : 'Seçili modüllerimizde';
+    
+    const targetModules = data.targetIds.length > 0 ? ` (${data.targetIds.join(', ')})` : '';
+
+    const message = await this.prisma.message.create({
+      data: {
+        fromTenantId: 'ten-root',
+        title: `Bilgilendirme: ${data.name}`,
+        body: `Değerli müşterimiz, ${targetText}${targetModules} ${data.validFrom} tarihinden itibaren geçerli olmak üzere %${data.percent} ${actionText} tanımlanmıştır. Detaylı bilgi için bayiinizle iletişime geçebilir veya fiyatlandırma sayfamızı ziyaret edebilirsiniz.`,
+        targetType: 'ALL',
+        sentAt: new Date(),
+      }
+    });
+
+    // Send to all tenants
+    const allTenants = await this.prisma.tenant.findMany({
+      where: { type: { in: ['BUSINESS', 'DEALER', 'BRANCH'] }, isActive: true }
+    });
+
+    await this.prisma.messageRecipient.createMany({
+      data: allTenants.map(t => ({
+        messageId: message.id,
+        tenantId: t.id,
+      })),
+      skipDuplicates: true,
+    });
+
+    await this.prisma.priceCampaign.update({
+      where: { id: campaign.id },
+      data: { autoMessageSent: true }
+    });
+
+    return campaign;
+  }
+
+  async listPriceCampaigns() {
+    return this.prisma.priceCampaign.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async deletePriceCampaign(id: string) {
+    return this.prisma.priceCampaign.delete({ where: { id } });
+  }
+
+  async getActivePriceCampaigns() {
+    const now = new Date();
+    return this.prisma.priceCampaign.findMany({
+      where: {
+        isActive: true,
+        validFrom: { lte: now },
+        OR: [
+          { validTo: null },
+          { validTo: { gte: now } }
+        ]
+      }
+    });
+  }
+
+  async getActivePopups(tenantId: string) {
+    const now = new Date();
+    // Get future INCREASE campaigns
+    const futureIncreases = await this.prisma.priceCampaign.findMany({
+      where: {
+        isActive: true,
+        type: 'INCREASE',
+        validFrom: { gt: now }
+      }
+    });
+
+    if (futureIncreases.length === 0) return [];
+
+    const acks = await this.prisma.tenantPopupAck.findMany({
+      where: {
+        tenantId,
+        campaignId: { in: futureIncreases.map(c => c.id) },
+        ackType: 'DONT_SHOW_AGAIN'
+      }
+    });
+    
+    const ackedIds = new Set(acks.map(a => a.campaignId));
+    return futureIncreases.filter(c => !ackedIds.has(c.id));
+  }
+
+  async ackPopup(tenantId: string, campaignId: string, ackType: string) {
+    return this.prisma.tenantPopupAck.upsert({
+      where: { tenantId_campaignId: { tenantId, campaignId } },
+      update: { ackType },
+      create: { tenantId, campaignId, ackType }
+    });
   }
 }

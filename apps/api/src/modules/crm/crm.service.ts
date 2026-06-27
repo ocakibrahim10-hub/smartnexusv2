@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { LeadStatus } from '@prisma/client';
 
 @Injectable()
 export class CrmService {
@@ -32,7 +33,7 @@ export class CrmService {
 
     const updated = await this.prisma.lead.update({
       where: { id: leadId },
-      data: { status },
+      data: { status: status as LeadStatus },
     });
 
     if (status === 'WON') {

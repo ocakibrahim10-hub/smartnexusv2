@@ -39,6 +39,7 @@ type Props = {
   showProrataHint?: boolean;
   remainingDays?: number;
   prorataPrices?: Record<string, number>;
+  isAdminPreview?: boolean;
 };
 
 /** Fiyatlandırma sayfası ve admin önizlemesi için ortak görünüm */
@@ -57,6 +58,7 @@ export default function PricingCatalogPreview({
   showProrataHint,
   remainingDays,
   prorataPrices,
+  isAdminPreview = false,
 }: Props) {
   const plans = pricing?.plans ?? [];
   const kontorModules = useMemo(
@@ -73,6 +75,7 @@ export default function PricingCatalogPreview({
         compact={compact}
         selectedPlan={selectedPlan}
         onPlanSelect={onPlanChange}
+        isAdminPreview={isAdminPreview}
       />
 
       {onToggleExtraCart && (

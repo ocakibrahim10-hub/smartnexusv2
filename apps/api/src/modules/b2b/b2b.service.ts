@@ -367,7 +367,10 @@ export class B2bService {
   }
 
   private async findOrderOrThrow(tenantId: string, id: string) {
-    const o = await this.prisma.b2BOrder.findFirst({ where: { id, tenantId } });
+    const o = await this.prisma.b2BOrder.findFirst({ 
+      where: { id, tenantId },
+      include: { lines: true }
+    });
     if (!o) throw new NotFoundException('B2B sipariş bulunamadı');
     return o;
   }

@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -372,5 +373,45 @@ export class PlatformController {
       throw new UnauthorizedException('Geçersiz runtime anahtarı');
     }
     return this.platform.getChatbotRuntimeConfig();
+  }
+
+  // --- Price Campaigns --------------------------------------------------------
+
+  @Post('campaigns')
+  createPriceCampaign(@Request() req: any, @Body() body: any) {
+    this.platform.assertSuperAdmin(req.user.tenantType);
+    return this.platform.createPriceCampaign(body);
+  }
+
+  @Get('campaigns')
+  listPriceCampaigns(@Request() req: any) {
+    this.platform.assertSuperAdmin(req.user.tenantType);
+    return this.platform.listPriceCampaigns();
+  }
+
+  @Delete('campaigns/:id')
+  deletePriceCampaign(@Request() req: any, @Param('id') id: string) {
+    this.platform.assertSuperAdmin(req.user.tenantType);
+    return this.platform.deletePriceCampaign(id);
+  }
+
+  @Get('campaigns/active')
+  getActivePriceCampaigns() {
+    return this.platform.getActivePriceCampaigns();
+  }
+
+  @Get('popups/active')
+  getActivePopups(@Request() req: any) {
+    // Only tenants see popups, Superadmin doesn't need to.
+    return this.platform.getActivePopups(req.user.tenantId);
+  }
+
+  @Post('popups/:campaignId/ack')
+  ackPopup(
+    @Request() req: any, 
+    @Param('campaignId') campaignId: string, 
+    @Body('ackType') ackType: string
+  ) {
+    return this.platform.ackPopup(req.user.tenantId, campaignId, ackType);
   }
 }

@@ -17,6 +17,7 @@ import {
   submodulePriceMap,
 } from '@/lib/submodule-pricing';
 import { MODULE_CATALOG } from '@/lib/modules';
+import CampaignsSection from '@/components/pricing/CampaignsSection';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -192,6 +193,7 @@ export default function PackagesPage() {
             }
             selectedPlan={PLAN_ORDER[0]}
             compact
+            isAdminPreview={true}
           />
           <div className="mt-4 flex flex-wrap gap-2">
             {PLAN_ORDER.map((p) => (
@@ -481,6 +483,11 @@ export default function PackagesPage() {
             </button>
           </div>
         </div>
+
+        {/* --- KAMPANYALAR BÖLÜMÜ --- */}
+        <section className="mt-8">
+          <CampaignsSection />
+        </section>
       </div>
     </>
   );

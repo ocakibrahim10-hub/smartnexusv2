@@ -13,6 +13,7 @@ import { authApi } from '@/lib/api';
 import { finalizeSubscriptionPayment } from '@/lib/finalize-subscription-payment';
 import { isPanelType, panelLoginPath, stripPanelPrefix, inferPanelFromTenantType } from '@/lib/panel';
 import SubscriptionAlertBanner from '@/components/SubscriptionAlertBanner';
+import CampaignPopup from '@/components/layout/CampaignPopup';
 
 export default function PanelLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -127,6 +128,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
   return (
     <ThemeProvider>
       <PwaRegister />
+      {panel !== 'nexusadmin' && <CampaignPopup />}
       <div className="dashboard-shell flex h-screen overflow-hidden">
         <PanelSidebar panel={panel} />
         <main className="dashboard-main flex-1 overflow-y-auto">

@@ -39,6 +39,7 @@ type Props = {
   compact?: boolean;
   selectedPlan?: string;
   onPlanSelect?: (plan: string) => void;
+  isAdminPreview?: boolean;
 };
 
 const INITIAL_FEATURES = 5;
@@ -98,6 +99,7 @@ export default function PricingPlanCards({
   compact = false,
   selectedPlan,
   onPlanSelect,
+  isAdminPreview = false,
 }: Props) {
   const ordered = PLAN_ORDER.map((key) => plans.find((p) => p.plan === key)).filter(Boolean) as PricingPlan[];
 
@@ -108,7 +110,18 @@ export default function PricingPlanCards({
           const meta = PLAN_META[p.plan] || { label: planLabel(p.plan), tagline: '', color: 'border-gray-200' };
           const labels = resolvePricingModuleLabels(p);
           const pricing = applyDiscount(p.listPrice ?? p.price, p.discountPercent ?? 0);
-          const hasDiscount = pricing.discountPercent > 0;
+          
+          let hasDiscount = pricing.discountPercent > 0;
+          let displayListPrice = pricing.listPrice;
+          
+          // Override for admin preview to show sum of modules
+          const computedTotal = (p as any).computedModuleTotal;
+          if (isAdminPreview && computedTotal && computedTotal > pricing.finalPrice) {
+            hasDiscount = true;
+            displayListPrice = computedTotal;
+            pricing.discountPercent = Math.round(((computedTotal - pricing.finalPrice) / computedTotal) * 100);
+          }
+
           const isSelected = selectedPlan === p.plan;
 
           return (
@@ -143,7 +156,7 @@ export default function PricingPlanCards({
               <div className="mb-1">
                 {hasDiscount && (
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-xs text-gray-400 line-through">{fmtMoney(pricing.listPrice)}</span>
+                    <span className="text-xs text-gray-400 line-through">{fmtMoney(displayListPrice)}</span>
                     <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
                       %{pricing.discountPercent} indirim
                     </span>
