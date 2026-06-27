@@ -95,6 +95,8 @@ export const authApi = {
     api.post('/auth/register-business', body).then((r) => r.data),
   logout: () => api.post('/auth/logout').then((r) => r.data),
   me: () => api.post('/auth/me').then((r) => r.data),
+  updatePreferences: (preferences: unknown) => 
+    api.patch('/users/me/preferences', preferences).then((r) => r.data),
 };
 
 // Reports

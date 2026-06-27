@@ -14,6 +14,7 @@ export interface AuthUser {
   avatarUrl?: string;
   subscriptionEndDate?: string;
   parentSubscriptionEndDate?: string;
+  preferences?: any;
 }
 
 export function getUser(): AuthUser | null {
@@ -32,6 +33,10 @@ export function setSession(data: { user: AuthUser; accessToken: string; refreshT
   localStorage.setItem('accessToken', data.accessToken);
   localStorage.setItem('refreshToken', data.refreshToken);
   if (data.user.panel) localStorage.setItem('panel', data.user.panel);
+}
+
+export function setUser(user: AuthUser) {
+  localStorage.setItem('user', JSON.stringify(user));
 }
 
 export function clearSession() {

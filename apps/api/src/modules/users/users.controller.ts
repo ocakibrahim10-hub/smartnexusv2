@@ -56,6 +56,11 @@ export class UsersController {
     return this.usersService.create(req.user.tenantId, req.user.role, dto);
   }
 
+  @Patch('me/preferences')
+  updatePreferences(@Request() req: any, @Body() dto: any) {
+    return this.usersService.updatePreferences(req.user.id, dto);
+  }
+
   @Patch(':id')
   @Roles('OWNER', 'ADMIN')
   update(@Param('id') id: string, @Body() dto: any, @Request() req: any) {

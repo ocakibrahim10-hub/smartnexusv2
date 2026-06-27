@@ -190,6 +190,14 @@ export class UsersService {
     });
   }
 
+  async updatePreferences(userId: string, preferences: any) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { preferences },
+      select: { id: true, preferences: true },
+    });
+  }
+
   async findOne(tenantId: string, actorRole: string, id: string) {
     this.assertCanManage(actorRole);
     const user = await this.prisma.user.findFirst({

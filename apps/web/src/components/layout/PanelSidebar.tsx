@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -41,12 +41,16 @@ import {
   Database,
   ScanLine,
   MapPin,
+  Search,
+  PlusSquare,
+  CheckSquare
 } from 'lucide-react';
 import { clearSession, getUser } from '@/lib/auth';
 import { authApi } from '@/lib/api';
 import { hasModuleAccess } from '@/lib/modules';
 import { ROLE_CFG, canManageUsers } from '@/lib/role-permissions';
 import { PanelType, withPanel, panelLoginPath, panelLabel } from '@/lib/panel';
+import { useShortcuts } from '@/hooks/useShortcuts';
 
 type NavItem = {
   label: string;
@@ -174,65 +178,139 @@ const isletmeNav: NavItem[] = [
   { label: 'Boss Screen', icon: LayoutDashboard, href: '/dashboard' },
   { label: 'Hızlı Satış (POS)', icon: Monitor, href: '/pos', module: 'POS.MAIN' },
   {
-    label: 'Stok & Depo',
+    label: 'Malzeme Yönetimi',
     icon: Package,
     children: [
-      { label: 'Ürünler', icon: Package, href: '/inventory/products', module: 'INVENTORY.PRODUCTS' },
-      { label: 'Depolar', icon: Warehouse, href: '/inventory/warehouses', module: 'INVENTORY.WAREHOUSES' },
-      { label: 'Stok Hareketleri', icon: BarChart3, href: '/inventory/movements', module: 'INVENTORY.MOVEMENTS' },
-      { label: 'Transferler', icon: GitBranch, href: '/inventory/transfers', module: 'INVENTORY.TRANSFERS' },
-      { label: 'AI Tahmin', icon: Brain, href: '/inventory/forecasting', module: 'INVENTORY.FORECASTING' },
+      {
+        label: 'Ana Kayıtlar',
+        icon: FileText,
+        children: [
+          { label: 'Ürünler', icon: Package, href: '/inventory/products', module: 'INVENTORY.PRODUCTS' },
+          { label: 'Depolar', icon: Warehouse, href: '/inventory/warehouses', module: 'INVENTORY.WAREHOUSES' },
+        ]
+      },
+      {
+        label: 'Hareketler',
+        icon: Activity,
+        children: [
+          { label: 'Stok Hareketleri', icon: BarChart3, href: '/inventory/movements', module: 'INVENTORY.MOVEMENTS' },
+          { label: 'Transferler', icon: GitBranch, href: '/inventory/transfers', module: 'INVENTORY.TRANSFERS' },
+        ]
+      },
+      {
+        label: 'Raporlar',
+        icon: PieChart,
+        children: [
+          { label: 'Yapay Zeka (AI) Tahmin', icon: Brain, href: '/inventory/forecasting', module: 'INVENTORY.FORECASTING' }
+        ]
+      }
     ],
   },
   {
-    label: 'Muhasebe',
+    label: 'Satış ve Dağıtım',
+    icon: ShoppingCart,
+    children: [
+      {
+        label: 'İşlemler',
+        icon: Activity,
+        children: [
+          { label: 'Satış Faturaları', icon: FileText, href: '/accounting/invoices', module: 'ACCOUNTING.INVOICES' },
+        ]
+      },
+      {
+        label: 'B2B & Pazaryeri',
+        icon: ShoppingBag,
+        children: [
+          { label: 'B2B Siparişler', icon: ShoppingCart, href: '/b2b/orders', module: 'B2B.ORDERS' },
+          { label: 'B2B Müşteriler', icon: Users, href: '/b2b/customers', module: 'B2B.CUSTOMERS' },
+          { label: 'Fiyat Listeleri', icon: FileText, href: '/b2b/price-lists', module: 'B2B.PRICE_LISTS' },
+          { label: 'Pazaryeri', icon: ShoppingBag, href: '/marketplace', module: 'MARKETPLACE.MAIN' },
+          { label: 'E-Ticaret (B2C)', icon: Globe, href: '/b2c', module: 'B2C.MAIN' },
+        ]
+      },
+      {
+        label: 'TMS (Lojistik)',
+        icon: Truck,
+        children: [
+          { label: 'Sevkiyatlar', icon: Truck, href: '/tms/shipments', module: 'TMS.SHIPMENTS' },
+          { label: 'Araçlar', icon: Truck, href: '/tms/vehicles', module: 'TMS.VEHICLES' },
+        ]
+      }
+    ]
+  },
+  {
+    label: 'Satınalma',
+    icon: ShoppingBag,
+    children: [
+      {
+        label: 'İşlemler',
+        icon: Activity,
+        children: [
+          { label: 'Alım Faturaları', icon: Package, href: '/accounting/purchases', module: 'ACCOUNTING.INVOICES' },
+        ]
+      }
+    ]
+  },
+  {
+    label: 'Finans',
+    icon: Wallet,
+    children: [
+      {
+        label: 'Ana Kayıtlar',
+        icon: FileText,
+        children: [
+          { label: 'Cari Hesaplar', icon: Users, href: '/accounting/contacts', module: 'ACCOUNTING.CONTACTS' },
+          { label: 'Kasa & Banka', icon: Wallet, href: '/accounting/cash', module: 'ACCOUNTING.CASH' },
+        ]
+      },
+      {
+        label: 'Hareketler',
+        icon: Activity,
+        children: [
+          { label: 'Çek / Senet', icon: Receipt, href: '/accounting/checks', module: 'ACCOUNTING.CASH' },
+          { label: 'Giderler', icon: Receipt, href: '/accounting/expenses', module: 'ACCOUNTING.EXPENSES' },
+        ]
+      },
+      {
+        label: 'Raporlar',
+        icon: PieChart,
+        children: [
+          { label: 'Raporlar Merkezi', icon: BarChart3, href: '/reports', module: 'ACCOUNTING.REPORTS' },
+          { label: 'Denetim Kaydı', icon: Shield, href: '/accounting/audit', module: 'ACCOUNTING.AUDIT' },
+        ]
+      }
+    ]
+  },
+  {
+    label: 'Genel Muhasebe',
     icon: BookOpen,
     children: [
-      { label: 'Faturalar', icon: FileText, href: '/accounting/invoices', module: 'ACCOUNTING.INVOICES' },
-      { label: 'Malzeme Alış', icon: Package, href: '/accounting/purchases', module: 'ACCOUNTING.INVOICES' },
-      { label: 'Çek Defteri', icon: Receipt, href: '/accounting/checks', module: 'ACCOUNTING.CASH' },
-      { label: 'Cari Hesaplar', icon: Users, href: '/accounting/contacts', module: 'ACCOUNTING.CONTACTS' },
-      { label: 'Kasa & Banka', icon: Wallet, href: '/accounting/cash', module: 'ACCOUNTING.CASH' },
-      { label: 'Genel Muhasebe', icon: BookOpen, href: '/accounting/ledger', module: 'ACCOUNTING.LEDGER' },
-      { label: 'Giderler', icon: Receipt, href: '/accounting/expenses', module: 'ACCOUNTING.EXPENSES' },
-      { label: 'Denetim Kaydı', icon: Shield, href: '/accounting/audit', module: 'ACCOUNTING.AUDIT' },
-      { label: 'E-Dönüşüm', icon: FileText, href: '/accounting/einvoice', module: 'ACCOUNTING.EDOCUMENT' },
-    ],
+      { label: 'Yevmiye / Mizan', icon: BookOpen, href: '/accounting/ledger', module: 'ACCOUNTING.LEDGER' },
+    ]
   },
   {
     label: 'Üretim (MRP)',
-    icon: Package,
+    icon: Factory,
     children: [
       { label: 'Reçeteler (BOM)', icon: FileText, href: '/mrp/boms', module: 'MRP.MAIN' },
       { label: 'İş Emirleri', icon: Activity, href: '/mrp/work-orders', module: 'MRP.MAIN' },
     ],
   },
   {
-    label: 'TMS & Lojistik',
-    icon: Truck,
-    children: [
-      { label: 'Sevkiyatlar', icon: Truck, href: '/tms/shipments', module: 'TMS.SHIPMENTS' },
-      { label: 'Araçlar', icon: Truck, href: '/tms/vehicles', module: 'TMS.VEHICLES' },
-    ],
-  },
-  {
-    label: 'B2B',
-    icon: ShoppingCart,
-    children: [
-      { label: 'Siparişler', icon: ShoppingCart, href: '/b2b/orders', module: 'B2B.ORDERS' },
-      { label: 'Müşteriler', icon: Users, href: '/b2b/customers', module: 'B2B.CUSTOMERS' },
-      { label: 'Fiyat Listeleri', icon: FileText, href: '/b2b/price-lists', module: 'B2B.PRICE_LISTS' },
-    ],
-  },
-  { label: 'Pazaryeri', icon: ShoppingBag, href: '/marketplace', module: 'MARKETPLACE.MAIN' },
-  { label: 'E-Ticaret (B2C)', icon: ShoppingCart, href: '/b2c', module: 'B2C.MAIN' },
-  {
     label: 'İnsan Kaynakları',
-    icon: Users,
+    icon: UserCog,
     children: [
       { label: 'Personel Listesi', icon: Users, href: '/hr/personnel', module: 'HR.PERSONNEL' },
       { label: 'İzin Yönetimi', icon: FileText, href: '/hr/leaves', module: 'HR.LEAVES' },
       { label: 'Bordrolar', icon: Receipt, href: '/hr/payroll', module: 'HR.PAYROLL' },
+    ],
+  },
+  {
+    label: 'Müşteri İlişkileri (CRM)',
+    icon: Users,
+    children: [
+      { label: 'Aday Müşteriler', icon: Users, href: '/crm/leads', module: 'CRM.LEADS' },
+      { label: 'Satış Hunisi', icon: Activity, href: '/crm/pipeline', module: 'CRM.PIPELINE' },
     ],
   },
   {
@@ -245,16 +323,14 @@ const isletmeNav: NavItem[] = [
     ],
   },
   {
-    label: 'Müşteri İlişkileri',
-    icon: Users,
+    label: 'e-Devlet (e-Dönüşüm)',
+    icon: Globe,
     children: [
-      { label: 'Satış Hunisi', icon: Activity, href: '/crm/pipeline', module: 'CRM.PIPELINE' },
-      { label: 'Aday Müşteriler', icon: Users, href: '/crm/leads', module: 'CRM.LEADS' },
-    ],
+      { label: 'e-Fatura / e-Arşiv', icon: FileText, href: '/accounting/einvoice', module: 'ACCOUNTING.EDOCUMENT' },
+    ]
   },
   { label: 'AI Asistan', icon: Bot, href: '/ai-assistant', module: 'AI.ASSISTANT' },
   { label: 'Kontör', icon: Coins, href: '/kontor', managerOnly: true },
-  { label: 'Raporlar', icon: BarChart3, href: '/reports', module: 'ACCOUNTING.REPORTS' },
   {
     label: 'Şubeler',
     icon: GitBranch,
@@ -272,6 +348,29 @@ function getNavForPanel(panel: PanelType): NavItem[] {
   return prefixNav(isletmeNav, panel);
 }
 
+// Rekürsif arama fonksiyonu
+function searchNavItems(items: NavItem[], query: string): NavItem[] {
+  if (!query) return items;
+  const lowerQuery = query.toLowerCase();
+
+  return items.map(item => {
+    const matchSelf = item.label.toLowerCase().includes(lowerQuery);
+    let filteredChildren: NavItem[] = [];
+    
+    if (item.children) {
+      filteredChildren = searchNavItems(item.children, query);
+    }
+
+    if (matchSelf || filteredChildren.length > 0) {
+      return {
+        ...item,
+        children: item.children ? (matchSelf && !filteredChildren.length ? item.children : filteredChildren) : undefined
+      };
+    }
+    return null;
+  }).filter(Boolean) as NavItem[];
+}
+
 export default function PanelSidebar({ panel }: { panel: PanelType }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -279,44 +378,79 @@ export default function PanelSidebar({ panel }: { panel: PanelType }) {
   const userModules: string[] = user?.modules ?? [];
   const tenantType = user?.tenantType ?? '';
   const navConfig = getNavForPanel(panel);
+  
+  const { shortcuts, addShortcut, removeShortcut, hasShortcut } = useShortcuts();
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [openGroups, setOpenGroups] = useState<string[]>([]);
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Sayfa yüklendiğinde aktif olan grubu bul
+  useEffect(() => {
+    const findActiveGroups = (items: NavItem[], path: string[] = []): string[] => {
+      for (const item of items) {
+        if (item.href && pathname.startsWith(item.href)) return path;
+        if (item.children) {
+          const found = findActiveGroups(item.children, [...path, item.label]);
+          if (found.length) return found;
+        }
+      }
+      return [];
+    };
+    
+    const activeGroups = findActiveGroups(navConfig);
+    if (activeGroups.length > 0) {
+      setOpenGroups(prev => Array.from(new Set([...prev, ...activeGroups])));
+    }
+  }, [pathname, navConfig]);
 
   const hasModule = (mod?: string) => hasModuleAccess(userModules, mod, tenantType);
   const hasRole = (roles?: string[]) => !roles || roles.includes(tenantType);
   const hasTenantType = (types?: string[]) => !types || types.includes(tenantType);
   const isManager = canManageUsers(user?.role || '');
+  
   const canShow = (item: NavItem) =>
     hasRole(item.roles) &&
     hasTenantType(item.tenantTypes) &&
     (!item.managerOnly || isManager) &&
     hasModule(item.module);
 
-  const visibleNav = navConfig.filter((item) => {
-    if (!canShow(item)) return false;
-    if (item.children) return item.children.some((c) => canShow(c));
-    return true;
-  });
-
-  // Aktif sayfaya göre hangi grup açık olacağını hesapla
-  const findActiveGroup = () => {
-    for (const item of visibleNav) {
+  // Rol ve yetkilere göre filtrele
+  const filterByPermissions = (items: NavItem[]): NavItem[] => {
+    return items.map(item => {
+      if (!canShow(item)) return null;
+      let children: NavItem[] | undefined = undefined;
       if (item.children) {
-        const match = item.children.some((c) => c.href && pathname.startsWith(c.href));
-        if (match) return item.label;
+        children = filterByPermissions(item.children);
+        if (children.length === 0) return null;
       }
-    }
-    return null;
+      return { ...item, children };
+    }).filter(Boolean) as NavItem[];
   };
 
-  const [openGroups, setOpenGroups] = useState<string[]>(() => {
-    const active = findActiveGroup();
-    return active ? [active] : [];
-  });
-  const [collapsed, setCollapsed] = useState(false);
+  const permittedNav = useMemo(() => filterByPermissions(navConfig), [navConfig]);
+  const visibleNav = useMemo(() => searchNavItems(permittedNav, searchQuery), [permittedNav, searchQuery]);
 
-  // Accordion: sadece tek grup açık
+  // Arama yapıldığında tüm grupları aç
+  useEffect(() => {
+    if (searchQuery.length > 1) {
+      const allGroupLabels: string[] = [];
+      const extractLabels = (items: NavItem[]) => {
+        items.forEach(it => {
+          if (it.children) {
+            allGroupLabels.push(it.label);
+            extractLabels(it.children);
+          }
+        });
+      };
+      extractLabels(visibleNav);
+      setOpenGroups(allGroupLabels);
+    }
+  }, [searchQuery]);
+
   const toggleGroup = (label: string) => {
     setOpenGroups((prev) =>
-      prev.includes(label) ? [] : [label],
+      prev.includes(label) ? prev.filter(g => g !== label) : [...prev, label]
     );
   };
 
@@ -329,94 +463,124 @@ export default function PanelSidebar({ panel }: { panel: PanelType }) {
   };
 
   const isActive = (href?: string) => href && pathname === href;
-  const isGroupActive = (item: NavItem) =>
-    item.children?.some((c) => c.href && pathname.startsWith(c.href));
-
-  return (
-    <aside
-      className={`dashboard-sidebar flex flex-col h-screen transition-all duration-300 z-30 flex-shrink-0 ${collapsed ? 'w-[72px]' : 'w-[260px]'}`}
-    >
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-200">
-        <div
-          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-white bg-[var(--theme-primary)]"
-        >
-          <Zap className="w-4 h-4" />
+  
+  // Render Item (Recursive)
+  const renderItem = (item: NavItem, depth: number = 0) => {
+    if (!item.children) {
+      const active = isActive(item.href);
+      const isShortcut = item.href ? hasShortcut(item.href) : false;
+      return (
+        <div key={item.label} className="group relative flex items-center pr-2">
+          <button
+            onClick={() => item.href && router.push(item.href)}
+            className={`sidebar-item w-full flex items-center py-2 transition-colors hover:bg-gray-100 ${active ? 'active bg-blue-50 text-blue-700 rounded-md font-medium' : 'text-gray-600'}`}
+            style={{ paddingLeft: `${(depth * 1) + 1}rem` }}
+          >
+            <item.icon className={`${depth > 0 ? 'w-4 h-4 text-gray-400' : 'w-4 h-4'} flex-shrink-0 mr-3`} />
+            {!collapsed && <span className="flex-1 text-left truncate text-[13px]">{item.label}</span>}
+          </button>
+          
+          {!collapsed && item.href && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (isShortcut) {
+                   removeShortcut(item.href as string);
+                } else {
+                   addShortcut({ label: item.label, href: item.href as string, iconName: item.icon.displayName || 'FileText' });
+                }
+              }}
+              className={`absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-gray-200 z-10 ${isShortcut ? 'text-green-600 opacity-100' : 'text-gray-400'}`}
+              title={isShortcut ? "Masaüstünden Kaldır" : "Masaüstüne Kısayol Ekle"}
+            >
+              {isShortcut ? <CheckSquare className="w-3.5 h-3.5" /> : <PlusSquare className="w-3.5 h-3.5" />}
+            </button>
+          )}
         </div>
-        {!collapsed && (
-          <div className="min-w-0">
-            <div className="text-gray-900 font-bold text-base leading-none">SmartNexus</div>
-            <div className="text-gray-500 text-xs mt-0.5 truncate">{panelLabel(panel)}</div>
+      );
+    }
+
+    const isOpen = openGroups.includes(item.label);
+
+    return (
+      <div key={item.label} className="w-full">
+        <button
+          onClick={() => toggleGroup(item.label)}
+          className={`sidebar-item w-full flex items-center py-2.5 transition-colors hover:bg-gray-50 ${isOpen && depth === 0 ? 'text-gray-900 font-semibold' : 'text-gray-700'}`}
+          style={{ paddingLeft: `${(depth * 1) + 1}rem` }}
+        >
+          <item.icon className={`${depth > 0 ? 'w-4 h-4 text-gray-500' : 'w-4 h-4 text-gray-600'} flex-shrink-0 mr-3`} />
+          {!collapsed && (
+            <>
+              <span className={`flex-1 text-left truncate ${depth > 0 ? 'text-[13px]' : 'text-sm'}`}>{item.label}</span>
+              {isOpen ? (
+                <ChevronDown className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 ml-2 mr-2" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 ml-2 mr-2" />
+              )}
+            </>
+          )}
+        </button>
+        {isOpen && !collapsed && (
+          <div className="flex flex-col">
+            {item.children.map(child => renderItem(child, depth + 1))}
           </div>
         )}
       </div>
+    );
+  };
 
-      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-0.5">
-        {visibleNav.map((item) => {
-          if (!item.children) {
-            return (
-              <button
-                key={item.label}
-                onClick={() => item.href && router.push(item.href)}
-                className={`sidebar-item w-full ${isActive(item.href) ? 'active' : ''}`}
-              >
-                <item.icon className="w-4 h-4 flex-shrink-0" />
-                {!collapsed && <span className="flex-1 text-left">{item.label}</span>}
-              </button>
-            );
-          }
-
-          const visibleChildren = item.children.filter(canShow);
-          if (visibleChildren.length === 0) return null;
-          const isOpen = openGroups.includes(item.label);
-
-          return (
-            <div key={item.label}>
-              <button
-                onClick={() => toggleGroup(item.label)}
-                className={`sidebar-item w-full ${isGroupActive(item) ? 'font-semibold' : ''}`}
-              >
-                <item.icon className="w-4 h-4 flex-shrink-0" />
-                {!collapsed && (
-                  <>
-                    <span className="flex-1 text-left">{item.label}</span>
-                    {isOpen ? (
-                      <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-                    ) : (
-                      <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
-                    )}
-                  </>
-                )}
-              </button>
-              {isOpen && !collapsed && (
-                <div className="ml-2 pl-4 border-l border-gray-200 mt-0.5 space-y-0.5">
-                  {visibleChildren.map((child) => (
-                    <button
-                      key={child.label}
-                      onClick={() => child.href && router.push(child.href)}
-                      className={`sidebar-item w-full text-xs py-2 ${isActive(child.href) ? 'active' : ''}`}
-                    >
-                      <child.icon className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span className="flex-1 text-left">{child.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+  return (
+    <aside
+      className={`dashboard-sidebar flex flex-col h-screen transition-all duration-300 z-30 flex-shrink-0 border-r border-gray-200 bg-[#f8f9fa] ${collapsed ? 'w-[72px]' : 'w-[280px]'}`}
+    >
+      <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200 bg-white">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-white bg-[var(--theme-primary)]">
+            <Zap className="w-4 h-4" />
+          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <div className="text-gray-900 font-bold text-base leading-none">SmartNexus</div>
+              <div className="text-gray-500 text-xs mt-0.5 truncate">{panelLabel(panel)}</div>
             </div>
-          );
-        })}
+          )}
+        </div>
+      </div>
+
+      {!collapsed && (
+        <div className="p-3 border-b border-gray-200 bg-[#f8f9fa]">
+          <div className="relative group">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500" />
+            <input
+              type="text"
+              placeholder="Menüde Arama Yapın..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm"
+            />
+          </div>
+        </div>
+      )}
+
+      <nav className="flex-1 overflow-y-auto py-2 space-y-0.5 custom-scrollbar bg-white">
+        {visibleNav.length === 0 ? (
+          <div className="text-center p-4 text-sm text-gray-500">Sonuç bulunamadı</div>
+        ) : (
+          visibleNav.map(item => renderItem(item, 0))
+        )}
       </nav>
 
-      <div className="p-3 border-t border-gray-200">
+      <div className="p-3 border-t border-gray-200 bg-[#f8f9fa]">
         {!collapsed ? (
-          <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0 bg-[var(--theme-primary)]"
-            >
+          <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-200 transition-all group">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0 bg-[var(--theme-primary)]">
               {user?.name?.charAt(0) || 'U'}
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-gray-900 text-xs font-semibold truncate">{user?.name}</div>
-              <div className="text-gray-500 text-xs truncate">
+              <div className="text-gray-500 text-[11px] truncate">
                 {ROLE_CFG[user?.role || '']?.label || user?.role}
               </div>
             </div>
@@ -434,6 +598,22 @@ export default function PanelSidebar({ panel }: { panel: PanelType }) {
           </button>
         )}
       </div>
+      
+      <style dangerouslySetInnerHTML={{__html: `
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #d1d5db;
+          border-radius: 4px;
+        }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+          background: #9ca3af;
+        }
+      `}} />
     </aside>
   );
 }
