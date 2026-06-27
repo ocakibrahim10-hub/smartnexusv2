@@ -350,6 +350,7 @@ async function main() {
       pw: hIsletme,
       name: 'Zeynep Arslan',
       role: 'OWNER',
+      posPin: '1234',
     },
     {
       id: 'usr-muh',
@@ -368,6 +369,7 @@ async function main() {
       name: 'Deniz Koç',
       role: 'CASHIER',
       phone: '5321234567',
+      posPin: '1234',
     },
     {
       id: 'usr-dep',
@@ -498,7 +500,7 @@ async function main() {
   for (const u of users) {
     await prisma.user.upsert({
       where: { email: u.email },
-      update: { password: u.pw, name: u.name, phone: (u as any).phone || undefined },
+      update: { password: u.pw, name: u.name, phone: (u as any).phone || undefined, posPin: (u as any).posPin || null },
       create: {
         id: u.id,
         tenantId: u.tid,
@@ -507,6 +509,7 @@ async function main() {
         name: u.name,
         role: u.role as any,
         phone: (u as any).phone || null,
+        posPin: (u as any).posPin || null,
       },
     });
   }
@@ -519,6 +522,11 @@ async function main() {
     { id: 'cat-ofis', name: 'Ofis Malzemeleri' },
     { id: 'cat-yazilim', name: 'Yazılım & Lisans' },
     { id: 'cat-network', name: 'Network & Altyapı' },
+    { id: 'cat-pos-1', name: 'HIŞIR POŞET' },
+    { id: 'cat-pos-2', name: 'KÖPÜK TABAK' },
+    { id: 'cat-pos-3', name: 'KASE SIZDIRMAZ' },
+    { id: 'cat-pos-4', name: 'AYPE TORBA' },
+    { id: 'cat-pos-5', name: 'POŞET BEYAZ' },
   ];
   for (const c of cats) {
     await prisma.productCategory.upsert({
@@ -713,6 +721,39 @@ async function main() {
       bar: null,
       srv: true,
       img: `${IMG}/photo-1553877522-43269d4ea984?w=400&h=400&fit=crop`,
+    },
+    {
+      id: 'prod-pos-01',
+      code: 'HSR-01',
+      name: 'HIŞIR P. ŞEFFAF MİNİ BOY(1KG/400 ADET)',
+      cat: 'cat-pos-1',
+      pp: 30,
+      sp: 45,
+      min: 10,
+      unit: 'KG',
+      bar: '869100000001',
+    },
+    {
+      id: 'prod-pos-02',
+      code: 'HSR-02',
+      name: 'HIŞIR P. ŞEFFAF KÜÇÜK BOY(1KG/220ADET)',
+      cat: 'cat-pos-1',
+      pp: 30,
+      sp: 45,
+      min: 10,
+      unit: 'KG',
+      bar: '869100000002',
+    },
+    {
+      id: 'prod-pos-03',
+      code: 'HSR-03',
+      name: 'HIŞIR P. ŞEFFAF ORTA BOY(1KG/150ADET)',
+      cat: 'cat-pos-1',
+      pp: 30,
+      sp: 45,
+      min: 10,
+      unit: 'KG',
+      bar: '869100000003',
     },
   ];
   for (const p of products) {

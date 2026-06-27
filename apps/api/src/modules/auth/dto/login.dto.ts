@@ -33,3 +33,14 @@ export class PhoneLoginDto {
   @IsIn(['nexusadmin', 'bayi', 'isletme'])
   panel?: 'nexusadmin' | 'bayi' | 'isletme';
 }
+
+export class PosLoginDto {
+  @ApiProperty({ example: '1234' })
+  @IsString()
+  @MinLength(4)
+  posPin: string;
+
+  @ApiProperty({ example: 'tenant-id-here' })
+  @IsString()
+  tenantId: string;
+}

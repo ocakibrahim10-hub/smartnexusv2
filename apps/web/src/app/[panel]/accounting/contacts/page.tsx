@@ -948,7 +948,7 @@ export default function ContactsPage() {
                 <h3 className="font-bold text-gray-900">Hızlı Satış (Borçlandır)</h3>
                 <p className="text-xs text-gray-500 mt-0.5">{selected?.name}</p>
               </div>
-              <button onClick={() => setShowQuickSale(false)} className="text-gray-400 hover:text-gray-600 transition-colors bg-white rounded-full p-1 shadow-sm">
+              <button title="Kapat" aria-label="Kapat" onClick={() => setShowQuickSale(false)} className="text-gray-400 hover:text-gray-600 transition-colors bg-white rounded-full p-1 shadow-sm">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -977,6 +977,8 @@ export default function ContactsPage() {
                 <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">Tarih</label>
                 <input
                   type="date"
+                  title="Tarih Seçiniz"
+                  placeholder="Tarih"
                   value={quickSaleForm.date}
                   onChange={(e) => setQuickSaleForm({ ...quickSaleForm, date: e.target.value })}
                   className="input w-full shadow-sm text-sm py-2"
@@ -1004,7 +1006,7 @@ export default function ContactsPage() {
                 <h3 className="font-bold text-gray-900">Tahsilat Al</h3>
                 <p className="text-xs text-gray-500 mt-0.5">{selected?.name}</p>
               </div>
-              <button onClick={() => setShowQuickCollection(false)} className="text-gray-400 hover:text-gray-600 transition-colors bg-white rounded-full p-1 shadow-sm">
+              <button title="Kapat" aria-label="Kapat" onClick={() => setShowQuickCollection(false)} className="text-gray-400 hover:text-gray-600 transition-colors bg-white rounded-full p-1 shadow-sm">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1022,6 +1024,8 @@ export default function ContactsPage() {
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">Hesap / Kasa</label>
                 <select
+                  title="Hesap Seçiniz"
+                  aria-label="Hesap Seçiniz"
                   value={quickCollectionForm.accountId}
                   onChange={(e) => setQuickCollectionForm({ ...quickCollectionForm, accountId: e.target.value })}
                   className="input w-full shadow-sm text-sm py-2 bg-white"
@@ -1046,6 +1050,8 @@ export default function ContactsPage() {
                 <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">Tarih</label>
                 <input
                   type="date"
+                  title="Tarih Seçiniz"
+                  placeholder="Tarih"
                   value={quickCollectionForm.date}
                   onChange={(e) => setQuickCollectionForm({ ...quickCollectionForm, date: e.target.value })}
                   className="input w-full shadow-sm text-sm py-2"

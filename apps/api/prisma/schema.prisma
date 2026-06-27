@@ -243,6 +243,7 @@ model User {
   lastLoginAt DateTime?
   avatarUrl   String?
   preferences Json?     // Stores UI preferences, shortcuts, dashboard layout etc.
+  posPin      String?   // Pin for POS terminal login
   phone       String?
   contactId   String?   @unique
   contact     Contact?  @relation("UserPersonnelContact", fields: [contactId], references: [id], onDelete: SetNull)

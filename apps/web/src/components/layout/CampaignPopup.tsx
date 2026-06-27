@@ -65,7 +65,7 @@ export default function CampaignPopup() {
               <p className="text-xs text-gray-500 mt-0.5">Fiyat Güncellemesi</p>
             </div>
           </div>
-          <button onClick={() => handleAck(current.id, 'LATER')} className="text-gray-400 hover:text-gray-600">
+          <button title="Kapat" aria-label="Kapat" onClick={() => handleAck(current.id, 'LATER')} className="text-gray-400 hover:text-gray-600">
             <X className="w-5 h-5" />
           </button>
         </div>

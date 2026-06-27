@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../prisma/prisma.service';
-import { LoginDto, PhoneLoginDto } from './dto/login.dto';
+import { LoginDto, PhoneLoginDto, PosLoginDto } from './dto/login.dto';
 import { RegisterBusinessDto } from './dto/register-business.dto';
 import { buildAuthUserPayload } from '../../common/effective-user-modules';
 import { getPanelHomeRoute, validatePanelAccess, inferPanel, PanelType } from '../../common/panel-access';
@@ -120,6 +120,42 @@ export class AuthService {
         ...profile,
         panel,
         homeRoute: getPanelHomeRoute(user.role, profile.modules, panel),
+      },
+      ...tokens,
+    };
+  }
+
+  async loginPos(dto: PosLoginDto) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        tenantId: dto.tenantId,
+        posPin: dto.posPin,
+        isActive: true,
+        tenant: { isActive: true },
+      },
+      include: {
+        tenant: { include: { subscription: true, parent: { include: { subscription: true } } } },
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Geçersiz PIN veya pasif hesap');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
+    const tokens = await this.generateTokens(user.id, user.email, user.tenantId, user.role);
+    const profile = buildAuthUserPayload(user);
+    const panel = 'isletme';
+
+    return {
+      user: {
+        ...profile,
+        panel,
+        homeRoute: '/pos-terminal',
       },
       ...tokens,
     };

@@ -11,7 +11,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
-import { LoginDto, PhoneLoginDto } from './dto/login.dto';
+import { LoginDto, PhoneLoginDto, PosLoginDto } from './dto/login.dto';
 import { RegisterBusinessDto } from './dto/register-business.dto';
 import { Public } from './decorators/public.decorator';
 
@@ -34,6 +34,14 @@ export class AuthController {
   @ApiOperation({ summary: 'Telefon veya e-posta benzeri numara ile giriş' })
   loginPhone(@Body() dto: PhoneLoginDto) {
     return this.authService.loginByPhone(dto);
+  }
+
+  @Post('login-pos')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'POS terminali için PIN ile hızlı giriş' })
+  loginPos(@Body() dto: PosLoginDto) {
+    return this.authService.loginPos(dto);
   }
 
   @Post('register-business')
