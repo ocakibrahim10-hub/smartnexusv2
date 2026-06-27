@@ -79,7 +79,33 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
             isActive: true,
           },
         });
-        this.logger.log('Demo tenant and isletme user created.');
+
+        // Diğer telefonlu demo kullanıcıları
+        const phoneDemoUsers = [
+          { email: 'kasiyer@demo.com', phone: '5321234567', name: 'Demo Kasiyer', role: 'CASHIER' },
+          { email: 'depo@demo.com', phone: '5321234568', name: 'Demo Depo', role: 'WAREHOUSE' },
+          { email: 'sofor@demo.com', phone: '5321234569', name: 'Demo Şoför', role: 'DRIVER' },
+          { email: 'personel@demo.com', phone: '5321234570', name: 'Demo Personel', role: 'STAFF' },
+        ];
+
+        for (const u of phoneDemoUsers) {
+          const exists = await this.user.findFirst({ where: { email: u.email } });
+          if (!exists) {
+            await this.user.create({
+              data: {
+                tenantId: demoTenant.id,
+                email: u.email,
+                phone: u.phone,
+                password: demoPassword,
+                name: u.name,
+                role: u.role as any,
+                isActive: true,
+              },
+            });
+          }
+        }
+        
+        this.logger.log('Demo tenant and all isletme users created.');
       }
     } catch (e) {
       this.logger.error('Failed to seed tenants', e);
