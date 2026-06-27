@@ -13,10 +13,15 @@ export class HealthController {
     return { status: 'ok', service: 'smartnexus-api', timestamp: new Date().toISOString() };
   }
 
-  @Get('debug-env')
+  @Get('fix-demo')
   @Public()
-  debugEnv() {
-    return { db: process.env.DATABASE_URL };
+  async fixDemo() {
+    try {
+      await this.prisma.ensureCoreDemoAccounts();
+      return { success: true, message: 'Demo hesaplar güncellendi (admin, bayi, isletme — şifre: 123456)' };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
   }
 
   @Get('seed')
