@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, Search, HelpCircle } from 'lucide-react';
+import { Bell, Search, HelpCircle, Monitor } from 'lucide-react';
 import { getUser } from '@/lib/auth';
 import { KontorStatsStrip, SubscriptionDaysStrip } from '@/components/KontorAlertBanner';
 
@@ -32,6 +32,14 @@ export default function TopBar({ title, subtitle }: TopBarProps) {
       <div className="flex items-center gap-1">
         <SubscriptionDaysStrip />
         <KontorStatsStrip />
+        <button
+          type="button"
+          onClick={() => window.open('/pos-terminal', 'posWindow', 'width=1024,height=768')}
+          className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-sm font-semibold transition-colors mr-2 shadow-sm"
+        >
+          <Monitor className="w-4 h-4" />
+          <span className="hidden sm:inline">POS'u Aç</span>
+        </button>
         <button
           type="button"
           aria-label="Bildirimler"

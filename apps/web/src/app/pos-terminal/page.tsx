@@ -9,8 +9,8 @@ import { TerminalUI } from './TerminalUI';
 
 export default function POSTerminalPage() {
   const router = useRouter();
-  const [tenantId, setTenantId] = useState('');
-  const [pin, setPin] = useState('');
+  const [tenantId, setTenantId] = useState('tech');
+  const [pin, setPin] = useState('1234');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(false);
 

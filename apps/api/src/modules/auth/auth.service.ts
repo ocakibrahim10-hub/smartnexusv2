@@ -132,7 +132,7 @@ export class AuthService {
         posPin: dto.posPin,
         isActive: true,
         tenant: { isActive: true },
-      },
+      } as any,
       include: {
         tenant: { include: { subscription: true, parent: { include: { subscription: true } } } },
       },

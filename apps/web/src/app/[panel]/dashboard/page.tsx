@@ -197,6 +197,7 @@ export default function DashboardPage() {
   const user = getUser();
   const [data, setData] = useState<any>(demoData);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'shortcuts' | 'boss'>('shortcuts');
   const isSuperAdmin = user?.tenantType === 'SUPERADMIN';
   const isDealer = user?.tenantType === 'DEALER';
   const isBusiness = !isSuperAdmin && !isDealer;
@@ -214,15 +215,36 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col min-h-full">
       <TopBar
-        title="Boss Screen"
+        title={activeTab === 'shortcuts' ? 'Masaüstü' : 'Boss Screen'}
         subtitle={`Hoş geldiniz, ${user?.name} · ${new Date().toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`}
       />
 
-      <div className="flex-1 p-6 space-y-6">
-        <ShortcutsGrid />
+      <div className="border-b border-gray-200 bg-white px-6 py-2">
+        <div className="flex gap-4">
+          <button
+            onClick={() => setActiveTab('shortcuts')}
+            className={`pb-2 text-sm font-medium transition-colors relative ${activeTab === 'shortcuts' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-800'}`}
+          >
+            Kısayol Masaüstü
+            {activeTab === 'shortcuts' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t" />}
+          </button>
+          <button
+            onClick={() => setActiveTab('boss')}
+            className={`pb-2 text-sm font-medium transition-colors relative ${activeTab === 'boss' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-800'}`}
+          >
+            Yönetici Özeti (Boss Screen)
+            {activeTab === 'boss' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t" />}
+          </button>
+        </div>
+      </div>
 
-        {/* SuperAdmin KPIs */}
-        {isSuperAdmin && (
+      <div className="flex-1 p-6 space-y-6">
+        {activeTab === 'shortcuts' ? (
+          <ShortcutsGrid />
+        ) : (
+          <div className="space-y-6">
+            {/* SuperAdmin KPIs */}
+            {isSuperAdmin && (
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
             <KPICard
               label="Toplam Tenant"
@@ -760,6 +782,8 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      </div>
+      )}
       </div>
       <OnboardingGuide />
     </div>

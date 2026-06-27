@@ -176,7 +176,6 @@ const bayiNav: NavItem[] = [
 
 const isletmeNav: NavItem[] = [
   { label: 'Boss Screen', icon: LayoutDashboard, href: '/dashboard' },
-  { label: 'Hızlı Satış (POS)', icon: Monitor, href: '/pos', module: 'POS.MAIN' },
   {
     label: 'Malzeme Yönetimi',
     icon: Package,
@@ -371,6 +370,8 @@ function searchNavItems(items: NavItem[], query: string): NavItem[] {
   }).filter(Boolean) as NavItem[];
 }
 
+// Yol bulucuya artık gerek yok, yolları (path) renderItem içinde birleştirerek çözüyoruz
+
 export default function PanelSidebar({ panel }: { panel: PanelType }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -385,13 +386,14 @@ export default function PanelSidebar({ panel }: { panel: PanelType }) {
   const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [collapsed, setCollapsed] = useState(false);
 
-  // Sayfa yüklendiğinde aktif olan grubu bul
+  // Sayfa yüklendiğinde veya değiştiğinde aktif olan grubu bul
   useEffect(() => {
-    const findActiveGroups = (items: NavItem[], path: string[] = []): string[] => {
+    const findActiveGroups = (items: NavItem[], path: string[] = [], pathStr: string = ''): string[] => {
       for (const item of items) {
-        if (item.href && pathname.startsWith(item.href)) return path;
+        const currentPathStr = pathStr ? `${pathStr}/${item.label}` : item.label;
+        if (item.href && (pathname === item.href || pathname.startsWith(item.href + '/'))) return [...path, currentPathStr];
         if (item.children) {
-          const found = findActiveGroups(item.children, [...path, item.label]);
+          const found = findActiveGroups(item.children, [...path, currentPathStr], currentPathStr);
           if (found.length) return found;
         }
       }
@@ -399,9 +401,7 @@ export default function PanelSidebar({ panel }: { panel: PanelType }) {
     };
     
     const activeGroups = findActiveGroups(navConfig);
-    if (activeGroups.length > 0) {
-      setOpenGroups(prev => Array.from(new Set([...prev, ...activeGroups])));
-    }
+    setOpenGroups(activeGroups);
   }, [pathname, navConfig]);
 
   const hasModule = (mod?: string) => hasModuleAccess(userModules, mod, tenantType);
@@ -434,24 +434,29 @@ export default function PanelSidebar({ panel }: { panel: PanelType }) {
   // Arama yapıldığında tüm grupları aç
   useEffect(() => {
     if (searchQuery.length > 1) {
-      const allGroupLabels: string[] = [];
-      const extractLabels = (items: NavItem[]) => {
+      const allGroupPaths: string[] = [];
+      const extractPaths = (items: NavItem[], pathStr: string = '') => {
         items.forEach(it => {
           if (it.children) {
-            allGroupLabels.push(it.label);
-            extractLabels(it.children);
+            const currentPathStr = pathStr ? `${pathStr}/${it.label}` : it.label;
+            allGroupPaths.push(currentPathStr);
+            extractPaths(it.children, currentPathStr);
           }
         });
       };
-      extractLabels(visibleNav);
-      setOpenGroups(allGroupLabels);
+      extractPaths(visibleNav);
+      setOpenGroups(allGroupPaths);
     }
-  }, [searchQuery]);
+  }, [searchQuery, visibleNav]);
 
-  const toggleGroup = (label: string) => {
-    setOpenGroups((prev) =>
-      prev.includes(label) ? prev.filter(g => g !== label) : [...prev, label]
-    );
+  const toggleGroup = (currentPathStr: string, parentPathStr: string | null) => {
+    setOpenGroups((prev) => {
+      if (prev.includes(currentPathStr)) {
+        return parentPathStr ? parentPathStr.split('/').map((_, i, arr) => arr.slice(0, i+1).join('/')) : [];
+      } else {
+        return currentPathStr.split('/').map((_, i, arr) => arr.slice(0, i+1).join('/'));
+      }
+    });
   };
 
   const handleLogout = async () => {
@@ -465,12 +470,15 @@ export default function PanelSidebar({ panel }: { panel: PanelType }) {
   const isActive = (href?: string) => href && pathname === href;
   
   // Render Item (Recursive)
-  const renderItem = (item: NavItem, depth: number = 0) => {
+  const renderItem = (item: NavItem, depth: number = 0, pathStr: string = '') => {
+    const currentPathStr = pathStr ? `${pathStr}/${item.label}` : item.label;
+    const parentPathStr = pathStr || null;
+
     if (!item.children) {
       const active = isActive(item.href);
       const isShortcut = item.href ? hasShortcut(item.href) : false;
       return (
-        <div key={item.label} className="group relative flex items-center pr-2">
+        <div key={currentPathStr} className="group relative flex items-center pr-2">
           <button
             onClick={() => item.href && router.push(item.href)}
             className={`sidebar-item w-full flex items-center py-2 transition-colors hover:bg-gray-100 ${active ? 'active bg-blue-50 text-blue-700 rounded-md font-medium' : 'text-gray-600'}`}
@@ -491,7 +499,7 @@ export default function PanelSidebar({ panel }: { panel: PanelType }) {
                    addShortcut({ label: item.label, href: item.href as string, iconName: item.icon.displayName || 'FileText' });
                 }
               }}
-              className={`absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-gray-200 z-10 ${isShortcut ? 'text-green-600 opacity-100' : 'text-gray-400'}`}
+              className={`absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-gray-200 z-10 focus:opacity-100 ${isShortcut ? 'text-green-600 opacity-100' : 'text-gray-400'}`}
               title={isShortcut ? "Masaüstünden Kaldır" : "Masaüstüne Kısayol Ekle"}
             >
               {isShortcut ? <CheckSquare className="w-3.5 h-3.5" /> : <PlusSquare className="w-3.5 h-3.5" />}
@@ -501,12 +509,12 @@ export default function PanelSidebar({ panel }: { panel: PanelType }) {
       );
     }
 
-    const isOpen = openGroups.includes(item.label);
+    const isOpen = openGroups.includes(currentPathStr);
 
     return (
-      <div key={item.label} className="w-full">
+      <div key={currentPathStr} className="w-full">
         <button
-          onClick={() => toggleGroup(item.label)}
+          onClick={() => toggleGroup(currentPathStr, parentPathStr)}
           className={`sidebar-item w-full flex items-center py-2.5 transition-colors hover:bg-gray-50 ${isOpen && depth === 0 ? 'text-gray-900 font-semibold' : 'text-gray-700'}`}
           style={{ paddingLeft: `${(depth * 1) + 1}rem` }}
         >
@@ -524,7 +532,7 @@ export default function PanelSidebar({ panel }: { panel: PanelType }) {
         </button>
         {isOpen && !collapsed && (
           <div className="flex flex-col">
-            {item.children.map(child => renderItem(child, depth + 1))}
+            {item.children.map(child => renderItem(child, depth + 1, currentPathStr))}
           </div>
         )}
       </div>

@@ -89,12 +89,7 @@ export const MODULE_CATALOG: ModuleGroupDef[] = [
       { id: 'INVENTORY.AI_FORECAST', label: 'AI Talep Tahmini', route: '/inventory/forecasting' },
     ],
   },
-  {
-    id: 'POS',
-    label: 'Hızlı Satış',
-    roles: ['BUSINESS', 'BRANCH', 'SUPERADMIN'],
-    children: [{ id: 'POS.MAIN', label: 'Hızlı Satış ve POS Ekranı', route: '/pos' }],
-  },
+
   {
     id: 'TMS',
     label: 'Lojistik (TMS)',
@@ -227,7 +222,6 @@ const MODULE_PART_TR: Record<string, string> = {
 const GROUP_TR: Record<string, string> = {
   ACCOUNTING: 'Muhasebe',
   INVENTORY: 'Stok ve depo',
-  POS: 'Hızlı satış',
   TMS: 'Lojistik',
   B2B: 'B2B portal',
   MARKETPLACE: 'Pazaryeri',

@@ -5,72 +5,119 @@ import { authApi } from '@/lib/api';
 import { getUser, setUser } from '@/lib/auth';
 
 export type Shortcut = {
+  id?: string;
   label: string;
   href: string;
   iconName: string;
 };
 
+export type ShortcutGroup = {
+  id: string;
+  title: string;
+  items: Shortcut[];
+};
+
 // Global state for shortcuts
-let globalShortcuts: Shortcut[] | null = null;
+let globalShortcutGroups: ShortcutGroup[] | null = null;
 const listeners = new Set<() => void>();
 
 const emitChange = () => {
   listeners.forEach((listener) => listener());
 };
 
+const defaultGroups: ShortcutGroup[] = [
+  { id: 'group-main', title: 'Genel Kısayollar', items: [] },
+];
+
 export function useShortcuts() {
-  const [shortcuts, setShortcuts] = useState<Shortcut[]>(globalShortcuts || []);
+  const [groups, setGroups] = useState<ShortcutGroup[]>(globalShortcutGroups || []);
 
   useEffect(() => {
-    // If globalShortcuts is null, load them from user preferences
-    if (globalShortcuts === null) {
+    if (globalShortcutGroups === null) {
       const user = getUser();
-      if (user?.preferences?.shortcuts) {
-        globalShortcuts = user.preferences.shortcuts;
+      const prefs = user?.preferences?.shortcuts;
+      if (prefs && Array.isArray(prefs)) {
+        if (prefs.length > 0 && !('items' in prefs[0])) {
+          // Migration from old flat array
+          globalShortcutGroups = [{ id: 'group-legacy', title: 'Masaüstü', items: prefs }];
+        } else {
+          globalShortcutGroups = prefs;
+        }
       } else {
-        globalShortcuts = [];
+        globalShortcutGroups = defaultGroups;
       }
-      setShortcuts(globalShortcuts);
+      setGroups(globalShortcutGroups);
     }
 
-    const listener = () => setShortcuts(globalShortcuts || []);
+    const listener = () => setGroups(globalShortcutGroups || []);
     listeners.add(listener);
     return () => {
       listeners.delete(listener);
     };
   }, []);
 
-  const saveShortcuts = async (newShortcuts: Shortcut[]) => {
-    globalShortcuts = newShortcuts;
+  const saveGroups = async (newGroups: ShortcutGroup[]) => {
+    globalShortcutGroups = newGroups;
     emitChange();
     
     // Update local user object
     const user = getUser();
     if (user) {
-      user.preferences = { ...user.preferences, shortcuts: newShortcuts };
+      user.preferences = { ...user.preferences, shortcuts: newGroups };
       setUser(user);
     }
 
     // Save to server
     try {
-      await authApi.updatePreferences({ shortcuts: newShortcuts });
+      await authApi.updatePreferences({ shortcuts: newGroups });
     } catch (err) {
       console.error('Failed to save shortcuts', err);
     }
   };
 
-  const addShortcut = (shortcut: Shortcut) => {
-    if (shortcuts.find((s) => s.href === shortcut.href)) return; // already exists
-    saveShortcuts([...shortcuts, shortcut]);
+  const addShortcut = (shortcut: Shortcut, groupId?: string) => {
+    const currentGroups = globalShortcutGroups || defaultGroups;
+    // Check if it already exists anywhere
+    const exists = currentGroups.some(g => g.items.some(s => s.href === shortcut.href));
+    if (exists) return;
+
+    if (!shortcut.id) {
+      shortcut.id = `shortcut-${Date.now()}`;
+    }
+
+    const newGroups = [...currentGroups];
+    const targetGroupIndex = groupId ? newGroups.findIndex(g => g.id === groupId) : 0;
+    
+    if (targetGroupIndex !== -1) {
+      newGroups[targetGroupIndex] = {
+        ...newGroups[targetGroupIndex],
+        items: [...newGroups[targetGroupIndex].items, shortcut]
+      };
+    } else {
+      if (newGroups.length > 0) {
+        newGroups[0] = { ...newGroups[0], items: [...newGroups[0].items, shortcut] };
+      } else {
+        newGroups.push({ id: 'group-default', title: 'Genel', items: [shortcut] });
+      }
+    }
+    
+    saveGroups(newGroups);
   };
 
   const removeShortcut = (href: string) => {
-    saveShortcuts(shortcuts.filter((s) => s.href !== href));
+    const currentGroups = globalShortcutGroups || defaultGroups;
+    const newGroups = currentGroups.map(g => ({
+      ...g,
+      items: g.items.filter(s => s.href !== href)
+    }));
+    saveGroups(newGroups);
   };
 
   const hasShortcut = (href: string) => {
-    return shortcuts.some((s) => s.href === href);
+    const currentGroups = globalShortcutGroups || defaultGroups;
+    return currentGroups.some(g => g.items.some(s => s.href === href));
   };
 
-  return { shortcuts, addShortcut, removeShortcut, hasShortcut, saveShortcuts };
+  return { groups, shortcuts: groups.flatMap(g => g.items), addShortcut, removeShortcut, hasShortcut, saveGroups };
 }
+
