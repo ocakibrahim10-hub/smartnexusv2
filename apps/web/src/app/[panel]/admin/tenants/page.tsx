@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import React from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { platformApi, tenantsApi } from '@/lib/api';
-import { Building2, Store, GitBranch, Search, Filter, MoreVertical, Archive, ArchiveRestore, Power, PowerOff } from 'lucide-react';
+import { Building2, Store, GitBranch, Search, Filter, MoreVertical, Archive, ArchiveRestore, Power, PowerOff, Plus, Minus, FolderOpen } from 'lucide-react';
 
 const TYPE_LABELS: Record<string, string> = {
   SUPERADMIN: 'Platform',
@@ -29,6 +30,16 @@ export default function AdminTenantsPage() {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('ALL');
   const [showArchived, setShowArchived] = useState(false);
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string) => {
+    setExpandedNodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const fetchTenants = () => {
     setLoading(true);
@@ -64,6 +75,31 @@ export default function AdminTenantsPage() {
     if (search && !t.name?.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
+
+  const { roots, independent } = useMemo(() => {
+    const map = new Map();
+    const roots: any[] = [];
+    const independent: any[] = [];
+
+    filtered.forEach((item: any) => {
+      map.set(item.id, { ...item, children: [] });
+    });
+
+    filtered.forEach((item: any) => {
+      const node = map.get(item.id);
+      if (item.parentId && map.has(item.parentId)) {
+        map.get(item.parentId).children.push(node);
+      } else {
+        if (item.type === 'DEALER') {
+          roots.push(node);
+        } else {
+          independent.push(node);
+        }
+      }
+    });
+
+    return { roots, independent };
+  }, [filtered]);
 
   const counts = {
     total: tenants.length,
@@ -153,48 +189,34 @@ export default function AdminTenantsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((t: any) => (
-                    <tr key={t.id} className="border-b border-gray-50 hover:bg-[#FBF8FF] transition-colors">
-                      <td className="py-3 px-4 font-medium text-gray-900">{t.name}</td>
-                      <td className="py-3 px-4 text-gray-500 font-mono text-xs">{t.code || '—'}</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${TYPE_COLORS[t.type] || 'bg-gray-100 text-gray-600'}`}>
-                          {TYPE_LABELS[t.type] || t.type}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${PLAN_COLORS[t.plan] || 'bg-gray-100 text-gray-600'}`}>
-                          {t.plan}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-gray-500">{t.city || '—'}</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`w-2 h-2 rounded-full inline-block ${t.isActive !== false ? 'bg-emerald-500' : 'bg-red-400'}`} title={t.isActive !== false ? 'Aktif' : 'Pasif'} />
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleToggleStatus(t.id, { isActive: !t.isActive })}
-                            title={t.isActive ? 'Pasife Al' : 'Aktife Al'}
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              t.isActive ? 'text-red-500 hover:bg-red-50' : 'text-emerald-500 hover:bg-emerald-50'
-                            }`}
+                  {roots.map(t => renderRow(t))}
+                  
+                  {independent.length > 0 && (
+                    <>
+                      <tr className="border-b border-gray-50 bg-gray-50/80">
+                        <td colSpan={7} className="py-3 px-4">
+                          <button 
+                            onClick={() => toggleExpand('independent_group')} 
+                            className="flex items-center gap-2 font-semibold text-gray-700 hover:text-gray-900"
                           >
-                            {t.isActive ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+                            {expandedNodes.has('independent_group') ? (
+                              <Minus className="w-4 h-4 text-gray-500" />
+                            ) : (
+                              <Plus className="w-4 h-4 text-red-500" />
+                            )}
+                            <FolderOpen className="w-4 h-4 text-blue-500" />
+                            Bağımsız İşletmeler
+                            <span className="text-xs font-normal text-gray-500 ml-2">
+                              ({independent.length} kayıt)
+                            </span>
                           </button>
-                          <button
-                            onClick={() => handleToggleStatus(t.id, { isArchived: !t.isArchived })}
-                            title={t.isArchived ? 'Arşivden Çıkar' : 'Arşive Gönder'}
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              t.isArchived ? 'text-amber-500 hover:bg-amber-50' : 'text-gray-400 hover:bg-gray-100'
-                            }`}
-                          >
-                            {t.isArchived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                      {expandedNodes.has('independent_group') && 
+                        independent.map(t => renderRow(t, 1))
+                      }
+                    </>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -203,4 +225,73 @@ export default function AdminTenantsPage() {
       </div>
     </>
   );
+
+  function renderRow(t: any, level: number = 0) {
+    const hasChildren = t.children && t.children.length > 0;
+    const isExpanded = expandedNodes.has(t.id);
+    
+    return (
+      <React.Fragment key={t.id}>
+        <tr className="border-b border-gray-50 hover:bg-[#FBF8FF] transition-colors">
+          <td className="py-3 px-4 font-medium text-gray-900">
+            <div className="flex items-center gap-2" style={{ paddingLeft: `${level * 1.5}rem` }}>
+              {hasChildren ? (
+                <button 
+                  onClick={() => toggleExpand(t.id)} 
+                  className="p-0.5 rounded hover:bg-gray-200 transition-colors"
+                >
+                  {isExpanded ? (
+                    <Minus className="w-4 h-4 text-gray-500" />
+                  ) : (
+                    <Plus className="w-4 h-4 text-red-500" />
+                  )}
+                </button>
+              ) : (
+                <div className="w-5" />
+              )}
+              {t.name}
+            </div>
+          </td>
+          <td className="py-3 px-4 text-gray-500 font-mono text-xs">{t.code || '—'}</td>
+          <td className="py-3 px-4 text-center">
+            <span className={`text-xs px-2 py-1 rounded-full font-medium ${TYPE_COLORS[t.type] || 'bg-gray-100 text-gray-600'}`}>
+              {TYPE_LABELS[t.type] || t.type}
+            </span>
+          </td>
+          <td className="py-3 px-4 text-center">
+            <span className={`text-xs px-2 py-1 rounded-full font-medium ${PLAN_COLORS[t.plan] || 'bg-gray-100 text-gray-600'}`}>
+              {t.plan}
+            </span>
+          </td>
+          <td className="py-3 px-4 text-gray-500">{t.city || '—'}</td>
+          <td className="py-3 px-4 text-center">
+            <span className={`w-2 h-2 rounded-full inline-block ${t.isActive !== false ? 'bg-emerald-500' : 'bg-red-400'}`} title={t.isActive !== false ? 'Aktif' : 'Pasif'} />
+          </td>
+          <td className="py-3 px-4 text-right">
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => handleToggleStatus(t.id, { isActive: !t.isActive })}
+                title={t.isActive ? 'Pasife Al' : 'Aktife Al'}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  t.isActive ? 'text-red-500 hover:bg-red-50' : 'text-emerald-500 hover:bg-emerald-50'
+                }`}
+              >
+                {t.isActive ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={() => handleToggleStatus(t.id, { isArchived: !t.isArchived })}
+                title={t.isArchived ? 'Arşivden Çıkar' : 'Arşive Gönder'}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  t.isArchived ? 'text-amber-500 hover:bg-amber-50' : 'text-gray-400 hover:bg-gray-100'
+                }`}
+              >
+                {t.isArchived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+              </button>
+            </div>
+          </td>
+        </tr>
+        {isExpanded && hasChildren && t.children.map((child: any) => renderRow(child, level + 1))}
+      </React.Fragment>
+    );
+  }
 }
