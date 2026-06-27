@@ -1,4 +1,4 @@
-﻿/* eslint-disable jsx-a11y/control-has-associated-label, jsx-a11y/heading-has-content, jsx-a11y/alt-text, jsx-a11y/anchor-has-content, jsx-a11y/label-has-associated-control */
+/* eslint-disable jsx-a11y/control-has-associated-label, jsx-a11y/heading-has-content, jsx-a11y/alt-text, jsx-a11y/anchor-has-content, jsx-a11y/label-has-associated-control */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -50,10 +50,11 @@ export default function SubscriptionAlertBanner() {
         <button
           onClick={() => router.push('/isletme/subscribe')}
           className="px-3 py-1 bg-white text-red-600 rounded-md text-sm font-semibold hover:bg-red-50 transition-colors"
+          title="Aboneliği Yenile"
         >
-          Åimdi Yenile
+          Şimdi Yenile
         </button>
-        <button title="Ä°ÅŸlem" aria-label="Ä°ÅŸlem"
+        <button title="Kapat" aria-label="Kapat"
           onClick={() => {
             setIsVisible(false);
             sessionStorage.setItem('subAlertDismissed', 'true');

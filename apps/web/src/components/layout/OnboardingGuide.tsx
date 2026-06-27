@@ -1,4 +1,4 @@
-﻿/* eslint-disable jsx-a11y/control-has-associated-label, jsx-a11y/heading-has-content, jsx-a11y/alt-text, jsx-a11y/anchor-has-content, jsx-a11y/label-has-associated-control */
+/* eslint-disable jsx-a11y/control-has-associated-label, jsx-a11y/heading-has-content, jsx-a11y/alt-text, jsx-a11y/anchor-has-content, jsx-a11y/label-has-associated-control */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -68,7 +68,8 @@ export default function OnboardingGuide() {
       <button
         onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 bg-indigo-600 text-white p-4 rounded-full shadow-lg hover:bg-indigo-700 transition-all flex items-center justify-center z-40"
-        title="Sistem KÄ±lavuzu"
+        title="Sistem Kılavuzu"
+        aria-label="Sistem Kılavuzunu Aç"
       >
         <HelpCircle className="w-6 h-6" />
       </button>
@@ -77,7 +78,7 @@ export default function OnboardingGuide() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
             <div className="p-6 relative">
-              <button title="Ä°ÅŸlem" aria-label="Ä°ÅŸlem" 
+              <button title="Kapat" aria-label="Kapat" 
                 onClick={handleClose}
                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
               >
@@ -110,14 +111,14 @@ export default function OnboardingGuide() {
                   onClick={prevStep}
                   disabled={currentStep === 0}
                   className={`flex items-center text-sm font-medium transition-colors ${currentStep === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-indigo-600'}`}
-                >
+                 title="Buton">
                   <ChevronLeft className="w-4 h-4 mr-1" /> Geri
                 </button>
                 
                 <button
                   onClick={nextStep}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center transition-colors"
-                >
+                 title="Buton">
                   {currentStep === steps.length - 1 ? (
                     <>BaÅŸla <CheckCircle className="w-4 h-4 ml-2" /></>
                   ) : (

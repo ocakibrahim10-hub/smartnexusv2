@@ -12,7 +12,7 @@ import { isAuthenticated, getUser, setSession } from '@/lib/auth';
 import { canAccessRoute } from '@/lib/modules';
 import { authApi } from '@/lib/api';
 import { finalizeSubscriptionPayment } from '@/lib/finalize-subscription-payment';
-import { isPanelType, panelLoginPath, stripPanelPrefix, inferPanelFromTenantType } from '@/lib/panel';
+import { isPanelType, panelLoginPath, stripPanelPrefix, inferPanelFromTenantType, panelLabel } from '@/lib/panel';
 import SubscriptionAlertBanner from '@/components/SubscriptionAlertBanner';
 import CampaignPopup from '@/components/layout/CampaignPopup';
 

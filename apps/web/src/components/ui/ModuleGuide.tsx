@@ -63,7 +63,7 @@ export function ModuleGuide({ moduleKey, title, description, features }: ModuleG
           <button 
             onClick={dismiss}
             className="w-full bg-gray-900 hover:bg-gray-800 text-white font-medium py-2.5 rounded-xl transition-colors shadow-sm"
-          >
+           title="Buton">
             AnladÄ±m, BaÅŸlayalÄ±m
           </button>
         </div>
