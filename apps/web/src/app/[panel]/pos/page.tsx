@@ -417,7 +417,7 @@ export default function POSPage() {
                 <PauseCircle className="w-5 h-5 text-brand-500" />
                 Askıdaki Satışlar
               </h2>
-              <IconButton onClick={() => setShowHeldCarts(false)} className="text-gray-400 hover:text-gray-600 bg-white shadow-sm border border-gray-200">
+              <IconButton label="Kapat" onClick={() => setShowHeldCarts(false)} className="text-gray-400 hover:text-gray-600 bg-white shadow-sm border border-gray-200">
                 <X className="w-4 h-4" />
               </IconButton>
             </div>
@@ -579,8 +579,8 @@ export default function POSPage() {
                       <ProductImage
                         src={p.imageUrl}
                         alt={p.name}
-                        size="full"
-                        rounded="none"
+                        size="xl"
+                        rounded="md"
                         className="object-contain w-full h-full p-2 group-hover:scale-105 transition-transform duration-500"
                       />
                       {!hasStock && (
