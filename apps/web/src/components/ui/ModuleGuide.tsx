@@ -1,4 +1,4 @@
-﻿/* eslint-disable jsx-a11y/control-has-associated-label, jsx-a11y/heading-has-content, jsx-a11y/alt-text, jsx-a11y/anchor-has-content, jsx-a11y/label-has-associated-control */
+/* eslint-disable jsx-a11y/control-has-associated-label, jsx-a11y/heading-has-content, jsx-a11y/alt-text, jsx-a11y/anchor-has-content, jsx-a11y/label-has-associated-control */
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -32,7 +32,7 @@ export function ModuleGuide({ moduleKey, title, description, features }: ModuleG
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 text-white relative">
-          <button title="Ä°ÅŸlem" aria-label="Ä°ÅŸlem" 
+          <button title="Kapat" aria-label="Kapat" 
             onClick={dismiss}
             className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors bg-white/10 hover:bg-white/20 p-1 rounded-full"
           >
@@ -63,8 +63,9 @@ export function ModuleGuide({ moduleKey, title, description, features }: ModuleG
           <button 
             onClick={dismiss}
             className="w-full bg-gray-900 hover:bg-gray-800 text-white font-medium py-2.5 rounded-xl transition-colors shadow-sm"
-           title="Buton">
-            AnladÄ±m, BaÅŸlayalÄ±m
+            title="Başlayalım"
+          >
+            Anladım, Başlayalım
           </button>
         </div>
       </div>
