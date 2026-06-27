@@ -38,6 +38,7 @@ import { reportsApi } from '@/lib/api';
 import { getUser } from '@/lib/auth';
 import { fmtMoney, safeNum, fmtPercentChange } from '@/lib/format';
 import OnboardingGuide from '@/components/layout/OnboardingGuide';
+import ShortcutsGrid from '@/components/layout/ShortcutsGrid';
 
 const COLORS = ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981'];
 
@@ -218,6 +219,8 @@ export default function DashboardPage() {
       />
 
       <div className="flex-1 p-6 space-y-6">
+        <ShortcutsGrid />
+
         {/* SuperAdmin KPIs */}
         {isSuperAdmin && (
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
