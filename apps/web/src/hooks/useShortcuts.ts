@@ -29,6 +29,24 @@ const defaultGroups: ShortcutGroup[] = [
   { id: 'group-main', title: 'Genel Kısayollar', items: [] },
 ];
 
+function buildBusinessDefaults(panel: string): ShortcutGroup[] {
+  const p = (path: string) => `/${panel}${path.startsWith('/') ? path : `/${path}`}`;
+  return [
+    {
+      id: 'group-main',
+      title: 'Hızlı Erişim',
+      items: [
+        { id: 's-pos', label: 'POS Satış', href: p('/pos'), iconName: 'Monitor' },
+        { id: 's-cari', label: 'Cari Listesi', href: p('/accounting/contacts'), iconName: 'Users' },
+        { id: 's-products', label: 'Ürünler', href: p('/inventory/products'), iconName: 'Package' },
+        { id: 's-invoices', label: 'Satış Faturaları', href: p('/accounting/invoices'), iconName: 'FileText' },
+        { id: 's-cash', label: 'Kasa & Banka', href: p('/accounting/cash'), iconName: 'Wallet' },
+        { id: 's-reports', label: 'Raporlar', href: p('/reports'), iconName: 'BarChart3' },
+      ],
+    },
+  ];
+}
+
 export function useShortcuts() {
   const [groups, setGroups] = useState<ShortcutGroup[]>(globalShortcutGroups || []);
 
@@ -41,6 +59,15 @@ export function useShortcuts() {
           const parsed = JSON.parse(localData);
           if (Array.isArray(parsed) && parsed.length > 0) {
             globalShortcutGroups = parsed;
+            const totalItems = parsed.reduce(
+              (sum: number, g: ShortcutGroup) => sum + (g.items?.length || 0),
+              0,
+            );
+            const user = getUser();
+            const isBusiness = user?.tenantType === 'BUSINESS' || user?.tenantType === 'BRANCH';
+            if (totalItems === 0 && isBusiness) {
+              globalShortcutGroups = buildBusinessDefaults(user?.panel || 'isletme');
+            }
           }
         }
       } catch (e) {
@@ -59,7 +86,11 @@ export function useShortcuts() {
             globalShortcutGroups = prefs;
           }
         } else {
-          globalShortcutGroups = defaultGroups;
+          const user = getUser();
+          const isBusiness = user?.tenantType === 'BUSINESS' || user?.tenantType === 'BRANCH';
+          const panel = user?.panel || 'isletme';
+          globalShortcutGroups =
+            isBusiness && panel === 'isletme' ? buildBusinessDefaults(panel) : defaultGroups;
         }
         
         // İlk veriyi LocalStorage'a sabitle

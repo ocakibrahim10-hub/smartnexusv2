@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useShortcuts, Shortcut, ShortcutGroup } from '@/hooks/useShortcuts';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { PlusSquare, LayoutDashboard, FileText, Settings, Users, Store, Building2, Package, Warehouse, BookOpen, Truck, ShoppingCart, BarChart3, Headphones, MessageSquare, Shield, Coins, Bell, ClipboardList, Zap, Database, CreditCard, GitBranch, Monitor, Brain, ShoppingBag, Receipt, Wallet, Activity, Bot, Factory, UserCog, Globe, ScanLine, MapPin, Edit2, Check, GripVertical, Trash2 } from 'lucide-react';
+import { getUser } from '@/lib/auth';
 
 // Helper to map string icon name to actual lucide-react component
 const iconMap: Record<string, any> = {
@@ -13,6 +14,18 @@ const iconMap: Record<string, any> = {
 export default function ShortcutsGrid() {
   const { groups, saveGroups, removeShortcut } = useShortcuts();
   const router = useRouter();
+  const params = useParams();
+  const panel = (params?.panel as string) || getUser()?.panel || 'isletme';
+  const totalItems = groups.reduce((s, g) => s + g.items.length, 0);
+
+  const quickLaunch = [
+    { label: 'POS Satış', href: `/${panel}/pos`, icon: Monitor, desc: 'Kasa ve barkod satış' },
+    { label: 'Cari Listesi', href: `/${panel}/accounting/contacts`, icon: Users, desc: 'Müşteri / tedarikçi' },
+    { label: 'Ürünler', href: `/${panel}/inventory/products`, icon: Package, desc: 'Stok kartları' },
+    { label: 'Faturalar', href: `/${panel}/accounting/invoices`, icon: FileText, desc: 'Satış faturaları' },
+    { label: 'Kasa', href: `/${panel}/accounting/cash`, icon: Wallet, desc: 'Nakit ve banka' },
+    { label: 'Raporlar', href: `/${panel}/reports`, icon: BarChart3, desc: 'Finans raporları' },
+  ];
 
   const [draggedItem, setDraggedItem] = useState<{ type: 'shortcut' | 'group', id: string, sourceGroupId?: string } | null>(null);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
@@ -97,6 +110,31 @@ export default function ShortcutsGrid() {
 
   return (
     <div className="space-y-6 min-h-[400px]">
+      {totalItems === 0 && (
+        <div className="card p-5 border border-[#EFEDF4]">
+          <h3 className="text-sm font-semibold text-gray-900 mb-1">Hızlı Başlangıç</h3>
+          <p className="text-xs text-gray-500 mb-4">
+            Sık kullanılan modüllere tek tıkla erişin. Sol menüden + ile masaüstüne de ekleyebilirsiniz.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {quickLaunch.map((item) => (
+              <button
+                key={item.href}
+                type="button"
+                onClick={() => router.push(item.href)}
+                className="group text-left p-4 rounded-xl border border-[#EFEDF4] bg-white hover:border-[#606BDF] hover:shadow-md transition-all"
+              >
+                <div className="w-10 h-10 rounded-lg bg-[#E0E0FF] text-[#606BDF] flex items-center justify-center mb-3 group-hover:bg-[#606BDF] group-hover:text-white transition-colors">
+                  <item.icon className="w-5 h-5" />
+                </div>
+                <div className="text-sm font-semibold text-gray-900">{item.label}</div>
+                <div className="text-[11px] text-gray-500 mt-0.5">{item.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-semibold text-gray-900 flex items-center gap-2">
           <Zap className="w-5 h-5 text-amber-500" />

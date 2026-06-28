@@ -49,7 +49,7 @@ import { clearSession, getUser } from '@/lib/auth';
 import { authApi } from '@/lib/api';
 import { hasModuleAccess } from '@/lib/modules';
 import { ROLE_CFG, canManageUsers } from '@/lib/role-permissions';
-import { PanelType, withPanel, panelLoginPath, panelLabel } from '@/lib/panel';
+import { PanelType, withPanel, panelLoginPath } from '@/lib/panel';
 import { useShortcuts } from '@/hooks/useShortcuts';
 
 type NavItem = {
@@ -175,7 +175,9 @@ const bayiNav: NavItem[] = [
 ];
 
 const isletmeNav: NavItem[] = [
-  { label: 'Boss Screen', icon: LayoutDashboard, href: '/dashboard' },
+  { label: 'Masaüstü', icon: LayoutDashboard, href: '/dashboard' },
+  { label: 'POS Satış', icon: Monitor, href: '/pos', module: 'POS.MAIN' },
+  { label: 'Cari Listesi', icon: Users, href: '/accounting/contacts', module: 'ACCOUNTING.CONTACTS' },
   {
     label: 'Malzeme Yönetimi',
     icon: Package,
@@ -372,7 +374,31 @@ function searchNavItems(items: NavItem[], query: string): NavItem[] {
 
 // Yol bulucuya artık gerek yok, yolları (path) renderItem içinde birleştirerek çözüyoruz
 
-export default function PanelSidebar({ panel, collapsed = false }: { panel: PanelType, collapsed?: boolean }) {
+function sidebarPanelLabel(panel: PanelType): string {
+  if (panel === 'nexusadmin') return 'Nexus Admin';
+  if (panel === 'bayi') return 'Bayi Paneli';
+  return 'İşletme Paneli';
+}
+
+function collectNavLeaves(items: NavItem[], prefix = ''): { label: string; href: string; icon: NavItem['icon'] }[] {
+  const out: { label: string; href: string; icon: NavItem['icon'] }[] = [];
+  for (const item of items) {
+    const trail = prefix ? `${prefix} › ${item.label}` : item.label;
+    if (item.href) out.push({ label: trail, href: item.href, icon: item.icon });
+    if (item.children) out.push(...collectNavLeaves(item.children, trail));
+  }
+  return out;
+}
+
+export default function PanelSidebar({
+  panel,
+  collapsed = false,
+  onRequestExpand,
+}: {
+  panel: PanelType;
+  collapsed?: boolean;
+  onRequestExpand?: () => void;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const user = getUser();
@@ -384,6 +410,11 @@ export default function PanelSidebar({ panel, collapsed = false }: { panel: Pane
   
   const [searchQuery, setSearchQuery] = useState('');
   const [openGroups, setOpenGroups] = useState<string[]>([]);
+  const [collapsedFlyout, setCollapsedFlyout] = useState<{
+    title: string;
+    items: { label: string; href: string; icon: NavItem['icon'] }[];
+    top: number;
+  } | null>(null);
 
   // Sayfa yüklendiğinde veya değiştiğinde aktif olan grubu bul
   useEffect(() => {
@@ -466,7 +497,31 @@ export default function PanelSidebar({ panel, collapsed = false }: { panel: Pane
     router.push(panelLoginPath(panel));
   };
 
-  const isActive = (href?: string) => href && pathname === href;
+  const handleGroupClick = (
+    e: React.MouseEvent<HTMLButtonElement>,
+    currentPathStr: string,
+    parentPathStr: string | null,
+    item: NavItem,
+  ) => {
+    if (collapsed && item.children) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setCollapsedFlyout({
+        title: item.label,
+        items: collectNavLeaves(item.children),
+        top: rect.top,
+      });
+      return;
+    }
+    if (collapsed) {
+      onRequestExpand?.();
+    }
+    toggleGroup(currentPathStr, parentPathStr);
+  };
+
+  const handleLeafClick = (href: string) => {
+    setCollapsedFlyout(null);
+    router.push(href);
+  };
   
   // Render Item (Recursive)
   const renderItem = (item: NavItem, depth: number = 0, pathStr: string = '') => {
@@ -479,11 +534,13 @@ export default function PanelSidebar({ panel, collapsed = false }: { panel: Pane
       return (
         <div key={currentPathStr} className="group relative flex items-center pr-2">
           <button
-            onClick={() => item.href && router.push(item.href)}
-            className={`sidebar-item w-full flex items-center py-2 transition-colors hover:bg-gray-100 ${active ? 'active bg-blue-50 text-blue-700 rounded-md font-medium' : 'text-gray-600'}`}
-            style={{ paddingLeft: `${(depth * 1) + 1}rem` }}
+            type="button"
+            title={collapsed ? item.label : undefined}
+            onClick={() => item.href && handleLeafClick(item.href)}
+            className={`sidebar-item w-full flex items-center py-2 transition-colors hover:bg-gray-100 ${active ? 'active bg-[#E0E0FF] text-[#3944B8] rounded-md font-medium' : 'text-gray-600'} ${collapsed ? 'justify-center px-2' : ''}`}
+            style={collapsed ? undefined : { paddingLeft: `${depth * 1 + 1}rem` }}
           >
-            <item.icon className={`${depth > 0 ? 'w-4 h-4 text-gray-400' : 'w-4 h-4'} flex-shrink-0 mr-3`} />
+            <item.icon className={`w-4 h-4 flex-shrink-0 ${collapsed ? '' : 'mr-3'}`} />
             {!collapsed && <span className="flex-1 text-left truncate text-[13px]">{item.label}</span>}
           </button>
           
@@ -513,11 +570,13 @@ export default function PanelSidebar({ panel, collapsed = false }: { panel: Pane
     return (
       <div key={currentPathStr} className="w-full">
         <button
-          onClick={() => toggleGroup(currentPathStr, parentPathStr)}
-          className={`sidebar-item w-full flex items-center py-2.5 transition-colors hover:bg-gray-50 ${isOpen && depth === 0 ? 'text-gray-900 font-semibold' : 'text-gray-700'}`}
-          style={{ paddingLeft: `${(depth * 1) + 1}rem` }}
+          type="button"
+          title={collapsed ? item.label : undefined}
+          onClick={(e) => handleGroupClick(e, currentPathStr, parentPathStr, item)}
+          className={`sidebar-item w-full flex items-center py-2.5 transition-colors hover:bg-gray-50 ${isOpen && depth === 0 ? 'text-gray-900 font-semibold' : 'text-gray-700'} ${collapsed ? 'justify-center px-2' : ''}`}
+          style={collapsed ? undefined : { paddingLeft: `${depth * 1 + 1}rem` }}
         >
-          <item.icon className={`${depth > 0 ? 'w-4 h-4 text-gray-500' : 'w-4 h-4 text-gray-600'} flex-shrink-0 mr-3`} />
+          <item.icon className={`w-4 h-4 flex-shrink-0 ${collapsed ? '' : 'mr-3'} ${depth > 0 ? 'text-gray-500' : 'text-gray-600'}`} />
           {!collapsed && (
             <>
               <span className={`flex-1 text-left truncate ${depth > 0 ? 'text-[13px]' : 'text-sm'}`}>{item.label}</span>
@@ -550,7 +609,7 @@ export default function PanelSidebar({ panel, collapsed = false }: { panel: Pane
           {!collapsed && (
             <div className="min-w-0">
               <div className="text-gray-900 font-bold text-base leading-none">SmartNexus</div>
-              <div className="text-gray-500 text-xs mt-0.5 truncate">{panelLabel(panel)}</div>
+              <div className="text-gray-500 text-xs mt-0.5 truncate">{sidebarPanelLabel(panel)}</div>
             </div>
           )}
         </div>
@@ -605,6 +664,38 @@ export default function PanelSidebar({ panel, collapsed = false }: { panel: Pane
           </button>
         )}
       </div>
+
+      {collapsedFlyout && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-black/10"
+            aria-label="Menüyü kapat"
+            onClick={() => setCollapsedFlyout(null)}
+          />
+          <div
+            className="fixed z-50 w-72 max-h-[70vh] overflow-y-auto bg-white border border-[#EFEDF4] rounded-xl shadow-xl py-2"
+            style={{ left: 76, top: Math.min(collapsedFlyout.top, 400) }}
+          >
+            <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide border-b border-gray-100 mb-1">
+              {collapsedFlyout.title}
+            </div>
+            {collapsedFlyout.items.map((leaf) => (
+              <button
+                key={leaf.href}
+                type="button"
+                onClick={() => handleLeafClick(leaf.href)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-[#FBF8FF] transition-colors ${
+                  pathname === leaf.href ? 'bg-[#E0E0FF] text-[#3944B8] font-medium' : 'text-gray-700'
+                }`}
+              >
+                <leaf.icon className="w-4 h-4 flex-shrink-0 text-gray-500" />
+                <span className="truncate">{leaf.label}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       
       <style dangerouslySetInnerHTML={{__html: `
         .custom-scrollbar::-webkit-scrollbar {

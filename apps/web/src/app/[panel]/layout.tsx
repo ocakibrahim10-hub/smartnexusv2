@@ -146,7 +146,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
       <PwaRegister />
       {panel !== 'nexusadmin' && <CampaignPopup />}
       <div className="dashboard-shell flex h-screen overflow-hidden">
-        <PanelSidebar panel={panel} collapsed={collapsed} />
+        <PanelSidebar panel={panel} collapsed={collapsed} onRequestExpand={() => setCollapsed(false)} />
         <main className="dashboard-main flex-1 flex flex-col h-screen overflow-hidden">
           <TopBar 
             title={panelTitle(panel as PanelType)} 

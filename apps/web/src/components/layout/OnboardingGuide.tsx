@@ -1,128 +1,175 @@
-/* eslint-disable jsx-a11y/control-has-associated-label, jsx-a11y/heading-has-content, jsx-a11y/alt-text, jsx-a11y/anchor-has-content, jsx-a11y/label-has-associated-control */
 'use client';
 
 import { useState, useEffect } from 'react';
-import { HelpCircle, X, ChevronRight, ChevronLeft, CheckCircle } from 'lucide-react';
+import { HelpCircle, X, ChevronRight, ChevronLeft, CheckCircle, Monitor, Users, Wallet, Package } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { getUser } from '@/lib/auth';
 
 const steps = [
   {
-    title: 'SmartERP\'ye HoÅŸ Geldiniz! ğŸš€',
-    description: 'Sistemi en verimli ÅŸekilde kullanmanÄ±z iÃ§in hazÄ±rladÄ±ÄŸÄ±mÄ±z bu kÄ±sa tura gÃ¶z atÄ±n. Verilerinizin tamamÄ± Ã¶rnek senaryolarla doldurulmuÅŸtur.',
+    title: 'SmartNexus\'a Hoş Geldiniz',
+    description:
+      'İşletme paneliniz hazır. Bu kısa turda POS satışı, cari hesaplar ve stok modüllerini nasıl kullanacağınızı öğreneceksiniz.',
+    icon: HelpCircle,
   },
   {
-    title: 'Muhasebe DerinliÄŸi ğŸ“Š',
-    description: 'Sol menÃ¼den "Muhasebe" sekmesine tÄ±klayarak faturalarÄ±nÄ±zÄ± yÃ¶netebilir, BA/BS formlarÄ±nÄ± Ã§ekebilir ve KDV raporlarÄ±nÄ±zÄ± anlÄ±k olarak hesaplatabilirsiniz.',
+    title: 'POS Satış Ekranı',
+    description:
+      'Üst bardaki "POS\'u Aç" veya sol menüdeki "POS Satış" ile kasa ekranına geçin. Barkod okutun, ödeme alın, fiş yazdırın.',
+    icon: Monitor,
+    action: { label: 'POS\'a Git', href: '/pos' },
   },
   {
-    title: 'B2B ve SipariÅŸ YÃ¶netimi ğŸ¤',
-    description: '"B2B" menÃ¼sÃ¼ altÄ±ndan mÃ¼ÅŸterilerinize Ã¶zel Fiyat Listeleri tanÄ±mlayabilir ve bayilerinizden gelen sipariÅŸleri onaylayÄ±p sevkiyata hazÄ±rlayabilirsiniz.',
+    title: 'Cari Listesi',
+    description:
+      'Müşteri ve tedarikçi hesaplarını "Cari Listesi" menüsünden yönetin. Bakiye, ekstre ve yaşlandırma raporlarını buradan takip edin.',
+    icon: Users,
+    action: { label: 'Cari Listesine Git', href: '/accounting/contacts' },
   },
   {
-    title: 'Ãœretim (MRP) ve Ä°ÅŸ Emirleri ğŸ­',
-    description: 'Hammaddeden nihai Ã¼rÃ¼ne kadar olan tÃ¼m sÃ¼reÃ§leri "MRP" menÃ¼sÃ¼nde bulabilirsiniz. Ãœretim ReÃ§eteleri (BOM) tanÄ±mlayÄ±n ve Ä°ÅŸ Emirlerini buradan takip edin.',
+    title: 'Stok ve Muhasebe',
+    description:
+      'Ürün kartları, depo hareketleri, satış faturaları ve kasa işlemleri sol menüdeki ilgili modüllerden erişilebilir.',
+    icon: Package,
   },
   {
-    title: 'Envanter ve Depo ğŸ“¦',
-    description: 'Stok hareketlerinizi, depo transferlerinizi ve sayÄ±m iÅŸlemlerinizi "Envanter" modÃ¼lÃ¼nden yÃ¶netin. Hangi Ã¼rÃ¼nÃ¼n nerede olduÄŸunu saniyeler iÃ§inde bulun.',
+    title: 'Kısayol Masaüstü',
+    description:
+      'Sık kullandığınız sayfaları sol menüden "+" ile masaüstüne ekleyin. Masaüstündeki kartlara tıklayarak hızlıca geçiş yapın.',
+    icon: Wallet,
   },
   {
-    title: 'HazÄ±rsÄ±nÄ±z! ğŸ‰',
-    description: 'Sistem ÅŸu an 2800\'den fazla kayÄ±tla test etmeniz iÃ§in hazÄ±r. Sol menÃ¼den dilediÄŸiniz modÃ¼le tÄ±klayarak keÅŸfetmeye baÅŸlayabilirsiniz.',
-  }
+    title: 'Hazırsınız',
+    description:
+      'Menü dar moddaysa simgeye tıklayınca alt menü açılır. Sorun yaşarsanız sağ alttaki yardım simgesinden bu kılavuza dönebilirsiniz.',
+    icon: CheckCircle,
+  },
 ];
 
 export default function OnboardingGuide() {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
-    // Sadece ilk giriÅŸte otomatik aÃ§Ä±lmasÄ± istenirse buraya eklenebilir.
-    // Åimdilik test iÃ§in hep gÃ¶rÃ¼nÃ¼r olsun veya butona baÄŸlayalÄ±m.
-    const hasSeenGuide = localStorage.getItem('smarterp_guide_seen');
-    if (!hasSeenGuide) {
-      setIsOpen(true);
-    }
+    const hasSeenGuide = localStorage.getItem('smartnexus_guide_seen');
+    if (!hasSeenGuide) setIsOpen(true);
   }, []);
 
+  const panel = getUser()?.panel || 'isletme';
+
   const handleClose = () => {
-    localStorage.setItem('smarterp_guide_seen', 'true');
+    localStorage.setItem('smartnexus_guide_seen', 'true');
     setIsOpen(false);
   };
 
+  const goTo = (path: string) => {
+    handleClose();
+    router.push(`/${panel}${path}`);
+  };
+
   const nextStep = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      handleClose();
-    }
+    if (currentStep < steps.length - 1) setCurrentStep(currentStep + 1);
+    else handleClose();
   };
 
   const prevStep = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
+    if (currentStep > 0) setCurrentStep(currentStep - 1);
   };
+
+  const step = steps[currentStep];
+  const StepIcon = step.icon;
 
   return (
     <>
       <button
+        type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 bg-indigo-600 text-white p-4 rounded-full shadow-lg hover:bg-indigo-700 transition-all flex items-center justify-center z-40"
+        className="fixed bottom-6 right-6 bg-[#606BDF] text-white p-4 rounded-full shadow-lg hover:opacity-90 transition-all flex items-center justify-center z-40"
         title="Sistem Kılavuzu"
-        aria-label="Sistem Kılavuzunu Aç"
+        aria-label="Sistem kılavuzunu aç"
       >
         <HelpCircle className="w-6 h-6" />
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
-            <div className="p-6 relative">
-              <button title="Kapat" aria-label="Kapat" 
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="modal-card max-w-lg w-full overflow-hidden shadow-2xl">
+            <div className="bg-[#606BDF] px-6 py-5 text-white relative">
+              <button
+                type="button"
+                title="Kapat"
+                aria-label="Kapat"
                 onClick={handleClose}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute top-4 right-4 text-white/80 hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
-              
-              <div className="mt-4">
-                <div className="flex justify-between items-center mb-6">
-                  <div className="flex space-x-1">
-                    {steps.map((_, i) => (
-                      <div 
-                        key={i} 
-                        className={`h-1.5 rounded-full transition-all ${i === currentStep ? 'w-6 bg-indigo-600' : 'w-2 bg-gray-200'}`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-xs font-semibold text-gray-400">
-                    {currentStep + 1} / {steps.length}
-                  </span>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                  <StepIcon className="w-5 h-5" />
                 </div>
+                <div>
+                  <p className="text-xs text-white/80 font-medium">Başlangıç Kılavuzu</p>
+                  <h2 className="text-lg font-bold">{step.title}</h2>
+                </div>
+              </div>
+            </div>
 
-                <h2 className="text-2xl font-bold text-gray-900 mb-3">{steps[currentStep].title}</h2>
-                <p className="text-gray-600 text-base leading-relaxed min-h-[80px]">
-                  {steps[currentStep].description}
-                </p>
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex gap-1">
+                  {steps.map((_, i) => (
+                    <div
+                      key={i}
+                      className={`h-1.5 rounded-full transition-all ${
+                        i === currentStep ? 'w-6 bg-[#606BDF]' : 'w-2 bg-gray-200'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs font-semibold text-gray-400">
+                  {currentStep + 1} / {steps.length}
+                </span>
               </div>
 
-              <div className="mt-8 flex justify-between items-center">
+              <p className="text-gray-600 text-sm leading-relaxed min-h-[72px]">{step.description}</p>
+
+              {'action' in step && step.action && (
                 <button
+                  type="button"
+                  onClick={() => goTo(step.action!.href)}
+                  className="mt-4 text-sm font-medium text-[#606BDF] hover:underline"
+                >
+                  {step.action.label} →
+                </button>
+              )}
+
+              <div className="mt-6 flex justify-between items-center">
+                <button
+                  type="button"
                   onClick={prevStep}
                   disabled={currentStep === 0}
-                  className={`flex items-center text-sm font-medium transition-colors ${currentStep === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-indigo-600'}`}
-                 title="Buton">
+                  className={`flex items-center text-sm font-medium ${
+                    currentStep === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-[#606BDF]'
+                  }`}
+                >
                   <ChevronLeft className="w-4 h-4 mr-1" /> Geri
                 </button>
-                
+
                 <button
+                  type="button"
                   onClick={nextStep}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center transition-colors"
-                 title="Buton">
+                  className="bg-[#606BDF] hover:opacity-90 text-white px-5 py-2.5 rounded-xl font-medium flex items-center"
+                >
                   {currentStep === steps.length - 1 ? (
-                    <>BaÅŸla <CheckCircle className="w-4 h-4 ml-2" /></>
+                    <>
+                      Başla <CheckCircle className="w-4 h-4 ml-2" />
+                    </>
                   ) : (
-                    <>Ä°leri <ChevronRight className="w-4 h-4 ml-2" /></>
+                    <>
+                      İleri <ChevronRight className="w-4 h-4 ml-2" />
+                    </>
                   )}
                 </button>
               </div>
@@ -133,4 +180,3 @@ export default function OnboardingGuide() {
     </>
   );
 }
-
