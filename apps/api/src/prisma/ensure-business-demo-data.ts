@@ -11,7 +11,6 @@ const DEMO_CATEGORIES = [
 
 const DEMO_PRODUCTS = [
   {
-    suffix: 'prod-pos-01',
     code: 'HSR-01',
     name: 'HIŞIR P. ŞEFFAF MİNİ BOY (1KG/400 ADET)',
     cat: 'cat-pos-1',
@@ -22,7 +21,6 @@ const DEMO_PRODUCTS = [
     stock: 150,
   },
   {
-    suffix: 'prod-pos-02',
     code: 'HSR-02',
     name: 'HIŞIR P. ŞEFFAF KÜÇÜK BOY (1KG/220 ADET)',
     cat: 'cat-pos-1',
@@ -33,7 +31,6 @@ const DEMO_PRODUCTS = [
     stock: 120,
   },
   {
-    suffix: 'prod-pos-03',
     code: 'HSR-03',
     name: 'HIŞIR P. ŞEFFAF ORTA BOY (1KG/150 ADET)',
     cat: 'cat-pos-1',
@@ -44,33 +41,31 @@ const DEMO_PRODUCTS = [
     stock: 133,
   },
   {
-    suffix: 'prod-01',
     code: 'ELK-001',
     name: 'Laptop Dell Inspiron 15',
     cat: 'cat-elek',
     sp: 16500,
     pp: 12000,
-    unit: 'PIECE',
+    unit: 'ADET',
     bar: '8691234567890',
     stock: 45,
   },
   {
-    suffix: 'prod-11',
     code: 'OFS-001',
     name: 'A4 Kağıt 500 Yaprak',
     cat: 'cat-ofis',
     sp: 75,
     pp: 45,
-    unit: 'PACKAGE',
+    unit: 'PAKET',
     bar: '8691234560001',
     stock: 350,
   },
 ];
 
 const DEMO_CONTACTS = [
-  { suffix: 'cnt-01', code: 'CRI-0001', name: 'ABC Teknoloji A.Ş.', type: 'CUSTOMER', balance: 12400 },
-  { suffix: 'cnt-02', code: 'CRI-0002', name: 'XYZ Danışmanlık Ltd.', type: 'CUSTOMER', balance: 8500 },
-  { suffix: 'cnt-03', code: 'CRI-0003', name: 'TechDistributor A.Ş.', type: 'BOTH', balance: 3200 },
+  { code: 'CRI-0001', name: 'ABC Teknoloji A.Ş.', type: 'CUSTOMER', balance: 12400 },
+  { code: 'CRI-0002', name: 'XYZ Danışmanlık Ltd.', type: 'CUSTOMER', balance: 8500 },
+  { code: 'CRI-0003', name: 'TechDistributor A.Ş.', type: 'BOTH', balance: 3200 },
 ];
 
 /** İşletme tenant'ına POS/muhasebe için minimum demo stok + cari yükler */
@@ -94,24 +89,25 @@ export async function ensureBusinessDemoData(prisma: PrismaClient, tenantId: str
     const id = `${tenantId}-${c.suffix}`;
     await prisma.productCategory.upsert({
       where: { id },
-      update: { name: c.name },
+      update: { name: c.name, tenantId },
       create: { id, tenantId, name: c.name },
     });
   }
 
   for (const p of DEMO_PRODUCTS) {
-    const id = `${tenantId}-${p.suffix}`;
     const categoryId = `${tenantId}-${p.cat}`;
-    await prisma.product.upsert({
-      where: { id },
+    const product = await prisma.product.upsert({
+      where: { tenantId_code: { tenantId, code: p.code } },
       update: {
+        name: p.name,
+        categoryId,
         salePrice: p.sp,
         purchasePrice: p.pp,
         isActive: true,
         barcode: p.bar,
+        deletedAt: null,
       },
       create: {
-        id,
         tenantId,
         code: p.code,
         name: p.name,
@@ -120,7 +116,7 @@ export async function ensureBusinessDemoData(prisma: PrismaClient, tenantId: str
         salePrice: p.sp,
         barcode: p.bar,
         vatRate: 20,
-        unit: p.unit as any,
+        unit: p.unit,
         type: 'PRODUCT',
         isService: false,
         isActive: true,
@@ -130,7 +126,7 @@ export async function ensureBusinessDemoData(prisma: PrismaClient, tenantId: str
     await prisma.stockItem.upsert({
       where: {
         productId_warehouseId_tenantId: {
-          productId: id,
+          productId: product.id,
           warehouseId: whId,
           tenantId,
         },
@@ -138,7 +134,7 @@ export async function ensureBusinessDemoData(prisma: PrismaClient, tenantId: str
       update: { quantity: p.stock },
       create: {
         tenantId,
-        productId: id,
+        productId: product.id,
         warehouseId: whId,
         quantity: p.stock,
       },
@@ -158,16 +154,14 @@ export async function ensureBusinessDemoData(prisma: PrismaClient, tenantId: str
   });
 
   for (const c of DEMO_CONTACTS) {
-    const id = `${tenantId}-${c.suffix}`;
     await prisma.contact.upsert({
-      where: { id },
-      update: { isActive: true, balance: c.balance },
+      where: { tenantId_code: { tenantId, code: c.code } },
+      update: { isActive: true, balance: c.balance, name: c.name },
       create: {
-        id,
         tenantId,
         code: c.code,
         name: c.name,
-        type: c.type as any,
+        type: c.type as 'CUSTOMER' | 'SUPPLIER' | 'BOTH',
         balance: c.balance,
         isActive: true,
       },
@@ -176,7 +170,7 @@ export async function ensureBusinessDemoData(prisma: PrismaClient, tenantId: str
 
   await prisma.cashAccount.upsert({
     where: { id: `${tenantId}-cash-main` },
-    update: { isDefault: true },
+    update: { isDefault: true, isActive: true },
     create: {
       id: `${tenantId}-cash-main`,
       tenantId,
@@ -185,6 +179,15 @@ export async function ensureBusinessDemoData(prisma: PrismaClient, tenantId: str
       currency: 'TRY',
       balance: 10000,
       isDefault: true,
+      isActive: true,
     },
   });
+
+  const [products, contacts, categories] = await Promise.all([
+    prisma.product.count({ where: { tenantId, isActive: true } }),
+    prisma.contact.count({ where: { tenantId, isActive: true } }),
+    prisma.productCategory.count({ where: { tenantId } }),
+  ]);
+
+  return { tenantId, products, contacts, categories };
 }

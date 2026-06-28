@@ -236,12 +236,23 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         },
       });
 
-      await ensureBusinessDemoData(this, business.id);
-      await ensureBusinessDemoData(this, tech.id);
+      try {
+        const stats = await this.seedDemoBusinessData();
+        this.logger.log(`Demo stok/cari: ${JSON.stringify(stats)}`);
+      } catch (demoErr) {
+        this.logger.error('ensureBusinessDemoData failed', demoErr);
+      }
 
-      this.logger.log('Core demo accounts + işletme stok/cari verisi hazır.');
+      this.logger.log('Core demo accounts hazır.');
     } catch (e) {
       this.logger.error('Failed to ensure core demo accounts', e);
     }
+  }
+
+  /** İşletme demo stok/cari — fix-demo endpoint'inden ayrıca çağrılır */
+  async seedDemoBusinessData() {
+    const b1 = await ensureBusinessDemoData(this, 'ten-b1');
+    const tech = await ensureBusinessDemoData(this, 'ten-tech-pos');
+    return { tenB1: b1, tech };
   }
 }

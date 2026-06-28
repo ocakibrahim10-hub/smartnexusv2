@@ -18,14 +18,31 @@ export class HealthController {
   async fixDemo() {
     try {
       await this.prisma.ensureCoreDemoAccounts();
+      const stats = await this.prisma.seedDemoBusinessData();
       return {
         success: true,
+        stats,
         message:
           'Demo hesaplar, stok, cari ve POS ürünleri güncellendi (admin/bayi/isletme — şifre: 123456)',
       };
     } catch (e: any) {
-      return { success: false, error: e.message };
+      return { success: false, error: e.message, stack: e.stack?.split?.('\n')?.slice(0, 8) };
     }
+  }
+
+  @Get('demo-status')
+  @Public()
+  async demoStatus() {
+    const [tenB1Products, tenB1Contacts, tenB1Categories, techProducts] = await Promise.all([
+      this.prisma.product.count({ where: { tenantId: 'ten-b1', isActive: true } }),
+      this.prisma.contact.count({ where: { tenantId: 'ten-b1', isActive: true } }),
+      this.prisma.productCategory.count({ where: { tenantId: 'ten-b1' } }),
+      this.prisma.product.count({ where: { tenantId: 'ten-tech-pos', isActive: true } }),
+    ]);
+    return {
+      tenB1: { products: tenB1Products, contacts: tenB1Contacts, categories: tenB1Categories },
+      tech: { products: techProducts },
+    };
   }
 
   @Get('seed')
