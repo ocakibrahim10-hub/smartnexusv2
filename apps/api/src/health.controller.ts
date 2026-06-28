@@ -18,12 +18,16 @@ export class HealthController {
   async fixDemo() {
     try {
       await this.prisma.ensureCoreDemoAccounts();
-      const stats = await this.prisma.seedDemoBusinessData();
+      void this.prisma
+        .seedDemoBusinessData()
+        .then((stats) => console.log('[fix-demo] seed tamam:', stats))
+        .catch((e) => console.error('[fix-demo] seed hata:', e));
+      const status = await this.demoStatus();
       return {
         success: true,
-        stats,
+        status,
         message:
-          'Demo hesaplar, stok, cari ve POS ürünleri güncellendi (admin/bayi/isletme — şifre: 123456)',
+          'Demo hesaplar hazır. Tam veri seti arka planda yükleniyor (1-3 dk). /api/health/demo-status ile kontrol edin.',
       };
     } catch (e: any) {
       return { success: false, error: e.message, stack: e.stack?.split?.('\n')?.slice(0, 8) };
