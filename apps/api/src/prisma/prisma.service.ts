@@ -274,8 +274,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     }
     await this.productCategory.deleteMany({ where: { tenantId, id: { startsWith: prefix } } });
     await this.contact.deleteMany({ where: { tenantId, id: { startsWith: prefix } } });
-    await this.warehouse.deleteMany({ where: { tenantId, id: { startsWith: prefix } } });
-    await this.cashAccount.deleteMany({ where: { tenantId, id: { startsWith: prefix } } });
   }
 
   /** Tam demo veri seti (seed.ts) — fix-demo endpoint */
