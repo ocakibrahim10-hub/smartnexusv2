@@ -6,7 +6,6 @@ import {
   DEALER_DEFAULT_MODULES,
   PLATINUM_BUSINESS_MODULES,
 } from '../common/module-catalog';
-import { ensureBusinessDemoData } from './ensure-business-demo-data';
 import { main as runFullDemoSeed } from '../../prisma/seed';
 
 const DEMO_PASSWORD = '123456';
@@ -246,22 +245,43 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         },
       });
 
-      try {
-        await ensureBusinessDemoData(this, 'ten-b1');
-        this.logger.log('Hızlı demo stok/cari yüklendi (startup)');
-      } catch (demoErr) {
-        this.logger.error('ensureBusinessDemoData failed', demoErr);
-      }
-
       this.logger.log('Core demo accounts hazır.');
     } catch (e) {
       this.logger.error('Failed to ensure core demo accounts', e);
     }
   }
 
+  /** Mini seed / çakışan kayıtları temizle, tam seed öncesi */
+  private async prepareTenB1ForFullSeed() {
+    const tenantId = 'ten-b1';
+    await this.cleanupMiniDemoClashes(tenantId);
+    await this.stockItem.deleteMany({ where: { tenantId } });
+    await this.productUnit.deleteMany({ where: { product: { tenantId } } });
+    await this.product.deleteMany({ where: { tenantId } });
+    await this.productCategory.deleteMany({ where: { tenantId } });
+  }
+
+  private async cleanupMiniDemoClashes(tenantId: string) {
+    const prefix = `${tenantId}-`;
+    const clashProducts = await this.product.findMany({
+      where: { tenantId, id: { startsWith: prefix } },
+      select: { id: true },
+    });
+    if (clashProducts.length) {
+      const ids = clashProducts.map((p) => p.id);
+      await this.stockItem.deleteMany({ where: { productId: { in: ids } } });
+      await this.product.deleteMany({ where: { id: { in: ids } } });
+    }
+    await this.productCategory.deleteMany({ where: { tenantId, id: { startsWith: prefix } } });
+    await this.contact.deleteMany({ where: { tenantId, id: { startsWith: prefix } } });
+    await this.warehouse.deleteMany({ where: { tenantId, id: { startsWith: prefix } } });
+    await this.cashAccount.deleteMany({ where: { tenantId, id: { startsWith: prefix } } });
+  }
+
   /** Tam demo veri seti (seed.ts) — fix-demo endpoint */
   async seedDemoBusinessData() {
     this.logger.log('Tam demo seed başlıyor (ürün, cari, fatura, POS, TMS, HR...)');
+    await this.prepareTenB1ForFullSeed();
     await runFullDemoSeed();
     const [products, contacts, invoices, vehicles] = await Promise.all([
       this.product.count({ where: { tenantId: 'ten-b1', isActive: true } }),
