@@ -13,7 +13,19 @@ import { canAccessRoute } from '@/lib/modules';
 import { authApi } from '@/lib/api';
 import { finalizeSubscriptionPayment } from '@/lib/finalize-subscription-payment';
 import { isPublicAuthPath } from '@/lib/reset-client-state';
-import { isPanelType, panelLoginPath, stripPanelPrefix, inferPanelFromTenantType, panelLabel } from '@/lib/panel';
+import {
+  isPanelType,
+  panelLoginPath,
+  stripPanelPrefix,
+  inferPanelFromTenantType,
+  type PanelType,
+} from '@/lib/panel';
+
+function panelTitle(panel: PanelType): string {
+  if (panel === 'nexusadmin') return 'Nexus Admin';
+  if (panel === 'bayi') return 'Bayi Paneli';
+  return 'İşletme Paneli';
+}
 import SubscriptionAlertBanner from '@/components/SubscriptionAlertBanner';
 import CampaignPopup from '@/components/layout/CampaignPopup';
 
@@ -137,7 +149,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
         <PanelSidebar panel={panel} collapsed={collapsed} />
         <main className="dashboard-main flex-1 flex flex-col h-screen overflow-hidden">
           <TopBar 
-            title={panelLabel(panel)} 
+            title={panelTitle(panel as PanelType)} 
             collapsed={collapsed} 
             onToggleSidebar={() => setCollapsed(!collapsed)} 
           />

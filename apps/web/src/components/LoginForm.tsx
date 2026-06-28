@@ -39,20 +39,27 @@ export default function LoginForm({
 
   useEffect(() => {
     let cancelled = false;
-    resetStaleClientState().finally(() => {
+    resetStaleClientState().finally(async () => {
       if (cancelled) return;
       if (isAuthenticated()) {
-        const user = getUser();
-        const home = user?.homeRoute || `/${panel}/dashboard`;
-        router.replace(home);
-        return;
+        try {
+          const profile = await authApi.me();
+          if (cancelled) return;
+          const user = getUser();
+          const home = profile?.homeRoute || user?.homeRoute || `/${panel}/dashboard`;
+          window.location.href = home;
+          return;
+        } catch {
+          localStorage.clear();
+          sessionStorage.clear();
+        }
       }
       setReady(true);
     });
     return () => {
       cancelled = true;
     };
-  }, [panel, router]);
+  }, [panel]);
 
   const doLogin = async (loginEmail: string, loginPassword: string) => {
     setLoading(true);

@@ -6,6 +6,8 @@ export type ModuleGroupDef = {
   children: SubModuleDef[];
 };
 
+import { canManageUsers } from './role-permissions';
+
 export const MODULE_CATALOG: ModuleGroupDef[] = [
   {
     id: 'DEALER',
@@ -284,8 +286,6 @@ export function hasModuleAccess(
   // DEMO/TEST ORTAMI: Kullanıcının talebi üzerine "Tüm modüller" herkes için açık bırakıldı.
   return true;
 }
-
-import { canManageUsers } from './role-permissions';
 
 /** Yalnızca OWNER/ADMIN erişebilir (personel yönetimi, ayarlar, şube tanımı vb.) */
 export const MANAGER_ONLY_ROUTES = ['/users', '/settings', '/branches', '/kontor', '/subscribe'];
