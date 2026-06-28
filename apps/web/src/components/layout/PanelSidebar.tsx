@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { normalizePanelHref, panelNavigate } from '@/lib/panel-navigate';
 import { useState, useMemo, useEffect } from 'react';
 import {
   LayoutDashboard,
@@ -519,8 +519,10 @@ export default function PanelSidebar({
     toggleGroup(currentPathStr, parentPathStr);
   };
 
-  const handleLeafNavigate = () => {
+  const handleLeafNavigate = (href: string, e?: React.MouseEvent) => {
+    e?.preventDefault();
     setCollapsedFlyout(null);
+    panelNavigate(href, panel);
   };
 
   const isActive = (href?: string) =>
@@ -535,17 +537,17 @@ export default function PanelSidebar({
       const active = isActive(item.href);
       const isShortcut = item.href ? hasShortcut(item.href) : false;
       return (
-        <div key={currentPathStr} className="group relative flex items-center pr-2">
-          <Link
-            href={item.href!}
-            onClick={handleLeafNavigate}
+        <div key={currentPathStr} className="group flex items-center gap-0.5 pr-1">
+          <a
+            href={normalizePanelHref(item.href!, panel)}
+            onClick={(e) => handleLeafNavigate(item.href!, e)}
             title={collapsed ? item.label : undefined}
-            className={`sidebar-item w-full flex items-center py-2 transition-colors hover:bg-gray-100 ${active ? 'active bg-[#E0E0FF] text-[#3944B8] rounded-md font-medium' : 'text-gray-600'} ${collapsed ? 'justify-center px-2' : ''}`}
+            className={`sidebar-item flex-1 min-w-0 flex items-center py-2 transition-colors hover:bg-gray-100 ${active ? 'active bg-[#E0E0FF] text-[#3944B8] rounded-md font-medium' : 'text-gray-600'} ${collapsed ? 'justify-center px-2' : ''}`}
             style={collapsed ? undefined : { paddingLeft: `${depth * 1 + 1}rem` }}
           >
             <item.icon className={`w-4 h-4 flex-shrink-0 ${collapsed ? '' : 'mr-3'}`} />
             {!collapsed && <span className="flex-1 text-left truncate text-[13px]">{item.label}</span>}
-          </Link>
+          </a>
           
           {!collapsed && item.href && (
             <button
@@ -558,7 +560,7 @@ export default function PanelSidebar({
                    addShortcut({ label: item.label, href: item.href as string, iconName: item.icon.displayName || 'FileText' });
                 }
               }}
-              className={`absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-gray-200 z-10 focus:opacity-100 ${isShortcut ? 'text-green-600 opacity-100' : 'text-gray-400'}`}
+              className={`flex-shrink-0 p-1.5 rounded-md hover:bg-gray-200 transition-opacity ${isShortcut ? 'text-green-600' : 'text-gray-400 opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
               title={isShortcut ? "Masaüstünden Kaldır" : "Masaüstüne Kısayol Ekle"}
             >
               {isShortcut ? <CheckSquare className="w-3.5 h-3.5" /> : <PlusSquare className="w-3.5 h-3.5" />}
@@ -602,7 +604,7 @@ export default function PanelSidebar({
 
   return (
     <aside
-      className={`dashboard-sidebar flex flex-col h-screen transition-all duration-300 z-30 flex-shrink-0 border-r border-gray-200 bg-[#f8f9fa] ${collapsed ? 'w-[72px]' : 'w-[280px]'}`}
+      className={`dashboard-sidebar flex flex-col h-screen transition-all duration-300 z-[200] flex-shrink-0 border-r border-gray-200 bg-[#f8f9fa] ${collapsed ? 'w-[72px]' : 'w-[280px]'}`}
     >
       <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200 bg-white">
         <div className="flex items-center gap-3">
@@ -684,10 +686,10 @@ export default function PanelSidebar({
               {collapsedFlyout.title}
             </div>
             {collapsedFlyout.items.map((leaf) => (
-              <Link
+              <a
                 key={leaf.href}
-                href={leaf.href}
-                onClick={handleLeafNavigate}
+                href={normalizePanelHref(leaf.href, panel)}
+                onClick={(e) => handleLeafNavigate(leaf.href, e)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-[#FBF8FF] transition-colors ${
                   pathname === leaf.href || pathname.startsWith(`${leaf.href}/`)
                     ? 'bg-[#E0E0FF] text-[#3944B8] font-medium'
@@ -696,7 +698,7 @@ export default function PanelSidebar({
               >
                 <leaf.icon className="w-4 h-4 flex-shrink-0 text-gray-500" />
                 <span className="truncate">{leaf.label}</span>
-              </Link>
+              </a>
             ))}
           </div>
         </>

@@ -841,6 +841,9 @@ async function main() {
     { pid: 'prod-04', wh: 'wh-02', qty: 38 },
     { pid: 'prod-06', wh: 'wh-02', qty: 22 },
     { pid: 'prod-11', wh: 'wh-02', qty: 80 },
+    { pid: 'prod-pos-01', wh: 'wh-01', qty: 150 },
+    { pid: 'prod-pos-02', wh: 'wh-01', qty: 120 },
+    { pid: 'prod-pos-03', wh: 'wh-01', qty: 133 },
   ];
   for (const s of stocks) {
     await prisma.stockItem.upsert({

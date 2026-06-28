@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { authApi } from '@/lib/api';
 import { getUser, setUser } from '@/lib/auth';
+import { normalizePanelHref } from '@/lib/panel-navigate';
+import type { PanelType } from '@/lib/panel';
 
 export type Shortcut = {
   id?: string;
@@ -28,6 +30,16 @@ const emitChange = () => {
 const defaultGroups: ShortcutGroup[] = [
   { id: 'group-main', title: 'Genel Kısayollar', items: [] },
 ];
+
+function migrateGroups(groups: ShortcutGroup[], panel: PanelType): ShortcutGroup[] {
+  return groups.map((g) => ({
+    ...g,
+    items: g.items.map((item) => ({
+      ...item,
+      href: normalizePanelHref(item.href, panel),
+    })),
+  }));
+}
 
 function buildBusinessDefaults(panel: string): ShortcutGroup[] {
   const p = (path: string) => `/${panel}${path.startsWith('/') ? path : `/${path}`}`;
@@ -67,6 +79,11 @@ export function useShortcuts() {
             const isBusiness = user?.tenantType === 'BUSINESS' || user?.tenantType === 'BRANCH';
             if (totalItems === 0 && isBusiness) {
               globalShortcutGroups = buildBusinessDefaults(user?.panel || 'isletme');
+            } else if (totalItems > 0) {
+              globalShortcutGroups = migrateGroups(
+                parsed,
+                (user?.panel || 'isletme') as PanelType,
+              );
             }
           }
         }
@@ -74,29 +91,39 @@ export function useShortcuts() {
         console.error('Failed to parse local shortcuts', e);
       }
 
-      // 2. Eğer LocalStorage'da yoksa User Preferences'e bak
       if (!globalShortcutGroups) {
         const user = getUser();
+        const panel = (user?.panel || 'isletme') as PanelType;
         const prefs = user?.preferences?.shortcuts;
         if (prefs && Array.isArray(prefs)) {
           if (prefs.length > 0 && !('items' in prefs[0])) {
-            // Migration from old flat array
-            globalShortcutGroups = [{ id: 'group-legacy', title: 'Masaüstü', items: prefs }];
+            globalShortcutGroups = migrateGroups(
+              [{ id: 'group-legacy', title: 'Masaüstü', items: prefs }],
+              panel,
+            );
           } else {
-            globalShortcutGroups = prefs;
+            globalShortcutGroups = migrateGroups(prefs, panel);
           }
         } else {
-          const user = getUser();
           const isBusiness = user?.tenantType === 'BUSINESS' || user?.tenantType === 'BRANCH';
-          const panel = user?.panel || 'isletme';
           globalShortcutGroups =
             isBusiness && panel === 'isletme' ? buildBusinessDefaults(panel) : defaultGroups;
         }
-        
-        // İlk veriyi LocalStorage'a sabitle
+
         try {
           localStorage.setItem('smartnexus_shortcuts', JSON.stringify(globalShortcutGroups));
         } catch (e) {}
+      } else {
+        const user = getUser();
+        const panel = (user?.panel || 'isletme') as PanelType;
+        const migrated = migrateGroups(globalShortcutGroups, panel);
+        const changed = JSON.stringify(migrated) !== JSON.stringify(globalShortcutGroups);
+        if (changed) {
+          globalShortcutGroups = migrated;
+          try {
+            localStorage.setItem('smartnexus_shortcuts', JSON.stringify(migrated));
+          } catch (e) {}
+        }
       }
       setGroups(globalShortcutGroups);
     }

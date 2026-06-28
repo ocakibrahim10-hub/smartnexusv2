@@ -7,6 +7,7 @@ import {
   PLATINUM_BUSINESS_MODULES,
 } from '../common/module-catalog';
 import { ensureBusinessDemoData } from './ensure-business-demo-data';
+import { main as runFullDemoSeed } from '../../prisma/seed';
 
 const DEMO_PASSWORD = '123456';
 
@@ -246,8 +247,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       });
 
       try {
-        const stats = await this.seedDemoBusinessData();
-        this.logger.log(`Demo stok/cari: ${JSON.stringify(stats)}`);
+        await ensureBusinessDemoData(this, 'ten-b1');
+        this.logger.log('Hızlı demo stok/cari yüklendi (startup)');
       } catch (demoErr) {
         this.logger.error('ensureBusinessDemoData failed', demoErr);
       }
@@ -258,13 +259,19 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     }
   }
 
-  /** İşletme demo stok/cari — fix-demo endpoint'inden ayrıca çağrılır */
+  /** Tam demo veri seti (seed.ts) — fix-demo endpoint */
   async seedDemoBusinessData() {
-    const b1 = await ensureBusinessDemoData(this, 'ten-b1');
-    const techTenant = await this.tenant.findFirst({
-      where: { code: 'tech', type: 'BUSINESS', isActive: true },
-    });
-    const tech = techTenant ? await ensureBusinessDemoData(this, techTenant.id) : null;
-    return { tenB1: b1, tech };
+    this.logger.log('Tam demo seed başlıyor (ürün, cari, fatura, POS, TMS, HR...)');
+    await runFullDemoSeed();
+    const [products, contacts, invoices, vehicles] = await Promise.all([
+      this.product.count({ where: { tenantId: 'ten-b1', isActive: true } }),
+      this.contact.count({ where: { tenantId: 'ten-b1', isActive: true } }),
+      this.invoice.count({ where: { tenantId: 'ten-b1' } }),
+      this.vehicle.count({ where: { tenantId: 'ten-b1' } }),
+    ]);
+    return {
+      tenB1: { products, contacts, invoices, vehicles },
+      message: 'Tam seed tamamlandı',
+    };
   }
 }

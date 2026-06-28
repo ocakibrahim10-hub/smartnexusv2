@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { HelpCircle, X, ChevronRight, ChevronLeft, CheckCircle, Monitor, Users, Wallet, Package } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { panelNavigate } from '@/lib/panel-navigate';
 import { getUser } from '@/lib/auth';
 
 const steps = [
@@ -47,16 +47,14 @@ const steps = [
 ];
 
 export default function OnboardingGuide() {
-  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const panel = getUser()?.panel || 'isletme';
 
   useEffect(() => {
     const hasSeenGuide = localStorage.getItem('smartnexus_guide_seen');
     if (!hasSeenGuide) setIsOpen(true);
   }, []);
-
-  const panel = getUser()?.panel || 'isletme';
 
   const handleClose = () => {
     localStorage.setItem('smartnexus_guide_seen', 'true');
@@ -65,7 +63,7 @@ export default function OnboardingGuide() {
 
   const goTo = (path: string) => {
     handleClose();
-    router.push(`/${panel}${path}`);
+    panelNavigate(path, panel as 'isletme');
   };
 
   const nextStep = () => {

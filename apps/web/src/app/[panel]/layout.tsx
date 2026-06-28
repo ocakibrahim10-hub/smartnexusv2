@@ -34,6 +34,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const params = useParams();
   const panel = params.panel as string;
+  const [sessionTick, setSessionTick] = useState(0);
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -73,6 +74,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
             accessToken: localStorage.getItem('accessToken') || '',
             refreshToken: localStorage.getItem('refreshToken') || '',
           });
+          setSessionTick((t) => t + 1);
         }
       })
       .catch(() => {});
@@ -146,7 +148,12 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
       <PwaRegister />
       {panel !== 'nexusadmin' && <CampaignPopup />}
       <div className="dashboard-shell flex h-screen overflow-hidden">
-        <PanelSidebar panel={panel} collapsed={collapsed} onRequestExpand={() => setCollapsed(false)} />
+        <PanelSidebar
+          key={sessionTick}
+          panel={panel}
+          collapsed={collapsed}
+          onRequestExpand={() => setCollapsed(false)}
+        />
         <main className="dashboard-main flex-1 flex flex-col h-screen overflow-hidden">
           <TopBar 
             title={panelTitle(panel as PanelType)} 
