@@ -1,11 +1,15 @@
 import axios from 'axios';
 import { PanelType } from './panel';
 import { getApiBaseUrl } from './api-url';
+import { isPublicAuthPath } from './reset-client-state';
 
 function redirectToLogin() {
+  if (typeof window !== 'undefined' && isPublicAuthPath(window.location.pathname)) {
+    return;
+  }
   const panel = localStorage.getItem('panel');
   localStorage.clear();
-  window.location.href = panel ? `/${panel}` : '/';
+  window.location.href = panel ? `/${panel}` : '/isletme';
 }
 
 export const api = axios.create({

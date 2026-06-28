@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Zap } from 'lucide-react';
 import { authApi } from '@/lib/api';
-import { setSession } from '@/lib/auth';
+import { getUser, isAuthenticated, setSession } from '@/lib/auth';
 import { PanelType, panelLabel } from '@/lib/panel';
+import { resetStaleClientState } from '@/lib/reset-client-state';
 
 type DemoVariant = 'purple' | 'emerald' | 'violet' | 'orange' | 'sky' | 'blue';
 
@@ -27,6 +28,7 @@ export default function LoginForm({
   subtitle,
 }: Props) {
   const router = useRouter();
+  const [ready, setReady] = useState(false);
   const [mode, setMode] = useState<'email' | 'phone'>(defaultMode);
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -34,6 +36,23 @@ export default function LoginForm({
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    resetStaleClientState().finally(() => {
+      if (cancelled) return;
+      if (isAuthenticated()) {
+        const user = getUser();
+        const home = user?.homeRoute || `/${panel}/dashboard`;
+        router.replace(home);
+        return;
+      }
+      setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [panel, router]);
 
   const doLogin = async (loginEmail: string, loginPassword: string) => {
     setLoading(true);
@@ -68,6 +87,14 @@ export default function LoginForm({
     if (mode === 'phone') doPhoneLogin();
     else doLogin(email, password);
   };
+
+  if (!ready) {
+    return (
+      <div className="login-shell min-h-screen flex items-center justify-center bg-[#FBF8FF]">
+        <div className="text-sm text-gray-500">Yükleniyor…</div>
+      </div>
+    );
+  }
 
   return (
     <div className="login-shell">

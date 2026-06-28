@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { Info, X } from 'lucide-react';
 import { platformApi } from '@/lib/api';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+import { getApiBaseUrl } from '@/lib/api-url';
+
+const API = getApiBaseUrl();
 
 export default function CampaignPopup() {
   const [popups, setPopups] = useState<any[]>([]);

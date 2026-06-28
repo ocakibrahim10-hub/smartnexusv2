@@ -12,6 +12,7 @@ import { isAuthenticated, getUser, setSession } from '@/lib/auth';
 import { canAccessRoute } from '@/lib/modules';
 import { authApi } from '@/lib/api';
 import { finalizeSubscriptionPayment } from '@/lib/finalize-subscription-payment';
+import { isPublicAuthPath } from '@/lib/reset-client-state';
 import { isPanelType, panelLoginPath, stripPanelPrefix, inferPanelFromTenantType, panelLabel } from '@/lib/panel';
 import SubscriptionAlertBanner from '@/components/SubscriptionAlertBanner';
 import CampaignPopup from '@/components/layout/CampaignPopup';
@@ -67,6 +68,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (isPublicAuthPath(pathname)) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get('payment') !== 'ok') return;
     const tid = sessionStorage.getItem('pendingPaymentTenantId') || getUser()?.tenantId;
