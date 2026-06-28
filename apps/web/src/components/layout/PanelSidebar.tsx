@@ -522,6 +522,8 @@ export default function PanelSidebar({
     setCollapsedFlyout(null);
     router.push(href);
   };
+
+  const isActive = (href?: string) => Boolean(href && pathname === href);
   
   // Render Item (Recursive)
   const renderItem = (item: NavItem, depth: number = 0, pathStr: string = '') => {
