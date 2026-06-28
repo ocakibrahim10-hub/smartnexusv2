@@ -1,33 +1,94 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { 
-  BarChart2, 
-  FileText, 
-  X, 
-  Search, 
-  HelpCircle, 
-  MoreHorizontal,
-  LogOut,
-  RefreshCcw,
-  Check
+import { useState, useEffect, useCallback } from 'react';
+import {
+  BarChart2,
+  FileText,
+  X,
+  PauseCircle,
+  ListOrdered,
+  Zap,
+  Wifi,
+  WifiOff,
+  Search,
+  User,
+  Trash2,
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { api } from '@/lib/api';
+import { getUser } from '@/lib/auth';
 
 interface Product {
   id: string;
   name: string;
   code: string;
+  barcode?: string;
   salePrice: number;
   vatRate: number;
   unit: string;
   stock: number;
+  saleUnit?: string;
 }
 
-interface CartItem extends Product {
+interface Contact {
+  id: string;
+  name: string;
+  code?: string;
+  taxNo?: string;
+  phone?: string;
+  balance?: number;
+}
+
+interface CartItem {
   cartId: string;
+  productId: string;
+  code: string;
+  name: string;
   quantity: number;
+  unit: string;
+  salePrice: number;
+  vatRate: number;
   discountPct: number;
+  stock: number;
+}
+
+interface HeldSale {
+  id: string;
+  cart: CartItem[];
+  contactId: string | null;
+  contactName: string;
+  description: string;
+  paymentType: string;
+  discountPct: number;
+  discountTl: number;
+  timestamp: number;
+}
+
+type PaymentUi = 'CASH' | 'CARD' | 'CREDIT';
+
+const HELD_KEY = 'smartnexus_pos_terminal_held';
+
+function mapApiProduct(p: Record<string, unknown>): Product {
+  const stockItems = p.stockItems as { quantity: number }[] | undefined;
+  const baseStock = stockItems?.reduce((s, si) => s + si.quantity, 0) ?? 0;
+  const saleStock = (p.saleStock as number) ?? baseStock;
+  return {
+    id: p.id as string,
+    name: p.name as string,
+    code: p.code as string,
+    barcode: p.barcode as string | undefined,
+    salePrice: Number(p.salePrice) || 0,
+    vatRate: Number(p.vatRate) || 20,
+    unit: (p.saleUnit as string) || (p.unit as string) || 'ADET',
+    stock: saleStock,
+    saleUnit: (p.saleUnit as string) || (p.unit as string),
+  };
+}
+
+function lineTotal(item: CartItem) {
+  const net = item.quantity * item.salePrice * (1 - item.discountPct / 100);
+  const vat = net * (item.vatRate / 100);
+  return { net, vat, gross: net + vat };
 }
 
 interface TerminalUIProps {
@@ -35,329 +96,667 @@ interface TerminalUIProps {
 }
 
 export function TerminalUI({ onLogout }: TerminalUIProps) {
+  const user = getUser();
+
   const [cart, setCart] = useState<CartItem[]>([]);
   const [barcode, setBarcode] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [description, setDescription] = useState('');
-  
-  // Hızlı Tuşlar (Örnek Veriler)
-  const categories = ['HIŞIR POŞET', 'KÖPÜK TABAK', 'KASE SIZDIRMAZ', 'AYPE TORBA', 'POŞET BEYAZ'];
-  const [activeCategory, setActiveCategory] = useState(categories[0]);
-  
-  const quickItems = [
-    { id: '1', code: 'HSR-01', name: 'HIŞIR P. ŞEFFAF MİNİ BOY(1KG/400 ADET)', salePrice: 45.0, vatRate: 20, unit: 'KG', stock: 150 },
-    { id: '2', code: 'HSR-02', name: 'HIŞIR P. ŞEFFAF KÜÇÜK BOY(1KG/220ADET)', salePrice: 45.0, vatRate: 20, unit: 'KG', stock: 120 },
-    { id: '3', code: 'HSR-03', name: 'HIŞIR P. ŞEFFAF ORTA BOY(1KG/150ADET)', salePrice: 45.0, vatRate: 20, unit: 'KG', stock: 133 },
-    { id: '4', code: 'HSR-04', name: 'HIŞIR P. ŞEFFAF BÜYÜK BOY(1KG/100ADET)', salePrice: 45.0, vatRate: 20, unit: 'KG', stock: 80 },
-    { id: '5', code: 'HSR-05', name: 'HIŞIR P. ŞEFFAF BATTAL BOY(1KG/60ADET)', salePrice: 45.0, vatRate: 20, unit: 'KG', stock: 65 },
-    { id: '6', code: 'HSR-06', name: 'HIŞIR P. ŞEFFAF JUMBO BOY(1KG/30ADET)', salePrice: 45.0, vatRate: 20, unit: 'KG', stock: 40 },
-    { id: '7', code: 'HSR-07', name: 'HIŞIR P. SİYAH MİNİ BOY(1KG/400ADET)', salePrice: 40.0, vatRate: 20, unit: 'KG', stock: 200 },
-    { id: '8', code: 'HSR-08', name: 'HIŞIR P. SİYAH KÜÇÜK BOY(1KG/220ADET)', salePrice: 40.0, vatRate: 20, unit: 'KG', stock: 150 },
-  ];
+  const [discountPct, setDiscountPct] = useState(0);
+  const [discountTl, setDiscountTl] = useState(0);
+  const [paymentType, setPaymentType] = useState<PaymentUi>('CASH');
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
-  const addToCart = (product: Product) => {
-    const qty = parseFloat(quantity) || 1;
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const [gridProducts, setGridProducts] = useState<Product[]>([]);
+  const [loadingGrid, setLoadingGrid] = useState(false);
+  const [online, setOnline] = useState(true);
+
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactId, setContactId] = useState<string>('');
+  const [contactSearch, setContactSearch] = useState('');
+  const [showContactSearch, setShowContactSearch] = useState(false);
+
+  const [heldSales, setHeldSales] = useState<HeldSale[]>([]);
+  const [showHeld, setShowHeld] = useState(false);
+
+  const [clock, setClock] = useState('');
+
+  const loadProducts = useCallback(async (categoryId?: string | null) => {
+    setLoadingGrid(true);
+    try {
+      const r = await api.get('/pos/products/grid', {
+        params: categoryId ? { categoryId } : {},
+      });
+      setGridProducts((r.data as Record<string, unknown>[]).map(mapApiProduct));
+      setOnline(true);
+    } catch {
+      setOnline(false);
+      toast.error('Ürünler yüklenemedi');
+    } finally {
+      setLoadingGrid(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      setClock(
+        `${now.toLocaleDateString('tr-TR')} ${now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`,
+      );
+    };
+    tick();
+    const id = setInterval(tick, 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    api
+      .get('/pos/categories')
+      .then((r) => {
+        const cats = r.data as { id: string; name: string }[];
+        setCategories(cats);
+        if (cats.length > 0) setActiveCategoryId(cats[0].id);
+      })
+      .catch(() => setOnline(false));
+
+    api
+      .get('/contacts', { params: { limit: 200 } })
+      .then((r) => {
+        const list = (r.data?.data ?? r.data ?? []) as Contact[];
+        setContacts(list);
+        const retail = list.find(
+          (c) =>
+            c.code?.toUpperCase() === 'PERAKENDE' ||
+            c.name?.toUpperCase().includes('PERAKENDE'),
+        );
+        setContactId(retail?.id || list[0]?.id || '');
+      })
+      .catch(() => {});
+
+    try {
+      const raw = localStorage.getItem(HELD_KEY);
+      if (raw) setHeldSales(JSON.parse(raw));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    loadProducts(activeCategoryId);
+  }, [activeCategoryId, loadProducts]);
+
+  const saveHeld = (list: HeldSale[]) => {
+    setHeldSales(list);
+    localStorage.setItem(HELD_KEY, JSON.stringify(list));
+  };
+
+  const addToCart = (product: Product, qty?: number) => {
+    const q = qty ?? (parseFloat(quantity) || 1);
+    if (product.stock <= 0) {
+      toast.error('Stok yok');
+      return;
+    }
     setCart((prev) => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing) {
-        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + qty } : item);
+      const idx = prev.findIndex((i) => i.productId === product.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        const newQty = next[idx].quantity + q;
+        if (newQty > product.stock) {
+          toast.error(`Maksimum stok: ${product.stock}`);
+          return prev;
+        }
+        next[idx] = { ...next[idx], quantity: newQty };
+        return next;
       }
-      return [{ ...product, cartId: Math.random().toString(), quantity: qty, discountPct: 0 }, ...prev];
+      if (q > product.stock) {
+        toast.error(`Maksimum stok: ${product.stock}`);
+        return prev;
+      }
+      return [
+        {
+          cartId: `${product.id}-${Date.now()}`,
+          productId: product.id,
+          code: product.code,
+          name: product.name,
+          quantity: q,
+          unit: product.unit,
+          salePrice: product.salePrice,
+          vatRate: product.vatRate,
+          discountPct: 0,
+          stock: product.stock,
+        },
+        ...prev,
+      ];
     });
     setQuantity('1');
     setBarcode('');
   };
 
+  const searchAndAddBarcode = async (code: string) => {
+    const local = gridProducts.find((p) => p.barcode === code || p.code === code);
+    if (local) {
+      addToCart(local);
+      toast.success(`${local.name} eklendi`);
+      return;
+    }
+    try {
+      const r = await api.get('/pos/products', { params: { q: code } });
+      const items = (r.data as Record<string, unknown>[]).map(mapApiProduct);
+      if (items.length === 1) {
+        addToCart(items[0]);
+        toast.success(`${items[0].name} eklendi`);
+      } else if (items.length > 1) {
+        toast.info('Birden fazla ürün bulundu — listeden seçin');
+      } else {
+        toast.error('Barkod bulunamadı');
+      }
+    } catch {
+      toast.error('Barkod araması başarısız');
+    }
+  };
+
   const handleBarcodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!barcode) return;
-    toast.error('Barkod bulunamadı (Demo)');
-    setBarcode('');
+    if (!barcode.trim()) return;
+    searchAndAddBarcode(barcode.trim());
   };
 
-  const removeRow = (cartId: string) => {
-    setCart(cart.filter(c => c.cartId !== cartId));
-  };
+  const removeRow = (cartId: string) => setCart((prev) => prev.filter((c) => c.cartId !== cartId));
 
   const calcTotals = () => {
-    let total = 0;
-    let vatTotal = 0;
-    cart.forEach(item => {
-      const lineTotal = item.quantity * item.salePrice;
-      const lineVat = lineTotal * (item.vatRate / 100);
-      total += lineTotal;
-      vatTotal += lineVat;
+    let subtotal = 0;
+    let vat = 0;
+    cart.forEach((item) => {
+      const t = lineTotal(item);
+      subtotal += t.net;
+      vat += t.vat;
     });
-    return { subtotal: total, vat: vatTotal, grandTotal: total + vatTotal };
+    const afterPct = subtotal * (1 - discountPct / 100);
+    const grand = afterPct + vat - discountTl;
+    return { subtotal, vat, grandTotal: Math.max(0, grand) };
   };
 
   const totals = calcTotals();
+  const selectedContact = contacts.find((c) => c.id === contactId);
 
-  const completeSale = (type: string) => {
+  const handleHold = () => {
     if (cart.length === 0) {
       toast.error('Sepet boş');
       return;
     }
-    toast.success(`${type} işlemi başarıyla kaydedildi!`);
+    const held: HeldSale = {
+      id: `held-${Date.now()}`,
+      cart: [...cart],
+      contactId: contactId || null,
+      contactName: selectedContact?.name || 'Perakende',
+      description,
+      paymentType,
+      discountPct,
+      discountTl,
+      timestamp: Date.now(),
+    };
+    saveHeld([held, ...heldSales]);
     setCart([]);
+    setDescription('');
+    setDiscountPct(0);
+    setDiscountTl(0);
+    toast.success('Satış askıya alındı');
   };
 
+  const restoreHeld = (held: HeldSale) => {
+    setCart(held.cart);
+    if (held.contactId) setContactId(held.contactId);
+    setDescription(held.description);
+    setPaymentType(held.paymentType as PaymentUi);
+    setDiscountPct(held.discountPct);
+    setDiscountTl(held.discountTl);
+    saveHeld(heldSales.filter((h) => h.id !== held.id));
+    setShowHeld(false);
+    toast.success('Askıdaki satış yüklendi');
+  };
+
+  const completeSale = async (docType: string) => {
+    if (cart.length === 0) {
+      toast.error('Sepet boş');
+      return;
+    }
+    setCheckoutLoading(true);
+    try {
+      const dto = {
+        contactId: contactId || undefined,
+        lines: cart.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.salePrice,
+          discount: item.discountPct,
+          vatRate: item.vatRate,
+          saleUnit: item.unit,
+        })),
+        paymentType,
+        discount: discountTl + totals.subtotal * (discountPct / 100),
+        printToHugin: false,
+      };
+      const r = await api.post('/pos/checkout', dto);
+      toast.success(
+        `${docType} kaydedildi — ${r.data?.receipt?.receiptNo || 'Fiş'}`,
+      );
+      setCart([]);
+      setDescription('');
+      setDiscountPct(0);
+      setDiscountTl(0);
+      loadProducts(activeCategoryId);
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      toast.error(msg || 'Satış kaydedilemedi');
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
+  const filteredContacts = contactSearch.trim()
+    ? contacts.filter(
+        (c) =>
+          c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
+          c.code?.toLowerCase().includes(contactSearch.toLowerCase()) ||
+          c.taxNo?.includes(contactSearch),
+      )
+    : contacts;
+
+  const lastLine = cart[0];
+
   return (
-    <div className="flex-1 flex flex-col h-screen bg-[#F0F4F8] font-sans overflow-hidden text-sm">
-      {/* Top Toolbar */}
-      <div className="bg-[#E4ECF4] border-b border-gray-300 px-2 py-1 flex items-center gap-1 shadow-sm h-14">
-        <button className="flex flex-col items-center justify-center p-1 w-16 hover:bg-white/50 rounded text-xs text-gray-700">
-          <BarChart2 className="w-5 h-5 text-blue-600 mb-1" />
-          <span>Satış</span>
-        </button>
-        <button className="flex flex-col items-center justify-center p-1 w-16 hover:bg-white/50 rounded text-xs text-gray-700">
-          <FileText className="w-5 h-5 text-orange-500 mb-1" />
-          <span>Faturalar</span>
-        </button>
-        <div className="w-px h-8 bg-gray-300 mx-1"></div>
-        <button onClick={onLogout} className="flex flex-col items-center justify-center p-1 w-16 hover:bg-red-50 rounded text-xs text-gray-700">
-          <X className="w-5 h-5 text-red-600 mb-1" />
-          <span>Kapat</span>
-        </button>
-      </div>
-
-      {/* Tabs Row */}
-      <div className="bg-white border-b border-gray-300 flex items-end px-2 pt-1 h-8">
-        <div className="bg-[#F0F4F8] border border-b-0 border-gray-300 rounded-t px-3 py-1 flex items-center gap-2 text-xs font-semibold text-gray-700 shadow-[0_-2px_4px_rgba(0,0,0,0.02)]">
-          Satış <X className="w-3 h-3 hover:text-red-500 cursor-pointer" />
-        </div>
-      </div>
-
-      {/* Main Content Split */}
-      <div className="flex-1 flex overflow-hidden p-1 gap-1">
-        
-        {/* LEFT PANEL: Sales Form */}
-        <div className="flex-[0.6] flex flex-col gap-1 border border-blue-200 bg-white rounded shadow-sm overflow-hidden">
-          {/* Header of Left Panel */}
-          <div className="bg-[#E8F0F8] border-b border-blue-200 px-2 py-1 text-xs font-bold text-blue-900">
-            Liste
+    <div className="flex-1 flex flex-col h-screen bg-[#FBF8FF] overflow-hidden text-sm text-[#1B1B1F]">
+      {/* Toolbar */}
+      <div className="bg-white border-b border-[#EFEDF4] px-3 py-2 flex items-center gap-2 shadow-sm">
+        <div className="flex items-center gap-2 mr-4">
+          <div className="w-8 h-8 rounded-lg bg-[#606BDF] text-white flex items-center justify-center">
+            <Zap className="w-4 h-4" />
           </div>
-          
-          <div className="p-2 flex flex-col gap-2 flex-1">
-            {/* Top controls */}
-            <div className="flex items-center gap-2">
-              <button className="bg-gray-100 hover:bg-gray-200 border border-gray-300 px-4 py-1 text-xs rounded">Askıya Al</button>
-              <button className="bg-gray-100 hover:bg-gray-200 border border-gray-300 px-4 py-1 text-xs rounded">Askıdakiler</button>
-              <div className="flex-1"></div>
-              <label className="text-xs text-gray-600 whitespace-nowrap">Açıklama</label>
-              <input 
-                type="text" 
-                title="Açıklama"
-                placeholder="Açıklama"
+          <div>
+            <div className="font-bold text-sm leading-none">SmartNexus POS</div>
+            <div className="text-[10px] text-gray-500">{user?.tenantName || 'İşletme'}</div>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#E0E0FF] text-[#3944B8] text-xs font-semibold"
+        >
+          <BarChart2 className="w-4 h-4" /> Satış
+        </button>
+        <button
+          type="button"
+          onClick={() => toast.info('Son faturalar ana panelden görüntülenir')}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-gray-50 text-xs font-medium text-gray-600"
+        >
+          <FileText className="w-4 h-4" /> Faturalar
+        </button>
+        <div className="flex-1" />
+        <button
+          type="button"
+          onClick={onLogout}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-red-50 text-red-600 text-xs font-medium"
+        >
+          <X className="w-4 h-4" /> Kapat
+        </button>
+      </div>
+
+      <div className="flex-1 flex overflow-hidden p-2 gap-2 min-h-0">
+        {/* Sol: Satış listesi */}
+        <div className="flex-[0.58] flex flex-col card border border-[#EFEDF4] overflow-hidden min-w-0">
+          <div className="px-3 py-2 border-b border-[#EFEDF4] bg-[#FBF8FF] font-semibold text-[#3944B8] text-xs">
+            Satış Listesi
+          </div>
+
+          <div className="p-3 flex flex-col gap-2 flex-1 min-h-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleHold}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#EFEDF4] hover:bg-[#E0E0FF] text-xs font-medium"
+              >
+                <PauseCircle className="w-3.5 h-3.5" /> Askıya Al
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowHeld(true)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#EFEDF4] hover:bg-[#E0E0FF] text-xs font-medium"
+              >
+                <ListOrdered className="w-3.5 h-3.5" />
+                Askıdakiler {heldSales.length > 0 && `(${heldSales.length})`}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 items-center">
+              <label className="text-xs text-gray-500">Cari</label>
+              <div className="relative">
+                <select
+                  title="Cari hesap"
+                  value={contactId}
+                  onChange={(e) => setContactId(e.target.value)}
+                  className="w-full border border-[#EFEDF4] rounded-lg px-3 py-1.5 text-xs bg-white focus:border-[#606BDF] outline-none"
+                >
+                  {contacts.length === 0 && <option value="">Yükleniyor…</option>}
+                  {contacts.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                      {c.balance != null ? ` (${c.balance.toFixed(2)} ₺)` : ''}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  title="Cari ara"
+                  onClick={() => setShowContactSearch(!showContactSearch)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#606BDF]"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                </button>
+                {showContactSearch && (
+                  <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-white border border-[#EFEDF4] rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    <input
+                      type="text"
+                      placeholder="Cari ara…"
+                      value={contactSearch}
+                      onChange={(e) => setContactSearch(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border-b border-[#EFEDF4] outline-none"
+                    />
+                    {filteredContacts.slice(0, 15).map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          setContactId(c.id);
+                          setShowContactSearch(false);
+                          setContactSearch('');
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-[#FBF8FF] flex items-center gap-2"
+                      >
+                        <User className="w-3 h-3 text-gray-400" />
+                        <span>{c.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <label className="text-xs text-gray-500">Ödeme</label>
+              <select
+                title="Ödeme tipi"
+                value={paymentType}
+                onChange={(e) => setPaymentType(e.target.value as PaymentUi)}
+                className="border border-[#EFEDF4] rounded-lg px-3 py-1.5 text-xs bg-white focus:border-[#606BDF] outline-none"
+              >
+                <option value="CASH">Peşin (Nakit)</option>
+                <option value="CARD">Kredi Kartı</option>
+                <option value="CREDIT">Veresiye</option>
+              </select>
+
+              <label className="text-xs text-gray-500">Açıklama</label>
+              <input
+                type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="border border-gray-300 px-2 py-1 text-xs w-48 focus:border-blue-500 outline-none rounded-sm" 
+                placeholder="Fiş notu (isteğe bağlı)"
+                className="border border-[#EFEDF4] rounded-lg px-3 py-1.5 text-xs outline-none focus:border-[#606BDF]"
               />
             </div>
-            
-            <div className="flex items-center gap-2 mt-1">
-              <label className="text-xs text-gray-600 w-12">Cari</label>
-              <select title="Cari" className="flex-1 border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 outline-none rounded-sm">
-                <option>PERAKENDE SATIŞLAR</option>
-              </select>
-              <button title="Cari Detay" aria-label="Cari Detay" className="bg-gray-100 border border-gray-300 px-2 py-1 rounded-sm">
-                <MoreHorizontal className="w-3 h-3" />
-              </button>
-              <button title="Yardım" aria-label="Yardım" className="bg-gray-100 border border-gray-300 px-2 py-1 rounded-sm">
-                <HelpCircle className="w-3 h-3" />
-              </button>
-              <label className="text-xs text-gray-600 ml-2">Ödeme</label>
-              <select title="Ödeme Tipi" className="w-24 border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 outline-none rounded-sm">
-                <option>PEŞİN</option>
-                <option>K. KARTI</option>
-              </select>
-            </div>
 
-            <form onSubmit={handleBarcodeSubmit} className="flex items-center gap-2 mt-1">
-              <label className="text-xs text-gray-600 w-12">Miktar</label>
-              <input 
-                type="number" 
+            <form onSubmit={handleBarcodeSubmit} className="flex items-center gap-2">
+              <input
+                type="number"
                 title="Miktar"
-                placeholder="Miktar"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                className="w-16 border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 outline-none rounded-sm" 
+                className="w-16 border border-[#EFEDF4] rounded-lg px-2 py-1.5 text-xs text-center"
+                min="0.01"
+                step="any"
               />
-              <label className="text-xs text-gray-600 ml-2">Barkod</label>
-              <div className="flex-1 flex">
-                <input 
-                  type="text" 
-                  title="Barkod"
-                  placeholder="Barkod"
-                  value={barcode}
-                  onChange={(e) => setBarcode(e.target.value)}
-                  className="w-full border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 outline-none rounded-l-sm" 
-                  autoFocus
-                />
-                <button type="button" title="Barkod Arama" aria-label="Barkod Arama" className="bg-gray-100 border border-l-0 border-gray-300 px-2 py-1 rounded-r-sm">
-                  <MoreHorizontal className="w-3 h-3" />
-                </button>
-              </div>
-              <button type="button" onClick={() => {setBarcode(''); setQuantity('1')}} className="bg-gray-100 hover:bg-gray-200 border border-gray-300 px-4 py-1 text-xs rounded-sm">Temizle</button>
+              <input
+                type="text"
+                title="Barkod"
+                value={barcode}
+                onChange={(e) => setBarcode(e.target.value)}
+                placeholder="Barkod okutun veya yazın…"
+                className="flex-1 border border-[#EFEDF4] rounded-lg px-3 py-1.5 text-xs focus:border-[#606BDF] outline-none"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setBarcode('');
+                  setQuantity('1');
+                }}
+                className="px-3 py-1.5 text-xs border border-[#EFEDF4] rounded-lg hover:bg-gray-50"
+              >
+                Temizle
+              </button>
             </form>
 
-            <div className="flex items-center gap-2 mt-1 mb-2">
-              <label className="text-xs text-gray-600 w-12">Malz</label>
-              <div className="flex-1 border border-gray-300 px-2 py-1 text-xs bg-gray-50 text-gray-500 rounded-sm truncate">
-                {cart.length > 0 ? cart[0].name : '...'}
+            {lastLine && (
+              <div className="flex gap-2 text-[11px] text-gray-500 px-1">
+                <span className="truncate flex-1">{lastLine.name}</span>
+                <span>Stok: {lastLine.stock}</span>
               </div>
-              <label className="text-xs text-gray-600 ml-2">Stok</label>
-              <div className="w-24 border border-gray-300 px-2 py-1 text-xs bg-gray-50 text-right rounded-sm">
-                {cart.length > 0 ? cart[0].stock : ''}
-              </div>
-              <button title="Malzeme Detay" aria-label="Malzeme Detay" className="bg-gray-100 border border-gray-300 px-2 py-1 rounded-sm">
-                <MoreHorizontal className="w-3 h-3" />
-              </button>
-            </div>
+            )}
 
-            {/* Main Table */}
-            <div className="flex-1 border border-gray-400 bg-gray-50 flex flex-col rounded-sm overflow-hidden min-h-[200px]">
-              <table className="w-full text-left text-[11px] whitespace-nowrap">
-                <thead className="bg-[#E4ECF4] border-b border-gray-400 sticky top-0">
+            <div className="flex-1 border border-[#EFEDF4] rounded-lg overflow-auto min-h-[140px] bg-white">
+              <table className="w-full text-[11px]">
+                <thead className="bg-[#FBF8FF] sticky top-0 border-b border-[#EFEDF4]">
                   <tr>
-                    <th className="px-2 py-1 border-r border-gray-300 font-normal w-6"></th>
-                    <th className="px-2 py-1 border-r border-gray-300 font-normal">Stok Kodu</th>
-                    <th className="px-2 py-1 border-r border-gray-300 font-normal w-full">Açıklama</th>
-                    <th className="px-2 py-1 border-r border-gray-300 font-normal text-right">Miktar</th>
-                    <th className="px-2 py-1 border-r border-gray-300 font-normal">Birim</th>
-                    <th className="px-2 py-1 border-r border-gray-300 font-normal text-right">Fiyat</th>
-                    <th className="px-2 py-1 border-r border-gray-300 font-normal text-right">Tutar</th>
-                    <th className="px-2 py-1 border-gray-300 font-normal text-right">Kdv</th>
+                    <th className="w-6 p-1" />
+                    <th className="p-1 text-left font-medium">Kod</th>
+                    <th className="p-1 text-left font-medium">Ürün</th>
+                    <th className="p-1 text-right font-medium">Miktar</th>
+                    <th className="p-1 text-right font-medium">Fiyat</th>
+                    <th className="p-1 text-right font-medium">Tutar</th>
+                    <th className="p-1 text-right font-medium">KDV</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {cart.map((item, idx) => (
-                    <tr key={item.cartId} className="border-b border-gray-200 bg-white hover:bg-blue-50 group">
-                      <td className="px-2 py-1 border-r border-gray-300">
-                        <button title="Satır Sil" aria-label="Satır Sil" onClick={() => removeRow(item.cartId)} className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100"><X className="w-3 h-3"/></button>
-                      </td>
-                      <td className="px-2 py-1 border-r border-gray-300">{item.code}</td>
-                      <td className="px-2 py-1 border-r border-gray-300 truncate max-w-[200px]">{item.name}</td>
-                      <td className="px-2 py-1 border-r border-gray-300 text-right">{item.quantity}</td>
-                      <td className="px-2 py-1 border-r border-gray-300">{item.unit}</td>
-                      <td className="px-2 py-1 border-r border-gray-300 text-right">{item.salePrice.toFixed(2)}</td>
-                      <td className="px-2 py-1 border-r border-gray-300 text-right">{(item.salePrice * item.quantity).toFixed(2)}</td>
-                      <td className="px-2 py-1 text-right">{item.vatRate}</td>
-                    </tr>
-                  ))}
+                  {cart.map((item) => {
+                    const t = lineTotal(item);
+                    return (
+                      <tr key={item.cartId} className="border-b border-gray-50 hover:bg-[#FBF8FF] group">
+                        <td className="p-1">
+                          <button
+                            type="button"
+                            title="Sil"
+                            onClick={() => removeRow(item.cartId)}
+                            className="text-red-400 opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </td>
+                        <td className="p-1 text-gray-500">{item.code}</td>
+                        <td className="p-1 max-w-[140px] truncate">{item.name}</td>
+                        <td className="p-1 text-right">
+                          {item.quantity} {item.unit}
+                        </td>
+                        <td className="p-1 text-right">{item.salePrice.toFixed(2)}</td>
+                        <td className="p-1 text-right font-medium">{t.gross.toFixed(2)}</td>
+                        <td className="p-1 text-right text-gray-500">%{item.vatRate}</td>
+                      </tr>
+                    );
+                  })}
                   {cart.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="p-4 text-center text-gray-400">Sepet boş. Hızlı tuşlardan ürün ekleyin veya barkod okutun.</td>
+                      <td colSpan={7} className="p-8 text-center text-gray-400 text-xs">
+                        Sepet boş. Barkod okutun veya sağdaki hızlı tuşlardan ürün ekleyin.
+                      </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
 
-            {/* Bottom Summary Area */}
-            <div className="mt-2 flex gap-4 h-24">
-              <div className="flex-1 flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-600 w-16">İndirim %</label>
-                  <input type="number" title="İndirim Yüzde" placeholder="%" defaultValue="0" className="w-16 border border-gray-300 px-2 py-1 text-xs text-right rounded-sm" />
-                  <label className="text-xs text-gray-600 ml-2">Satış Elemanı</label>
-                  <select title="Satış Elemanı" className="flex-1 border border-gray-300 px-2 py-1 text-xs rounded-sm">
-                    <option>Term1</option>
-                  </select>
+            <div className="flex gap-4 items-end">
+              <div className="flex-1 space-y-2">
+                <div className="flex gap-2 items-center">
+                  <label className="text-xs text-gray-500 w-20">İndirim %</label>
+                  <input
+                    type="number"
+                    value={discountPct}
+                    onChange={(e) => setDiscountPct(Number(e.target.value) || 0)}
+                    className="w-20 border border-[#EFEDF4] rounded-lg px-2 py-1 text-xs text-right"
+                    min={0}
+                    max={100}
+                  />
+                  <label className="text-xs text-gray-500 ml-2">İndirim ₺</label>
+                  <input
+                    type="number"
+                    value={discountTl}
+                    onChange={(e) => setDiscountTl(Number(e.target.value) || 0)}
+                    className="w-24 border border-[#EFEDF4] rounded-lg px-2 py-1 text-xs text-right"
+                    min={0}
+                  />
                 </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-600 w-16">İndirim TL</label>
-                  <input type="number" title="İndirim TL" placeholder="TL" defaultValue="0" className="w-16 border border-gray-300 px-2 py-1 text-xs text-right rounded-sm" />
-                </div>
-                
-                {/* Action Buttons */}
-                <div className="flex gap-2 mt-auto">
-                  <button onClick={() => completeSale('Perakende Fatura')} className="flex-1 bg-gray-100 hover:bg-gray-200 border border-gray-300 font-bold py-2 text-xs rounded-sm shadow-sm transition-colors active:bg-gray-300">Perakende Fatura</button>
-                  <button onClick={() => completeSale('Toptan Fatura')} className="flex-1 bg-gray-100 hover:bg-gray-200 border border-gray-300 font-bold py-2 text-xs rounded-sm shadow-sm transition-colors active:bg-gray-300">Toptan Fatura</button>
-                  <button onClick={() => completeSale('İrsaliye')} className="flex-1 bg-gray-100 hover:bg-gray-200 border border-gray-300 font-bold py-2 text-xs rounded-sm shadow-sm transition-colors active:bg-gray-300">İrsaliye</button>
+                <div className="flex gap-2">
+                  {(['Perakende Fatura', 'Toptan Fatura', 'İrsaliye'] as const).map((label) => (
+                    <button
+                      key={label}
+                      type="button"
+                      disabled={checkoutLoading}
+                      onClick={() => completeSale(label)}
+                      className="flex-1 py-2.5 text-xs font-semibold rounded-lg border border-[#EFEDF4] hover:bg-[#E0E0FF] hover:border-[#606BDF] disabled:opacity-50 transition-colors"
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
               </div>
-
-              {/* Totals Box */}
-              <div className="w-48 flex flex-col items-end justify-between">
-                <div className="w-full">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-gray-700">Toplam</span>
-                    <span className="font-bold">{totals.subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-gray-700">Kdv</span>
-                    <span className="font-bold">{totals.vat.toFixed(2)}</span>
-                  </div>
+              <div className="w-44 text-right space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">Ara Toplam</span>
+                  <span>{totals.subtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between items-end w-full">
-                  <span className="text-xs font-bold text-gray-700 mb-1">G.Toplam</span>
-                  <span className="text-4xl font-bold text-red-600 tracking-tighter">{totals.grandTotal.toFixed(2)}</span>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">KDV</span>
+                  <span>{totals.vat.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-end pt-1 border-t border-[#EFEDF4]">
+                  <span className="text-xs font-semibold">Genel Toplam</span>
+                  <span className="text-2xl font-bold text-[#606BDF]">
+                    {totals.grandTotal.toFixed(2)}
+                  </span>
                 </div>
               </div>
             </div>
-            
           </div>
         </div>
 
-        {/* RIGHT PANEL: Quick Keys */}
-        <div className="flex-[0.4] flex flex-col gap-1 border border-blue-200 bg-white rounded shadow-sm overflow-hidden">
-          <div className="bg-[#E8F0F8] border-b border-blue-200 px-2 py-1 text-xs font-bold text-blue-900">
-            Hızlı Tuşlar
+        {/* Sağ: Hızlı tuşlar */}
+        <div className="flex-[0.42] flex flex-col card border border-[#EFEDF4] overflow-hidden min-w-0">
+          <div className="px-3 py-2 border-b border-[#EFEDF4] bg-[#FBF8FF] font-semibold text-[#3944B8] text-xs flex justify-between">
+            <span>Hızlı Tuşlar — Stoktan</span>
+            {loadingGrid && <span className="text-gray-400 font-normal">Yükleniyor…</span>}
           </div>
-          
-          <div className="flex flex-col h-full p-2 gap-2">
-            
-            {/* Categories Grid (Top half) */}
-            <div className="grid grid-cols-4 gap-1 h-32">
-              {categories.map((cat, i) => (
-                <button 
-                  key={cat} 
-                  onClick={() => setActiveCategory(cat)}
-                  className={`border p-1 text-[10px] font-bold text-center leading-tight transition-colors break-words rounded-sm
-                    ${activeCategory === cat ? 'bg-blue-100 border-blue-400 text-blue-900 shadow-inner' : 'bg-[#F4F6F9] hover:bg-gray-200 border-gray-300 text-gray-700 shadow-sm'}
-                  `}
+          <div className="p-2 flex flex-col h-full gap-2 min-h-0">
+            <div className="grid grid-cols-4 gap-1.5 max-h-28 overflow-y-auto">
+              <button
+                type="button"
+                onClick={() => setActiveCategoryId(null)}
+                className={`p-2 text-[10px] font-semibold rounded-lg border transition-colors ${
+                  !activeCategoryId
+                    ? 'bg-[#E0E0FF] border-[#606BDF] text-[#3944B8]'
+                    : 'border-[#EFEDF4] hover:bg-gray-50'
+                }`}
+              >
+                Tümü
+              </button>
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setActiveCategoryId(cat.id)}
+                  className={`p-2 text-[10px] font-semibold rounded-lg border transition-colors line-clamp-2 ${
+                    activeCategoryId === cat.id
+                      ? 'bg-[#E0E0FF] border-[#606BDF] text-[#3944B8]'
+                      : 'border-[#EFEDF4] hover:bg-gray-50'
+                  }`}
                 >
-                  {cat}
+                  {cat.name}
                 </button>
               ))}
-              {Array.from({ length: 12 - categories.length }).map((_, i) => (
-                <button key={`empty-c-${i}`} title="Boş Kategori" aria-label="Boş" className="border border-gray-200 bg-gray-50/50 rounded-sm" disabled></button>
-              ))}
             </div>
-
-            <div className="h-px bg-gray-300 w-full my-1"></div>
-
-            {/* Items Grid (Bottom half) */}
-            <div className="flex-1 grid grid-cols-4 gap-1 auto-rows-fr">
-              {quickItems.map((item) => (
-                <button 
-                  key={item.id} 
+            <div className="flex-1 grid grid-cols-3 sm:grid-cols-4 gap-1.5 overflow-y-auto auto-rows-min content-start min-h-0">
+              {gridProducts.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
                   onClick={() => addToCart(item)}
-                  className="bg-[#F4F6F9] hover:bg-blue-50 active:bg-blue-100 border border-gray-300 p-1 text-[9px] font-medium text-center flex flex-col items-center justify-center leading-tight shadow-sm rounded-sm transition-colors"
+                  className="min-h-[72px] p-2 rounded-lg border border-[#EFEDF4] bg-white hover:border-[#606BDF] hover:bg-[#FBF8FF] active:scale-[0.98] transition-all text-left flex flex-col justify-between"
                 >
-                  <span className="break-words line-clamp-3">{item.name}</span>
+                  <span className="text-[10px] font-medium line-clamp-3 leading-tight">{item.name}</span>
+                  <span className="text-[10px] text-[#606BDF] font-bold mt-1">
+                    {item.salePrice.toFixed(2)} ₺
+                  </span>
                 </button>
               ))}
-              {Array.from({ length: 24 - quickItems.length }).map((_, i) => (
-                <button key={`empty-i-${i}`} title="Boş Ürün" aria-label="Boş" className="border border-gray-200 bg-gray-50/50 rounded-sm" disabled></button>
-              ))}
+              {!loadingGrid && gridProducts.length === 0 && (
+                <div className="col-span-full p-6 text-center text-xs text-gray-400">
+                  Bu kategoride stoklu ürün yok. Stok modülünden ürün ekleyin.
+                </div>
+              )}
             </div>
-
           </div>
         </div>
-
       </div>
-      
-      {/* Footer Status Bar */}
-      <div className="bg-[#E4ECF4] border-t border-gray-300 px-4 py-0.5 flex items-center justify-between text-[10px] text-gray-600 h-5">
-        <div className="flex gap-4">
-          <span>Online</span>
-          <span className="font-bold">LOGO</span>
+
+      {/* Askıdakiler modal */}
+      {showHeld && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="modal-card max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-[#EFEDF4]">
+              <h3 className="font-semibold">Askıdaki Satışlar</h3>
+              <button type="button" onClick={() => setShowHeld(false)}>
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-2">
+              {heldSales.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-8">Askıda satış yok</p>
+              ) : (
+                heldSales.map((h) => (
+                  <button
+                    key={h.id}
+                    type="button"
+                    onClick={() => restoreHeld(h)}
+                    className="w-full text-left p-3 rounded-lg hover:bg-[#FBF8FF] border border-transparent hover:border-[#EFEDF4] mb-1"
+                  >
+                    <div className="font-medium text-sm">{h.contactName}</div>
+                    <div className="text-xs text-gray-500">
+                      {h.cart.length} kalem ·{' '}
+                      {new Date(h.timestamp).toLocaleString('tr-TR')}
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
         </div>
-        <div>
-          {new Date().toLocaleDateString('tr-TR')} {new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+      )}
+
+      {/* Footer */}
+      <div className="bg-white border-t border-[#EFEDF4] px-4 py-1 flex items-center justify-between text-[10px] text-gray-500 h-6">
+        <div className="flex items-center gap-2">
+          {online ? (
+            <span className="flex items-center gap-1 text-emerald-600">
+              <Wifi className="w-3 h-3" /> Bağlı
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-red-500">
+              <WifiOff className="w-3 h-3" /> Bağlantı sorunu
+            </span>
+          )}
+          <span className="font-medium text-[#606BDF]">SmartNexus</span>
+          <span>· {user?.name}</span>
         </div>
+        <span>{clock}</span>
       </div>
     </div>
   );

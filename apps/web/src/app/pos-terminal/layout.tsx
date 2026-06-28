@@ -6,9 +6,8 @@ export const metadata: Metadata = {
 };
 
 export default function POSTerminalLayout({ children }: { children: React.ReactNode }) {
-  // No sidebar, no topbar, full screen container.
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#FBF8FF] flex flex-col font-sans text-[#1B1B1F]">
       {children}
     </div>
   );
