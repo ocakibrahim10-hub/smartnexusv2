@@ -575,6 +575,15 @@ export default function POSPage() {
                     disabled={!hasStock}
                     className={`relative bg-white border border-gray-200/60 rounded-2xl p-3 text-left transition-all duration-300 group flex flex-col h-full ${hasStock ? 'hover:border-brand-400 hover:shadow-lg hover:shadow-brand-500/5 active:scale-95' : 'opacity-60 cursor-not-allowed grayscale'}`}
                   >
+                    <span
+                      className={`absolute top-2 right-2 z-10 text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${
+                        hasStock
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-red-50 text-red-600 border-red-100'
+                      }`}
+                    >
+                      {hasStock ? `${stock} ${saleUnit}` : '0'}
+                    </span>
                     <div className="relative w-full aspect-square mb-3 bg-gray-50 rounded-xl overflow-hidden">
                       <ProductImage
                         src={p.imageUrl}
@@ -600,9 +609,6 @@ export default function POSPage() {
                     <div className="mt-3 flex items-end justify-between pt-2 border-t border-gray-50">
                       <span className="text-sm font-black text-gray-900 group-hover:text-brand-600 transition-colors">
                         ₺{(p.salePrice || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                      </span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${hasStock ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
-                        {hasStock ? `${stock} ${saleUnit}` : '0'}
                       </span>
                     </div>
                   </button>

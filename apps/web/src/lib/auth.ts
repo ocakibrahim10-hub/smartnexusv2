@@ -5,6 +5,7 @@ export interface AuthUser {
   role: string;
   permissions: string[];
   tenantId: string;
+  tenantCode?: string;
   tenantType: 'SUPERADMIN' | 'DEALER' | 'BUSINESS' | 'BRANCH';
   tenantName: string;
   tenantPlan: string;
@@ -44,6 +45,9 @@ export function clearSession() {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('panel');
+  if (typeof window !== 'undefined') {
+    sessionStorage.removeItem('smartnexus_pos_terminal_session');
+  }
 }
 
 export function isAuthenticated(): boolean {

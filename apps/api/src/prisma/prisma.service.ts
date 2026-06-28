@@ -155,19 +155,26 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
       await this.user.upsert({
         where: { email: 'isletme@demo.com' },
-        update: { password: demoHash, isActive: true, tenantId: business.id, role: 'OWNER' },
+        update: {
+          password: demoHash,
+          isActive: true,
+          tenantId: business.id,
+          role: 'OWNER',
+          posPin: '1234',
+        },
         create: {
           tenantId: business.id,
           email: 'isletme@demo.com',
           password: demoHash,
           name: 'Demo Yönetici',
           role: 'OWNER',
+          posPin: '1234',
           isActive: true,
         },
       });
 
       const phoneDemoUsers = [
-        { email: 'kasiyer@demo.com', phone: '5321234567', name: 'Demo Kasiyer', role: 'CASHIER' },
+        { email: 'kasiyer@demo.com', phone: '5321234567', name: 'Demo Kasiyer', role: 'CASHIER', posPin: '1234' },
         { email: 'depo@demo.com', phone: '5321234568', name: 'Demo Depo', role: 'WAREHOUSE' },
         { email: 'sofor@demo.com', phone: '5321234569', name: 'Demo Şoför', role: 'DRIVER' },
         { email: 'personel@demo.com', phone: '5321234570', name: 'Demo Personel', role: 'STAFF' },
@@ -182,6 +189,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
             tenantId: business.id,
             phone: u.phone,
             role: u.role as any,
+            posPin: (u as any).posPin || null,
           },
           create: {
             tenantId: business.id,
@@ -190,6 +198,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
             password: demoHash,
             name: u.name,
             role: u.role as any,
+            posPin: (u as any).posPin || null,
             isActive: true,
           },
         });

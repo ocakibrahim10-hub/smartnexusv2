@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useState, useMemo, useEffect } from 'react';
 import {
   LayoutDashboard,
@@ -202,7 +203,7 @@ const isletmeNav: NavItem[] = [
         label: 'Raporlar',
         icon: PieChart,
         children: [
-          { label: 'Yapay Zeka (AI) Tahmin', icon: Brain, href: '/inventory/forecasting', module: 'INVENTORY.FORECASTING' }
+          { label: 'Yapay Zeka (AI) Tahmin', icon: Brain, href: '/inventory/forecasting', module: 'INVENTORY.AI_FORECAST' }
         ]
       }
     ],
@@ -518,14 +519,12 @@ export default function PanelSidebar({
     toggleGroup(currentPathStr, parentPathStr);
   };
 
-  const handleLeafClick = (href: string) => {
+  const handleLeafNavigate = () => {
     setCollapsedFlyout(null);
-    if (typeof window !== 'undefined') {
-      window.location.href = href;
-    }
   };
 
-  const isActive = (href?: string) => Boolean(href && pathname === href);
+  const isActive = (href?: string) =>
+    Boolean(href && (pathname === href || pathname.startsWith(`${href}/`)));
   
   // Render Item (Recursive)
   const renderItem = (item: NavItem, depth: number = 0, pathStr: string = '') => {
@@ -537,16 +536,16 @@ export default function PanelSidebar({
       const isShortcut = item.href ? hasShortcut(item.href) : false;
       return (
         <div key={currentPathStr} className="group relative flex items-center pr-2">
-          <button
-            type="button"
+          <Link
+            href={item.href!}
+            onClick={handleLeafNavigate}
             title={collapsed ? item.label : undefined}
-            onClick={() => item.href && handleLeafClick(item.href)}
             className={`sidebar-item w-full flex items-center py-2 transition-colors hover:bg-gray-100 ${active ? 'active bg-[#E0E0FF] text-[#3944B8] rounded-md font-medium' : 'text-gray-600'} ${collapsed ? 'justify-center px-2' : ''}`}
             style={collapsed ? undefined : { paddingLeft: `${depth * 1 + 1}rem` }}
           >
             <item.icon className={`w-4 h-4 flex-shrink-0 ${collapsed ? '' : 'mr-3'}`} />
             {!collapsed && <span className="flex-1 text-left truncate text-[13px]">{item.label}</span>}
-          </button>
+          </Link>
           
           {!collapsed && item.href && (
             <button
@@ -685,17 +684,19 @@ export default function PanelSidebar({
               {collapsedFlyout.title}
             </div>
             {collapsedFlyout.items.map((leaf) => (
-              <button
+              <Link
                 key={leaf.href}
-                type="button"
-                onClick={() => handleLeafClick(leaf.href)}
+                href={leaf.href}
+                onClick={handleLeafNavigate}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-[#FBF8FF] transition-colors ${
-                  pathname === leaf.href ? 'bg-[#E0E0FF] text-[#3944B8] font-medium' : 'text-gray-700'
+                  pathname === leaf.href || pathname.startsWith(`${leaf.href}/`)
+                    ? 'bg-[#E0E0FF] text-[#3944B8] font-medium'
+                    : 'text-gray-700'
                 }`}
               >
                 <leaf.icon className="w-4 h-4 flex-shrink-0 text-gray-500" />
                 <span className="truncate">{leaf.label}</span>
-              </button>
+              </Link>
             ))}
           </div>
         </>

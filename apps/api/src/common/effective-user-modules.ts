@@ -24,7 +24,8 @@ export function buildAuthUserPayload(user: {
   tenantId: string;
   avatarUrl?: string | null;
   tenant: TenantLike & { 
-    name: string; 
+    name: string;
+    code?: string | null;
     type: string; 
     plan: string;
     subscription?: { endDate: Date } | null;
@@ -39,6 +40,7 @@ export function buildAuthUserPayload(user: {
     role: user.role,
     permissions: user.permissions ?? [],
     tenantId: user.tenantId,
+    tenantCode: user.tenant.code ?? undefined,
     tenantType: user.tenant.type,
     tenantName: user.tenant.name,
     tenantPlan: user.tenant.plan,

@@ -4,19 +4,31 @@ import { useState, useEffect } from 'react';
 import { toast } from '@/lib/toast';
 import { api } from '@/lib/api';
 import { setSession, clearSession, isAuthenticated, getUser } from '@/lib/auth';
+import {
+  isPosTerminalAuthed,
+  setPosTerminalAuthed,
+  clearPosTerminalAuth,
+} from '@/lib/pos-terminal-auth';
 import { TerminalUI } from './TerminalUI';
 
 export default function POSTerminalPage() {
-  const [tenantId, setTenantId] = useState('');
+  const [tenantCode, setTenantCode] = useState('');
   const [pin, setPin] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
 
   useEffect(() => {
-    if (isAuthenticated()) {
-      const user = getUser();
-      if (user?.tenantId) setTenantId(user.tenantId);
+    const fromUrl =
+      typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('tenant')
+        : null;
+    const user = getUser();
+    const preset = fromUrl || user?.tenantCode || '';
+    if (preset) setTenantCode(preset);
+
+    // Panel oturumu tek başına yetmez — POS PIN şart
+    if (isPosTerminalAuthed() && isAuthenticated()) {
       setIsLoggedIn(true);
     }
     setBooting(false);
@@ -24,18 +36,22 @@ export default function POSTerminalPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tenantId || !pin) {
+    if (!tenantCode.trim() || !pin) {
       toast.error('Firma kodu ve PIN giriniz.');
       return;
     }
     setLoading(true);
     try {
-      const res = await api.post('/auth/login-pos', { tenantId, posPin: pin });
+      const res = await api.post('/auth/login-pos', {
+        tenantId: tenantCode.trim(),
+        posPin: pin,
+      });
       setSession({
         user: res.data.user,
         accessToken: res.data.accessToken,
         refreshToken: res.data.refreshToken,
       });
+      setPosTerminalAuthed();
       setIsLoggedIn(true);
       toast.success('POS oturumu açıldı');
     } catch (err: unknown) {
@@ -43,13 +59,14 @@ export default function POSTerminalPage() {
         err && typeof err === 'object' && 'response' in err
           ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
           : undefined;
-      toast.error(msg || 'Giriş başarısız');
+      toast.error(msg || 'Giriş başarısız — firma kodu veya PIN hatalı');
     } finally {
       setLoading(false);
     }
   };
 
   const handleLogout = () => {
+    clearPosTerminalAuth();
     clearSession();
     setIsLoggedIn(false);
     setPin('');
@@ -67,6 +84,8 @@ export default function POSTerminalPage() {
     return <TerminalUI onLogout={handleLogout} />;
   }
 
+  const user = getUser();
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#FBF8FF] p-4">
       <div className="card max-w-sm w-full p-8 shadow-lg border border-[#EFEDF4]">
@@ -75,17 +94,22 @@ export default function POSTerminalPage() {
             SN
           </div>
           <h1 className="text-xl font-bold text-[#1B1B1F]">POS Terminali</h1>
-          <p className="text-gray-500 text-sm mt-1">SmartNexus hızlı satış girişi</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {user?.tenantName
+              ? `${user.tenantName} — kasiyer PIN girişi`
+              : 'SmartNexus hızlı satış girişi'}
+          </p>
         </div>
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Firma Kodu</label>
             <input
               type="text"
-              value={tenantId}
-              onChange={(e) => setTenantId(e.target.value)}
+              value={tenantCode}
+              onChange={(e) => setTenantCode(e.target.value)}
               className="w-full border border-[#EFEDF4] rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#606BDF]/30 focus:border-[#606BDF] outline-none"
-              placeholder="Tenant ID"
+              placeholder="örn. IST-TM001 veya tech"
+              autoComplete="off"
             />
           </div>
           <div>
@@ -97,6 +121,7 @@ export default function POSTerminalPage() {
               className="w-full border border-[#EFEDF4] rounded-lg px-4 py-2.5 text-center tracking-[0.4em] text-xl focus:ring-2 focus:ring-[#606BDF]/30 outline-none"
               placeholder="••••"
               maxLength={6}
+              inputMode="numeric"
             />
           </div>
           <div className="grid grid-cols-3 gap-2">
@@ -134,12 +159,15 @@ export default function POSTerminalPage() {
           </div>
           <button
             type="submit"
-            disabled={loading || !tenantId || !pin}
+            disabled={loading || !tenantCode.trim() || !pin}
             className="w-full mt-2 bg-[#606BDF] hover:opacity-90 text-white font-semibold py-3 rounded-xl disabled:opacity-50"
           >
             {loading ? 'Giriş yapılıyor…' : 'POS\'u Aç'}
           </button>
         </form>
+        <p className="text-[11px] text-gray-400 text-center mt-4">
+          Demo: firma <strong>IST-TM001</strong> veya <strong>tech</strong>, PIN <strong>1234</strong>
+        </p>
       </div>
     </div>
   );

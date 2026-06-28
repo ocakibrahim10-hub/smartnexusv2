@@ -48,7 +48,11 @@ export default function TopBar({ title, subtitle, collapsed, onToggleSidebar }: 
         <KontorStatsStrip />
         <button
           type="button"
-          onClick={() => window.open('/pos-terminal', 'posWindow', 'width=1024,height=768')}
+          onClick={() => {
+            const code = user?.tenantCode;
+            const q = code ? `?tenant=${encodeURIComponent(code)}` : '';
+            window.open(`/pos-terminal${q}`, 'posWindow', 'width=1280,height=800');
+          }}
           className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-sm font-semibold transition-colors mr-2 shadow-sm"
         >
           <Monitor className="w-4 h-4" />

@@ -255,7 +255,18 @@ for (const group of MODULE_CATALOG) {
     if (child.route) ROUTE_MODULE_MAP[child.route] = child.id;
   }
 }
-ROUTE_MODULE_MAP['/admin/commission'] = 'DEALER.COMMISSION';
+ROUTE_MODULE_MAP['/pos'] = 'POS.MAIN';
+ROUTE_MODULE_MAP['/inventory/forecasting'] = 'INVENTORY.AI_FORECAST';
+ROUTE_MODULE_MAP['/wms/scanner'] = 'WMS.SCANNER';
+ROUTE_MODULE_MAP['/wms/locations'] = 'WMS.LOCATIONS';
+ROUTE_MODULE_MAP['/wms/picking'] = 'WMS.PICKING';
+ROUTE_MODULE_MAP['/mrp/boms'] = 'MRP.BOM';
+ROUTE_MODULE_MAP['/mrp/work-orders'] = 'MRP.WORK_ORDERS';
+ROUTE_MODULE_MAP['/hr/personnel'] = 'HR.LEAVES';
+ROUTE_MODULE_MAP['/hr/payroll'] = 'HR.PAYROLL';
+ROUTE_MODULE_MAP['/hr/leaves'] = 'HR.LEAVES';
+ROUTE_MODULE_MAP['/crm/leads'] = 'CRM.LEADS';
+ROUTE_MODULE_MAP['/crm/pipeline'] = 'CRM.PIPELINE';
 ROUTE_MODULE_MAP['/accounting/purchases'] = 'ACCOUNTING.INVOICES';
 ROUTE_MODULE_MAP['/accounting/checks'] = 'ACCOUNTING.CASH';
 ROUTE_MODULE_MAP['/dealers'] = 'DEALER.BUSINESSES';

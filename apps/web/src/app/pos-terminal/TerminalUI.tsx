@@ -689,9 +689,18 @@ export function TerminalUI({ onLogout }: TerminalUIProps) {
                   key={item.id}
                   type="button"
                   onClick={() => addToCart(item)}
-                  className="min-h-[72px] p-2 rounded-lg border border-[#EFEDF4] bg-white hover:border-[#606BDF] hover:bg-[#FBF8FF] active:scale-[0.98] transition-all text-left flex flex-col justify-between"
+                  className="relative min-h-[72px] p-2 rounded-lg border border-[#EFEDF4] bg-white hover:border-[#606BDF] hover:bg-[#FBF8FF] active:scale-[0.98] transition-all text-left flex flex-col justify-between"
                 >
-                  <span className="text-[10px] font-medium line-clamp-3 leading-tight">{item.name}</span>
+                  <span
+                    className={`absolute top-1 right-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${
+                      item.stock > 0
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-red-50 text-red-600 border-red-100'
+                    }`}
+                  >
+                    {item.stock} {item.saleUnit || item.unit}
+                  </span>
+                  <span className="text-[10px] font-medium line-clamp-3 leading-tight pr-10">{item.name}</span>
                   <span className="text-[10px] text-[#606BDF] font-bold mt-1">
                     {item.salePrice.toFixed(2)} ₺
                   </span>
