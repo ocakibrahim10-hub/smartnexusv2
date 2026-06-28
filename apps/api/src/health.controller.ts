@@ -18,7 +18,11 @@ export class HealthController {
   async fixDemo() {
     try {
       await this.prisma.ensureCoreDemoAccounts();
-      return { success: true, message: 'Demo hesaplar güncellendi (admin, bayi, isletme — şifre: 123456)' };
+      return {
+        success: true,
+        message:
+          'Demo hesaplar, stok, cari ve POS ürünleri güncellendi (admin/bayi/isletme — şifre: 123456)',
+      };
     } catch (e: any) {
       return { success: false, error: e.message };
     }

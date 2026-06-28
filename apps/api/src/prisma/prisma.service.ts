@@ -6,6 +6,7 @@ import {
   DEALER_DEFAULT_MODULES,
   PLATINUM_BUSINESS_MODULES,
 } from '../common/module-catalog';
+import { ensureBusinessDemoData } from './ensure-business-demo-data';
 
 const DEMO_PASSWORD = '123456';
 
@@ -117,11 +118,19 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       });
 
       const business = await this.tenant.upsert({
-        where: { code: 'demo' },
-        update: { isActive: true, parentId: dealer.id, plan: 'PLATINUM' },
+        where: { id: 'ten-b1' },
+        update: {
+          isActive: true,
+          parentId: dealer.id,
+          plan: 'PLATINUM',
+          code: 'IST-TM001',
+          email: 'isletme@demo.com',
+          name: 'Teknoloji Market A.Ş.',
+        },
         create: {
-          code: 'demo',
-          name: 'Demo İşletme',
+          id: 'ten-b1',
+          code: 'IST-TM001',
+          name: 'Teknoloji Market A.Ş.',
           type: 'BUSINESS',
           plan: 'PLATINUM',
           email: 'isletme@demo.com',
@@ -187,32 +196,50 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       }
 
       const tech = await this.tenant.upsert({
-        where: { code: 'tech' },
-        update: { isActive: true },
+        where: { id: 'ten-tech-pos' },
+        update: { isActive: true, code: 'tech', name: 'Tech POS İşletmesi' },
         create: {
+          id: 'ten-tech-pos',
           code: 'tech',
           name: 'Tech POS İşletmesi',
           type: 'BUSINESS',
-          plan: 'BASIC',
+          plan: 'PLATINUM',
           isActive: true,
+        },
+      });
+
+      await this.subscription.upsert({
+        where: { tenantId: tech.id },
+        update: { endDate, modules: PLATINUM_BUSINESS_MODULES, plan: 'PLATINUM' },
+        create: {
+          tenantId: tech.id,
+          plan: 'PLATINUM',
+          startDate: new Date(),
+          endDate,
+          autoRenew: true,
+          price: 0,
+          modules: PLATINUM_BUSINESS_MODULES,
         },
       });
 
       await this.user.upsert({
         where: { email: 'pos@tech.com' },
-        update: { password: demoHash, isActive: true, tenantId: tech.id },
+        update: { password: demoHash, isActive: true, tenantId: tech.id, posPin: '1234' },
         create: {
           tenantId: tech.id,
           email: 'pos@tech.com',
           password: demoHash,
           name: 'Tech POS Kasiyer',
-          role: 'STAFF',
+          role: 'CASHIER',
           posPin: '1234',
           isActive: true,
         },
       });
 
-      this.logger.log('Core demo accounts ensured (admin, bayi, isletme).');
+      await ensureBusinessDemoData(this, business.id);
+      await ensureBusinessDemoData(this, tech.id);
+
+      this.logger.log('Core demo accounts + işletme stok/cari verisi hazır.');
     } catch (e) {
       this.logger.error('Failed to ensure core demo accounts', e);
     }

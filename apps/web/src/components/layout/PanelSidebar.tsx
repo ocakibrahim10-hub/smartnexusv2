@@ -520,7 +520,9 @@ export default function PanelSidebar({
 
   const handleLeafClick = (href: string) => {
     setCollapsedFlyout(null);
-    router.push(href);
+    if (typeof window !== 'undefined') {
+      window.location.href = href;
+    }
   };
 
   const isActive = (href?: string) => Boolean(href && pathname === href);

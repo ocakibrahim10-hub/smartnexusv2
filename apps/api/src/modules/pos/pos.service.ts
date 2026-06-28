@@ -113,13 +113,13 @@ export class POSService {
           /* keep base */
         }
         return { ...p, baseStock, saleStock, saleUnit };
-      })
-      .filter((p) => p.baseStock > 0);
+      });
   }
 
   async getCategories(tenantId: string) {
     return this.prisma.productCategory.findMany({
-      where: { products: { some: { tenantId, isActive: true } } },
+      where: { tenantId },
+      orderBy: { name: 'asc' },
     });
   }
 
