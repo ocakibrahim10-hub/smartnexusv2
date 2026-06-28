@@ -252,7 +252,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   /** İşletme demo stok/cari — fix-demo endpoint'inden ayrıca çağrılır */
   async seedDemoBusinessData() {
     const b1 = await ensureBusinessDemoData(this, 'ten-b1');
-    const tech = await ensureBusinessDemoData(this, 'ten-tech-pos');
+    const techTenant = await this.tenant.findFirst({
+      where: { code: 'tech', type: 'BUSINESS', isActive: true },
+    });
+    const tech = techTenant ? await ensureBusinessDemoData(this, techTenant.id) : null;
     return { tenB1: b1, tech };
   }
 }
